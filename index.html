@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElecSim Studio Pro v2026.05.06 - 电工电路仿真与工作原理可视化</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg-dark:#0d1117;--bg-panel:#161b22;--bg-card:#1c2333;--bg-input:#0d1117;
+  --border:#30363d;--border-light:#3d444d;
+  --text:#e6edf3;--text-dim:#8b949e;--text-muted:#484f58;
+  --accent:#58a6ff;--accent-glow:rgba(88,166,255,0.3);
+  --green:#3fb950;--yellow:#d29922;--red:#f85149;--purple:#bc8cff;
+  --cyan:#39d2c0;--orange:#f0883e;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --font-mono:'Cascadia Code','Fira Code',monospace;
+}
+html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--bg-dark);color:var(--text);}
+
+/* ===== Layout ===== */
+.app{display:flex;flex-direction:column;height:100vh;}
+.toolbar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-panel);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;}
+.toolbar .brand{font-size:13px;font-weight:700;color:var(--accent);margin-right:12px;white-space:nowrap;}
+.toolbar .brand span{color:var(--text-dim);font-weight:400;font-size:11px;margin-left:4px;}
+.tbtn{padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-dim);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s;}
+.tbtn:hover{border-color:var(--accent);color:var(--text);background:#1c2a3a;}
+.tbtn.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.1);}
+.tbtn.run{border-color:var(--green);color:var(--green);}
+.tbtn.run:hover{background:rgba(63,185,80,.1);}
+.tbtn.run.running{background:var(--green);color:#fff;animation:pulse 1.5s infinite;}
+.tbtn.export-btn{border-color:var(--purple);color:var(--purple);}
+.tbtn.export-btn:hover{background:rgba(188,140,255,.1);}
+.tbtn.custom-btn{border-color:var(--cyan);color:var(--cyan);}
+.tbtn.custom-btn:hover{background:rgba(57,210,192,.1);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.7;}}
+.sep{width:1px;height:24px;background:var(--border);margin:0 4px;}
+
+.main{display:flex;flex:1;overflow:hidden;}
+.sidebar-left{width:220px;background:var(--bg-panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.sidebar-right{width:260px;background:var(--bg-panel);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.canvas-area{flex:1;position:relative;overflow:hidden;background:var(--bg-dark);}
+
+/* ===== Left Sidebar: Components ===== */
+.comp-header{padding:10px 12px 6px;font-size:11px;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;font-weight:600;}
+.comp-list{padding:4px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;flex:1;}
+.comp-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:grab;font-size:12px;color:var(--text-dim);transition:all .12s;border:1px solid transparent;}
+.comp-item:hover{background:var(--bg-card);color:var(--text);border-color:var(--border);}
+.comp-item:active{cursor:grabbing;}
+.comp-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--bg-dark);border-radius:6px;font-size:18px;flex-shrink:0;}
+.comp-info{display:flex;flex-direction:column;gap:1px;}
+.comp-name{font-weight:500;font-size:12px;}
+.comp-desc{font-size:10px;color:var(--text-muted);}
+.comp-cat{padding:8px 12px 4px;font-size:10px;color:var(--accent);font-weight:600;letter-spacing:.5px;}
+
+/* ===== Canvas ===== */
+#canvas{width:100%;height:100%;cursor:crosshair;}
+.canvas-overlay{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:5px 14px;background:rgba(22,27,34,.92);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--text-dim);z-index:5;backdrop-filter:blur(8px);}
+.canvas-overlay button{background:none;border:none;color:var(--red);cursor:pointer;font-size:11px;padding:2px 6px;border-radius:4px;}
+.canvas-overlay button:hover{background:rgba(248,81,73,.15);}
+.zoom-info{position:absolute;bottom:8px;right:12px;font-size:10px;color:var(--text-muted);z-index:5;}
+.status-bar{display:flex;align-items:center;gap:12px;padding:4px 12px;background:var(--bg-panel);border-top:1px solid var(--border);font-size:10px;color:var(--text-muted);flex-shrink:0;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;}
+
+/* ===== Right Sidebar ===== */
+.panel-section{padding:12px;border-bottom:1px solid var(--border);}
+.panel-title{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.panel-title .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.panel-title .dot.green{background:var(--green);}
+.panel-title .dot.yellow{background:var(--yellow);}
+.panel-title .dot.red{background:var(--red);}
+.panel-title .dot.blue{background:var(--accent);}
+.sim-value{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12px;}
+.sim-value .label{color:var(--text-dim);}
+.sim-value .val{font-family:var(--font-mono);font-weight:600;color:var(--accent);}
+.sim-value .val.green{color:var(--green);}
+.sim-value .val.yellow{color:var(--yellow);}
+.sim-value .val.orange{color:var(--orange);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--text-dim);}
+.toggle{width:36px;height:20px;border-radius:10px;background:var(--bg-dark);border:1px solid var(--border);cursor:pointer;position:relative;transition:all .2s;}
+.toggle.on{background:rgba(88,166,255,.3);border-color:var(--accent);}
+.toggle::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:var(--text-dim);top:2px;left:2px;transition:all .2s;}
+.toggle.on::after{left:18px;background:var(--accent);}
+
+/* ===== Props Panel ===== */
+.prop-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:12px;}
+.prop-row .label{color:var(--text-dim);}
+.prop-row input{width:90px;padding:3px 8px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;font-family:var(--font-mono);}
+.prop-row input:focus{outline:none;border-color:var(--accent);}
+
+/* ===== Modal ===== */
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-mask.show{opacity:1;pointer-events:auto;}
+.modal{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;width:420px;max-height:80vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.5);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.modal-head h3{font-size:14px;font-weight:600;}
+.modal-close{background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:4px;}
+.modal-close:hover{background:var(--bg-card);color:var(--text);}
+.modal-body{padding:16px 20px;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+
+/* ===== Form ===== */
+.form-group{margin-bottom:12px;}
+.form-label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:4px;}
+.form-label .req{color:var(--red);}
+.form-input{width:100%;padding:7px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:var(--font);}
+.form-input:focus{outline:none;border-color:var(--accent);}
+select.form-input{cursor:pointer;}
+textarea.form-input{resize:vertical;min-height:60px;font-family:var(--font-mono);font-size:11px;}
+.btn-primary{padding:7px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;}
+.btn-primary:hover{opacity:.85;}
+.btn-secondary{padding:7px 16px;background:var(--bg-card);color:var(--text-dim);border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;}
+.btn-secondary:hover{color:var(--text);border-color:var(--border-light);}
+
+/* ===== Export ===== */
+.export-options{display:flex;flex-direction:column;gap:12px;}
+.export-row{display:flex;align-items:center;gap:12px;}
+.export-row .label{width:70px;font-size:12px;color:var(--text-dim);flex-shrink:0;}
+.export-row .opts{display:flex;gap:4px;flex-wrap:wrap;}
+.opt-btn{padding:4px 10px;border:1px solid var(--border);border-radius:5px;background:var(--bg-dark);color:var(--text-dim);font-size:11px;cursor:pointer;transition:all .12s;}
+.opt-btn:hover{border-color:var(--accent);color:var(--text);}
+.opt-btn.active{border-color:var(--purple);color:var(--purple);background:rgba(188,140,255,.1);}
+
+/* ===== Progress ===== */
+.progress-bar{width:100%;height:6px;background:var(--bg-dark);border-radius:3px;overflow:hidden;margin:12px 0;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--accent));border-radius:3px;transition:width .3s;width:0%;}
+.progress-text{text-align:center;font-size:12px;color:var(--text-dim);}
+
+/* ===== Toast ===== */
+.toast{position:fixed;top:20px;right:20px;padding:10px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text);z-index:200;transform:translateX(120%);transition:transform .3s;box-shadow:0 8px 24px rgba(0,0,0,.3);}
+.toast.show{transform:translateX(0);}
+.toast.success{border-color:var(--green);}
+.toast.error{border-color:var(--red);}
+
+/* ===== X-ray view ===== */
+.xray .comp-body{opacity:.4 !important;}
+.xray .comp-internal{opacity:1 !important;}
+.xray .wire{opacity:.3 !important;}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--border-light);}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="brand">ElecSim Studio Pro<span>v2026.05.06</span></div>
+    <div class="sep"></div>
+    <button class="tbtn active" id="btnStandard" onclick="setView('standard')">&#9673; 标准视图</button>
+    <button class="tbtn" id="btnXray" onclick="setView('xray')">&#9881; X光视图</button>
+    <div class="sep"></div>
+    <button class="tbtn run" id="btnRun" onclick="toggleSim()">&#9654; 运行仿真</button>
+    <button class="tbtn export-btn" onclick="showExportModal()">&#128249; 导出动画</button>
+    <button class="tbtn custom-btn" onclick="showCustomModal()">&#9881; 添加自定义元件</button>
+    <div style="flex:1"></div>
+    <span style="font-size:11px;color:var(--text-muted)">元件: <span id="compCount">0</span> | 连线: <span id="wireCount">0</span></span>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Left Sidebar -->
+    <div class="sidebar-left">
+      <div class="comp-header">元件库</div>
+      <div class="comp-list" id="compList"></div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-area" id="canvasArea">
+      <canvas id="canvas"></canvas>
+      <div class="canvas-overlay" id="wireHint" style="display:none;">
+        <span>&#128279; 点击一个端子开始连线</span>
+        <button onclick="cancelWire()">取消</button>
+      </div>
+      <div class="zoom-info">缩放: <span id="zoomLevel">100</span>% | 网格: 20px</div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div class="sidebar-right">
+      <div class="panel-section">
+        <div class="panel-title"><div class="dot" id="simDot"></div>仿真状态</div>
+        <div class="sim-value"><span class="label">状态</span><span class="val" id="simStatus">等待仿真</span></div>
+        <div id="simHint" style="font-size:11px;color:var(--text-muted);margin-top:4px;">添加元件并连接电路后，点击"运行仿真"</div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-title"><div class="dot blue"></div>仿真参数</div>
+        <div class="sim-value"><span class="label">仿真时间</span><span class="val" id="simTime">0.00 s</span></div>
+        <div class="sim-value"><span class="label">电流</span><span class="val green" id="simCurrent">0.00 mA</span></div>
+        <div class="sim-value"><span class="label">电压</span><span class="val yellow" id="simVoltage">0.00 V</span></div>
+        <div class="sim-value"><span class="label">功率</span><span class="val orange" id="simPower">0.00 mW</span></div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-title"><div class="dot blue"></div>视图选项</div>
+        <div class="toggle-row"><span>显示内部结构</span><div class="toggle" id="togInternal" onclick="toggleOption(this,'internal')"></div></div>
+        <div class="toggle-row"><span>显示电流方向</span><div class="toggle on" id="togCurrent" onclick="toggleOption(this,'currentDir')"></div></div>
+      </div>
+      <div class="panel-section" id="propPanel" style="display:none;">
+        <div class="panel-title"><div class="dot yellow"></div>元件属性</div>
+        <div id="propContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span><span class="status-dot"></span>就绪</span>
+    <span>ElecSim Studio Pro v2026.05.06</span>
+    <span style="margin-left:auto;">电工电路仿真与工作原理可视化</span>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-mask" id="exportModal">
+  <div class="modal">
+    <div class="modal-head"><h3>&#128249; 导出工作原理动画</h3><button class="modal-close" onclick="closeModal('exportModal')">&times;</button></div>
+    <div class="modal-body" id="exportBody">
+      <div class="export-options">
+        <div class="export-row"><span class="label">分辨率</span>
+          <div class="opts"><button class="opt-btn" onclick="setOpt(this,'res')">720p</button><button class="opt-btn active" onclick="setOpt(this,'res')">1080p</button><button class="opt-btn" onclick="setOpt(this,'res')">4K</button></div>
+        </div>
+        <div class="export-row"><span class="label">动画时长</span>
+          <div class="opts"><button class="opt-btn" onclick="setOpt(this,'dur')">5 秒</button><button class="opt-btn active" onclick="setOpt(this,'dur')">10 秒</button><button class="opt-btn" onclick="setOpt(this,'dur')">15 秒</button><button class="opt-btn" onclick="setOpt(this,'dur')">30 秒</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('exportModal')">取消</button>
+      <button class="btn-primary" onclick="startExport()">&#127909; 生成工作原理动画</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Progress Modal -->
+<div class="modal-mask" id="progressModal">
+  <div class="modal" style="width:360px;">
+    <div class="modal-head"><h3>&#9881; 正在导出...</h3></div>
+    <div class="modal-body" style="text-align:center;">
+      <p style="font-size:13px;margin-bottom:8px;">正在生成动画帧...</p>
+      <div class="progress-bar"><div class="progress-fill" id="exportProgress"></div></div>
+      <div class="progress-text" id="exportPercent">0%</div>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Component Modal -->
+<div class="modal-mask" id="customModal">
+  <div class="modal" style="width:460px;">
+    <div class="modal-head"><h3>&#9881; 添加自定义元件</h3><button class="modal-close" onclick="closeModal('customModal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">元件名称 <span class="req">*</span></label><input class="form-input" id="customName" placeholder="如：温度传感器"></div>
+      <div class="form-group"><label class="form-label">分类</label><select class="form-input" id="customCat"><option value="sensor">传感器</option><option value="actuator">执行器</option><option value="module">模块</option><option value="custom">自定义</option></select></div>
+      <div class="form-group"><label class="form-label">图标 (emoji)</label><input class="form-input" id="customIcon" placeholder="如：&#127777;&#65039;" value="&#128268;"></div>
+      <div class="form-group"><label class="form-label">描述</label><input class="form-input" id="customDesc" placeholder="元件功能说明"></div>
+      <div class="form-group"><label class="form-label">端子（逗号分隔）</label><input class="form-input" id="customPins" placeholder="如：VCC,GND,OUT"></div>
+      <div class="form-group"><label class="form-label">属性定义 (JSON)</label><textarea class="form-input" id="customProps" placeholder='{"resistance":1000,"type":"NTC"}'>{"resistance": 1000,"type": "analog"}</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('customModal')">取消</button>
+      <button class="btn-primary" onclick="addCustomComponent()">&#10003; 添加到元件库</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============== State ==============
+const S = {
+  components: [],
+  wires: [],
+  selected: null,
+  wiring: false,
+  wireStart: null,
+  simRunning: false,
+  simTime: 0,
+  zoom: 1,
+  pan: {x:0, y:0},
+  dragging: null,
+  dragOff: {x:0, y:0},
+  panning: false,
+  panStart: {x:0,y:0},
+  viewMode: 'standard',
+  showInternal: false,
+  showCurrentDir: true,
+  nextId: 1,
+  animFrame: 0,
+  exportOpts: {res:'1080p', dur:'10秒'},
+  grid: 20,
+  mouse: {x:0, y:0},
+  customComponents: []
+};
+
+// ============== Component Library ==============
+const LIB = [
+  {cat:'电源', items:[
+    {type:'battery', name:'直流电源', icon:'🔋', desc:'DC 5-12V', pins:[{id:'p',dx:50,dy:0},{id:'n',dx:-50,dy:0}], props:{voltage:9}},
+    {type:'ac', name:'交流电源', icon:'⚡', desc:'AC 220V', pins:[{id:'p',dx:50,dy:0},{id:'n',dx:-50,dy:0}], props:{voltage:220,freq:50}},
+  ]},
+  {cat:'基础元件', items:[
+    {type:'resistor', name:'电阻', icon:'〰️', desc:'限流/分压', pins:[{id:'a',dx:-50,dy:0},{id:'b',dx:50,dy:0}], props:{resistance:1000}},
+    {type:'capacitor', name:'电容', icon:'⚖️', desc:'储能/滤波', pins:[{id:'a',dx:-50,dy:0},{id:'b',dx:50,dy:0}], props:{capacitance:100}},
+    {type:'inductor', name:'电感', icon:'🌀', desc:'储能/滤波', pins:[{id:'a',dx:-50,dy:0},{id:'b',dx:50,dy:0}], props:{inductance:10}},
+    {type:'switch', name:'开关', icon:'🔘', desc:'通断控制', pins:[{id:'a',dx:-50,dy:0},{id:'b',dx:50,dy:0}], props:{closed:true}},
+  ]},
+  {cat:'半导体', items:[
+    {type:'led', name:'LED', icon:'💡', desc:'发光二极管', pins:[{id:'a',dx:-40,dy:0},{id:'b',dx:40,dy:0}], props:{forwardVoltage:2, color:'#ff4444'}},
+    {type:'diode', name:'二极管', icon:'▶️', desc:'单向导电', pins:[{id:'a',dx:-40,dy:0},{id:'b',dx:40,dy:0}], props:{forwardVoltage:0.7}},
+    {type:'npn', name:'NPN三极管', icon:'📐', desc:'电流放大', pins:[{id:'b',dx:-50,dy:-20},{id:'c',dx:50,dy:-20},{id:'e',dx:50,dy:20}], props:{beta:100}},
+  ]},
+  {cat:'输出', items:[
+    {type:'buzzer', name:'蜂鸣器', icon:'📢', desc:'声音输出', pins:[{id:'p',dx:-40,dy:0},{id:'n',dx:40,dy:0}], props:{voltage:5}},
+    {type:'motor', name:'直流电机', icon:'⚙️', desc:'转动输出', pins:[{id:'p',dx:-50,dy:0},{id:'n',dx:50,dy:0}], props:{voltage:9,rpm:3000}},
+  ]},
+  {cat:'测量', items:[
+    {type:'voltmeter', name:'电压表', icon:'📊', desc:'测量电压', pins:[{id:'p',dx:-40,dy:0},{id:'n',dx:40,dy:0}], props:{range:50}},
+    {type:'ammeter', name:'电流表', icon:'📊', desc:'测量电流', pins:[{id:'a',dx:-40,dy:0},{id:'b',dx:40,dy:0}], props:{range:500}},
+  ]},
+];
+
+// ============== Canvas Setup ==============
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  const r = window.devicePixelRatio || 1;
+  const area = document.getElementById('canvasArea');
+  W = area.clientWidth; H = area.clientHeight;
+  canvas.width = W * r; canvas.height = H * r;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(r,0,0,r,0,0);
+  render();
+}
+window.addEventListener('resize', resize);
+
+// ============== Coordinate Transform ==============
+function screenToCanvas(sx, sy) {
+  return { x: (sx - S.pan.x) / S.zoom, y: (sy - S.pan.y) / S.zoom };
+}
+function canvasToScreen(cx, cy) {
+  return { x: cx * S.zoom + S.pan.x, y: cy * S.zoom + S.pan.y };
+}
+
+// ============== Rendering ==============
+function render() {
+  ctx.clearRect(0,0,W,H);
+  ctx.save();
+  ctx.translate(S.pan.x, S.pan.y);
+  ctx.scale(S.zoom, S.zoom);
+
+  drawGrid();
+  drawWires();
+  drawComponents();
+  if (S.wiring && S.wireStart) drawTempWire();
+
+  ctx.restore();
+  updateCounts();
+}
+
+function drawGrid() {
+  const g = S.grid;
+  const startX = Math.floor(-S.pan.x/S.zoom/g)*g;
+  const startY = Math.floor(-S.pan.y/S.zoom/g)*g;
+  const endX = startX + W/S.zoom + g*2;
+  const endY = startY + H/S.zoom + g*2;
+
+  ctx.strokeStyle = S.viewMode==='xray' ? 'rgba(57,210,192,0.08)' : 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  for(let x=startX;x<endX;x+=g){ctx.moveTo(x,startY);ctx.lineTo(x,endY);}
+  for(let y=startY;y<endY;y+=g){ctx.moveTo(startX,y);ctx.lineTo(endX,y);}
+  ctx.stroke();
+
+  if(S.viewMode==='xray'){
+    ctx.strokeStyle='rgba(57,210,192,0.12)';
+    ctx.lineWidth=0.5;
+    ctx.beginPath();
+    for(let x=startX;x<endX;x+=g*5){ctx.moveTo(x,startY);ctx.lineTo(x,endY);}
+    for(let y=startY;y<endY;y+=g*5){ctx.moveTo(startX,y);ctx.lineTo(endX,y);}
+    ctx.stroke();
+  }
+}
+
+function drawWires() {
+  S.wires.forEach(w => {
+    const c1 = getComp(w.from.comp);
+    const c2 = getComp(w.to.comp);
+    if(!c1||!c2) return;
+    const p1 = getPinPos(c1, w.from.pin);
+    const p2 = getPinPos(c2, w.to.pin);
+    if(!p1||!p2) return;
+
+    ctx.strokeStyle = S.viewMode==='xray' ? 'rgba(57,210,192,0.6)' : 'rgba(88,166,255,0.7)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    // L-shaped wire routing
+    const mx = (p1.x+p2.x)/2;
+    ctx.lineTo(mx, p1.y);
+    ctx.lineTo(mx, p2.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+
+    // Current flow animation
+    if(S.simRunning && S.showCurrentDir && w.current > 0) {
+      const t = (Date.now()/500 + w.from.comp*0.3) % 1;
+      const points = [{x:p1.x,y:p1.y},{x:mx,y:p1.y},{x:mx,y:p2.y},{x:p2.x,y:p2.y}];
+      const totalLen = Math.abs(p2.y-p1.y)+Math.abs(mx-p1.x)+Math.abs(p2.x-mx);
+      const pos = t * totalLen;
+      const pt = getPointOnPath(points, pos);
+      ctx.fillStyle = S.viewMode==='xray' ? '#39d2c0' : '#58a6ff';
+      ctx.shadowColor = S.viewMode==='xray' ? '#39d2c0' : '#58a6ff';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Arrow
+      drawArrow(p1.x,p1.y, mx,p1.y, w.current > 0 ? 1 : -1);
+    }
+  });
+}
+
+function getPointOnPath(points, dist) {
+  let remaining = dist;
+  for(let i=0;i<points.length-1;i++){
+    const dx=points[i+1].x-points[i].x, dy=points[i+1].y-points[i].y;
+    const segLen=Math.sqrt(dx*dx+dy*dy);
+    if(remaining<=segLen){
+      const t=remaining/Math.max(segLen,0.01);
+      return {x:points[i].x+dx*t, y:points[i].y+dy*t};
+    }
+    remaining-=segLen;
+  }
+  return points[points.length-1];
+}
+
+function drawArrow(x1,y1,x2,y2,dir) {
+  const mx=(x1+x2)/2, my=(y1+y2)/2;
+  const angle = Math.atan2(y2-y1,x2-x1) * dir;
+  ctx.save();
+  ctx.translate(mx,my);
+  ctx.rotate(angle);
+  ctx.fillStyle = 'rgba(88,166,255,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(5,0); ctx.lineTo(-3,-3); ctx.lineTo(-3,3);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawComponents() {
+  S.components.forEach(c => {
+    const sel = S.selected === c.id;
+    ctx.save();
+    ctx.translate(c.x, c.y);
+
+    // Shadow
+    if(sel){
+      ctx.shadowColor='rgba(88,166,255,0.3)';
+      ctx.shadowBlur=12;
+    }
+
+    // Body
+    const bw=100, bh=56;
+    const grad = ctx.createLinearGradient(-bw/2,-bh/2,bw/2,bh/2);
+    if(S.viewMode==='xray'){
+      grad.addColorStop(0,'rgba(57,210,192,0.08)');
+      grad.addColorStop(1,'rgba(57,210,192,0.15)');
+    } else {
+      grad.addColorStop(0,'#1c2333');
+      grad.addColorStop(1,'#252d3a');
+    }
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = sel ? '#58a6ff' : (S.viewMode==='xray' ? 'rgba(57,210,192,0.3)' : '#30363d');
+    ctx.lineWidth = sel ? 2 : 1;
+    roundRect(ctx,-bw/2,-bh/2,bw,bh,8);
+    ctx.fill(); ctx.stroke();
+    ctx.shadowBlur=0;
+
+    // LED glow
+    if(c.type==='led' && S.simRunning && c.simCurrent > 0) {
+      const color = c.props.color || '#ff4444';
+      const intensity = Math.min(c.simCurrent / 10, 1);
+      const glowR = 20 + intensity * 15 + Math.sin(Date.now()/300)*3;
+      const grd = ctx.createRadialGradient(0,0,2,0,0,glowR);
+      grd.addColorStop(0, color);
+      grd.addColorStop(0.5, color+'66');
+      grd.addColorStop(1, 'transparent');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(0, 0, glowR, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Motor spin
+    if(c.type==='motor' && S.simRunning && c.simCurrent > 0) {
+      const speed = Math.min(c.simCurrent / 5, 1);
+      const angle = Date.now() / (200 - speed*150);
+      ctx.strokeStyle='rgba(240,136,62,0.5)';
+      ctx.lineWidth=2;
+      for(let i=0;i<3;i++){
+        const a=angle+i*Math.PI*2/3;
+        ctx.beginPath();
+        ctx.arc(0,0,15,a,a+0.8);
+        ctx.stroke();
+      }
+    }
+
+    // Buzzer vibration
+    if(c.type==='buzzer' && S.simRunning && c.simCurrent > 0) {
+      const v = Math.sin(Date.now()/50)*1.5;
+      ctx.translate(v, v);
+    }
+
+    // Internal structure
+    if(S.showInternal || S.viewMode==='xray') {
+      drawInternal(c);
+    }
+
+    // Icon + Name
+    ctx.fillStyle = S.viewMode==='xray' ? 'rgba(57,210,192,0.9)' : '#e6edf3';
+    ctx.font = '20px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(c.icon, 0, -6);
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = S.viewMode==='xray' ? 'rgba(57,210,192,0.6)' : '#8b949e';
+    ctx.fillText(c.name, 0, 16);
+
+    // Value label
+    let valStr = '';
+    if(c.type==='resistor') valStr = formatR(c.props.resistance);
+    else if(c.type==='capacitor') valStr = c.props.capacitance+'μF';
+    else if(c.type==='battery'||c.type==='ac') valStr = c.props.voltage+'V';
+    else if(c.type==='led') valStr = c.props.forwardVoltage+'V';
+    else if(c.type==='switch') valStr = c.props.closed?'ON':'OFF';
+    if(valStr){
+      ctx.font='9px "Cascadia Code",monospace';
+      ctx.fillStyle=S.viewMode==='xray'?'rgba(57,210,192,0.5)':'#484f58';
+      ctx.fillText(valStr, 0, 28);
+    }
+
+    ctx.restore();
+
+    // Draw pins
+    c.pins.forEach(pin => {
+      const px = c.x + pin.dx, py = c.y + pin.dy;
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI*2);
+      ctx.fillStyle = pinConnected(c.id, pin.id) ? (S.viewMode==='xray'?'#39d2c0':'#58a6ff') : (S.viewMode==='xray'?'rgba(57,210,192,0.5)':'#30363d');
+      ctx.fill();
+      ctx.strokeStyle = S.viewMode==='xray'?'rgba(57,210,192,0.8)':'#484f58';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+  });
+}
+
+function drawInternal(c) {
+  ctx.globalAlpha = S.viewMode==='xray' ? 0.6 : 0.35;
+  const style = S.viewMode==='xray' ? '#39d2c0' : '#58a6ff';
+  ctx.strokeStyle = style; ctx.lineWidth = 0.8; ctx.fillStyle = style;
+
+  if(c.type==='resistor'){
+    // Zigzag
+    ctx.beginPath();
+    ctx.moveTo(-25,-4);ctx.lineTo(-20,-8);ctx.lineTo(-12,8);ctx.lineTo(-4,-8);ctx.lineTo(4,8);ctx.lineTo(12,-8);ctx.lineTo(20,8);ctx.lineTo(25,-4);
+    ctx.stroke();
+  } else if(c.type==='capacitor'){
+    ctx.beginPath();ctx.moveTo(-8,-12);ctx.lineTo(-8,12);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(8,-12);ctx.lineTo(8,12);ctx.stroke();
+  } else if(c.type==='led'){
+    ctx.beginPath();ctx.moveTo(-12,0);ctx.lineTo(12,0);ctx.stroke();
+    // Triangle
+    ctx.beginPath();ctx.moveTo(-6,-6);ctx.lineTo(6,0);ctx.lineTo(-6,6);ctx.closePath();ctx.stroke();
+    // Arrow
+    ctx.beginPath();ctx.moveTo(6,-4);ctx.lineTo(10,-8);ctx.moveTo(10,-8);ctx.lineTo(6,-2);ctx.stroke();
+  } else if(c.type==='battery'){
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(-12,-10);ctx.lineTo(-12,10);ctx.stroke();
+    ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(-6,-6);ctx.lineTo(-6,6);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(6,-10);ctx.lineTo(6,10);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(12,-6);ctx.lineTo(12,6);ctx.stroke();
+    // +/- labels
+    ctx.font='8px monospace';
+    ctx.fillText('+',14,-4);ctx.fillText('-',-18,-4);
+  } else if(c.type==='switch'){
+    ctx.beginPath();ctx.moveTo(-20,0);ctx.lineTo(0,0);
+    if(c.props.closed){ctx.lineTo(20,0);}
+    else{ctx.lineTo(16,-14);}
+    ctx.stroke();
+    ctx.beginPath();ctx.arc(20,0,3,0,Math.PI*2);ctx.fill();
+  } else if(c.type==='motor'){
+    ctx.beginPath();ctx.arc(0,-2,14,0,Math.PI*2);ctx.stroke();
+    ctx.font='10px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('M',0,-2);
+  } else if(c.type==='inductor'){
+    for(let i=0;i<4;i++){
+      ctx.beginPath();ctx.arc(-15+i*10, 0, 5, Math.PI, 0);ctx.stroke();
+    }
+  } else if(c.type==='diode'){
+    ctx.beginPath();ctx.moveTo(-12,0);ctx.lineTo(12,0);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-4,-6);ctx.lineTo(6,0);ctx.lineTo(-4,6);ctx.closePath();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(6,-6);ctx.lineTo(6,6);ctx.stroke();
+  } else if(c.type==='buzzer'){
+    ctx.beginPath();ctx.arc(0,-2,12,0,Math.PI*2);ctx.stroke();
+    ctx.font='8px monospace';ctx.textAlign='center';
+    ctx.fillText('BZ',0,-1);
+  } else if(c.type==='npn'){
+    ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(0,10);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,-6);ctx.lineTo(-12,-14);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,6);ctx.lineTo(-12,14);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-14,12);ctx.lineTo(-14,18);ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawTempWire() {
+  const c = getComp(S.wireStart.comp);
+  const pin = c ? c.pins.find(p=>p.id===S.wireStart.pin) : null;
+  if(!c||!pin) return;
+  const sx = c.x + pin.dx, sy = c.y + pin.dy;
+  const m = screenToCanvas(S.mouse.x, S.mouse.y);
+  ctx.strokeStyle = 'rgba(88,166,255,0.4)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  const mx=(sx+m.x)/2;
+  ctx.moveTo(sx,sy);ctx.lineTo(mx,sy);ctx.lineTo(mx,m.y);ctx.lineTo(m.x,m.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ============== Helpers ==============
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
+function formatR(r){return r>=1e6?(r/1e6)+'MΩ':r>=1e3?(r/1e3)+'kΩ':r+'Ω';}
+function getComp(id){return S.components.find(c=>c.id===id);}
+function getPinPos(comp, pinId){const p=comp.pins.find(pp=>pp.id===pinId);return p?{x:comp.x+p.dx,y:comp.y+p.dy}:null;}
+function pinConnected(compId,pinId){return S.wires.some(w=>(w.from.comp===compId&&w.from.pin===pinId)||(w.to.comp===compId&&w.to.pin===pinId));}
+function updateCounts(){document.getElementById('compCount').textContent=S.components.length;document.getElementById('wireCount').textContent=S.wires.length;}
+
+// ============== Find pin at position ==============
+function findPinAt(cx,cy) {
+  for(const c of S.components){
+    for(const pin of c.pins){
+      const px=c.x+pin.dx, py=c.y+pin.dy;
+      if(Math.hypot(cx-px,cy-py)<10) return {comp:c.id, pin:pin.id};
+    }
+  }
+  return null;
+}
+
+function findCompAt(cx,cy) {
+  for(let i=S.components.length-1;i>=0;i--){
+    const c=S.components[i];
+    if(Math.abs(cx-c.x)<50 && Math.abs(cy-c.y)<28) return c;
+  }
+  return null;
+}
+
+// ============== Mouse Events ==============
+canvas.addEventListener('mousedown', e => {
+  const pos = screenToCanvas(e.offsetX, e.offsetY);
+
+  if(e.button===1 || (e.button===0 && e.altKey)){
+    S.panning=true; S.panStart={x:e.offsetX-S.pan.x,y:e.offsetY-S.pan.y};
+    canvas.style.cursor='grabbing'; return;
+  }
+
+  const pin = findPinAt(pos.x, pos.y);
+
+  if(pin && !S.wiring){
+    S.wiring=true; S.wireStart=pin;
+    document.getElementById('wireHint').style.display='flex';
+    return;
+  }
+
+  if(S.wiring && pin){
+    if(pin.comp!==S.wireStart.comp || pin.pin!==S.wireStart.pin){
+      const exists = S.wires.some(w=>
+        (w.from.comp===S.wireStart.comp&&w.from.pin===S.wireStart.pin&&w.to.comp===pin.comp&&w.to.pin===pin.pin)||
+        (w.to.comp===S.wireStart.comp&&w.to.pin===S.wireStart.pin&&w.from.comp===pin.comp&&w.from.pin===pin.pin)
+      );
+      if(!exists){
+        S.wires.push({from:{...S.wireStart}, to:{...pin}, current:0});
+        toast('连线成功','success');
+      }
+    }
+    S.wiring=false; S.wireStart=null;
+    document.getElementById('wireHint').style.display='none';
+    return;
+  }
+
+  const comp = findCompAt(pos.x, pos.y);
+  if(comp){
+    S.selected=comp.id;
+    S.dragging=comp.id;
+    S.dragOff={x:pos.x-comp.x, y:pos.y-comp.y};
+    showProps(comp);
+  } else {
+    S.selected=null;
+    hideProps();
+  }
+  render();
+});
+
+canvas.addEventListener('mousemove', e => {
+  S.mouse={x:e.offsetX, y:e.offsetY};
+
+  if(S.panning){
+    S.pan.x=e.offsetX-S.panStart.x;
+    S.pan.y=e.offsetY-S.panStart.y;
+    render(); return;
+  }
+
+  if(S.dragging){
+    const pos=screenToCanvas(e.offsetX,e.offsetY);
+    const c=getComp(S.dragging);
+    if(c){
+      const g=S.grid;
+      c.x=Math.round((pos.x-S.dragOff.x)/g)*g;
+      c.y=Math.round((pos.y-S.dragOff.y)/g)*g;
+    }
+    render(); return;
+  }
+
+  if(S.wiring) render();
+
+  // Cursor
+  const pos=screenToCanvas(e.offsetX,e.offsetY);
+  const pin=findPinAt(pos.x,pos.y);
+  canvas.style.cursor=pin?'pointer':(findCompAt(pos.x,pos.y)?'move':'crosshair');
+});
+
+canvas.addEventListener('mouseup', e => {
+  S.panning=false; S.dragging=null;
+  canvas.style.cursor='crosshair';
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  const newZoom = Math.max(0.3, Math.min(3, S.zoom * delta));
+  // Zoom toward mouse
+  const mx=e.offsetX, my=e.offsetY;
+  S.pan.x = mx - (mx - S.pan.x) * (newZoom/S.zoom);
+  S.pan.y = my - (my - S.pan.y) * (newZoom/S.zoom);
+  S.zoom = newZoom;
+  document.getElementById('zoomLevel').textContent = Math.round(S.zoom*100);
+  render();
+}, {passive:false});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const pos=screenToCanvas(e.offsetX,e.offsetY);
+  const comp=findCompAt(pos.x,pos.y);
+  if(comp){
+    S.components=S.components.filter(c=>c.id!==comp.id);
+    S.wires=S.wires.filter(w=>w.from.comp!==comp.id&&w.to.comp!==comp.id);
+    if(S.selected===comp.id){S.selected=null;hideProps();}
+    toast('已删除: '+comp.name,'success');
+    render();
+  }
+});
+
+// ============== Component Library UI ==============
+function buildLibrary() {
+  const list = document.getElementById('compList');
+  list.innerHTML = '';
+  const allCats = [...LIB];
+  // Add custom components
+  if(S.customComponents.length > 0) {
+    allCats.push({cat:'自定义', items: S.customComponents.map(cc=>({
+      type:'custom_'+cc.name, name:cc.name, icon:cc.icon, desc:cc.desc,
+      pins: cc.pins.split(',').map((p,i)=>({id:p.trim(),dx:i===0?-50:50,dy:0})),
+      props: cc.props
+    }))});
+  }
+  allCats.forEach(cat => {
+    const catEl = document.createElement('div');
+    catEl.className='comp-cat';
+    catEl.textContent=cat.cat;
+    list.appendChild(catEl);
+    cat.items.forEach(item => {
+      const el=document.createElement('div');
+      el.className='comp-item';
+      el.draggable=true;
+      el.innerHTML=`<div class="comp-icon">${item.icon}</div><div class="comp-info"><div class="comp-name">${item.name}</div><div class="comp-desc">${item.desc}</div></div>`;
+      el.addEventListener('dragstart',e=>{
+        e.dataTransfer.setData('text/plain',JSON.stringify(item));
+      });
+      el.addEventListener('dblclick',()=>{
+        addComponent(item, W/2/S.zoom-S.pan.x/S.zoom, H/2/S.zoom-S.pan.y/S.zoom);
+      });
+      list.appendChild(el);
+    });
+  });
+}
+
+document.getElementById('canvasArea').addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';});
+document.getElementById('canvasArea').addEventListener('drop',e=>{
+  e.preventDefault();
+  try{
+    const data=JSON.parse(e.dataTransfer.getData('text/plain'));
+    const pos=screenToCanvas(e.offsetX,e.offsetY);
+    addComponent(data, pos.x, pos.y);
+  }catch(err){}
+});
+
+function addComponent(template, x, y) {
+  const g=S.grid;
+  const comp={
+    id: S.nextId++,
+    type: template.type,
+    name: template.name,
+    icon: template.icon,
+    x: Math.round(x/g)*g,
+    y: Math.round(y/g)*g,
+    pins: template.pins.map(p=>({...p})),
+    props: {...template.props},
+    simCurrent: 0
+  };
+  S.components.push(comp);
+  S.selected=comp.id;
+  showProps(comp);
+  toast('已添加: '+comp.name,'success');
+  render();
+}
+
+// ============== Properties Panel ==============
+function showProps(comp) {
+  const panel=document.getElementById('propPanel');
+  const content=document.getElementById('propContent');
+  panel.style.display='block';
+  content.innerHTML='';
+
+  const makeRow=(label,key,val,type='number')=>{
+    const row=document.createElement('div');
+    row.className='prop-row';
+    row.innerHTML=`<span class="label">${label}</span><input type="${type}" value="${val}" data-key="${key}" data-id="${comp.id}">`;
+    row.querySelector('input').addEventListener('change',e=>{
+      const c=getComp(comp.id);
+      if(c) c.props[key]=type==='number'?parseFloat(e.target.value):e.target.value;
+      if(key==='closed' && type==='checkbox'){c.props[key]=e.target.checked;}
+      render();
+    });
+    content.appendChild(row);
+  };
+
+  makeRow('名称','name',comp.name,'text');
+
+  if(comp.type==='resistor') makeRow('阻值 (Ω)','resistance',comp.props.resistance);
+  else if(comp.type==='capacitor') makeRow('容值 (μF)','capacitance',comp.props.capacitance);
+  else if(comp.type==='battery'||comp.type==='ac') makeRow('电压 (V)','voltage',comp.props.voltage);
+  else if(comp.type==='led'){
+    makeRow('正向压降 (V)','forwardVoltage',comp.props.forwardVoltage);
+    // Color picker
+    const row=document.createElement('div');row.className='prop-row';
+    row.innerHTML=`<span class="label">颜色</span><input type="color" value="${comp.props.color||'#ff4444'}" style="width:40px;height:24px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer;">`;
+    row.querySelector('input').addEventListener('input',e=>{comp.props.color=e.target.value;render();});
+    content.appendChild(row);
+  }
+  else if(comp.type==='switch'){
+    const row=document.createElement('div');row.className='prop-row';
+    row.innerHTML=`<span class="label">状态</span><button class="tbtn" style="font-size:11px;padding:3px 10px;${comp.props.closed?'border-color:var(--green);color:var(--green)':''}">${comp.props.closed?'闭合':'断开'}</button>`;
+    row.querySelector('button').addEventListener('click',()=>{
+      comp.props.closed=!comp.props.closed;
+      showProps(comp);render();
+    });
+    content.appendChild(row);
+  }
+  else if(comp.type==='inductor') makeRow('电感 (mH)','inductance',comp.props.inductance);
+  else if(comp.type==='npn') makeRow('放大倍数','beta',comp.props.beta);
+
+  // Delete button
+  const del=document.createElement('div');del.style.marginTop='10px';del.style.textAlign='right';
+  del.innerHTML=`<button class="btn-secondary" style="font-size:11px;color:var(--red);border-color:var(--red);">删除元件</button>`;
+  del.querySelector('button').addEventListener('click',()=>{
+    S.components=S.components.filter(c=>c.id!==comp.id);
+    S.wires=S.wires.filter(w=>w.from.comp!==comp.id&&w.to.comp!==comp.id);
+    S.selected=null;hideProps();
+    toast('已删除: '+comp.name,'success');
+    render();
+  });
+  content.appendChild(del);
+}
+
+function hideProps(){document.getElementById('propPanel').style.display='none';}
+
+// ============== Simulation ==============
+function toggleSim() {
+  S.simRunning=!S.simRunning;
+  const btn=document.getElementById('btnRun');
+  const dot=document.getElementById('simDot');
+  const status=document.getElementById('simStatus');
+  const hint=document.getElementById('simHint');
+
+  if(S.simRunning){
+    btn.innerHTML='&#9632; 停止仿真';
+    btn.classList.add('running');
+    dot.className='dot green';
+    status.textContent='仿真运行中';
+    status.style.color='var(--green)';
+    hint.textContent='电路仿真已启动...';
+    S.simTime=0;
+    runSimLoop();
+  } else {
+    btn.innerHTML='&#9654; 运行仿真';
+    btn.classList.remove('running');
+    dot.className='dot yellow';
+    status.textContent='仿真已停止';
+    status.style.color='var(--yellow)';
+    hint.textContent='点击"运行仿真"重新启动';
+    S.components.forEach(c=>c.simCurrent=0);
+    S.wires.forEach(w=>w.current=0);
+    document.getElementById('simTime').textContent='0.00 s';
+    document.getElementById('simCurrent').textContent='0.00 mA';
+    document.getElementById('simVoltage').textContent='0.00 V';
+    document.getElementById('simPower').textContent='0.00 mW';
+    render();
+  }
+}
+
+function runSimLoop() {
+  if(!S.simRunning) return;
+
+  S.simTime += 0.016;
+  document.getElementById('simTime').textContent = S.simTime.toFixed(2)+' s';
+
+  // Simple circuit analysis: find loops and calculate
+  simulateCircuit();
+  render();
+  requestAnimationFrame(runSimLoop);
+}
+
+function simulateCircuit() {
+  // Reset
+  S.components.forEach(c=>c.simCurrent=0);
+  S.wires.forEach(w=>w.current=0);
+
+  // Find batteries
+  const batteries = S.components.filter(c=>c.type==='battery'||c.type==='ac');
+  const resistors = S.components.filter(c=>c.type==='resistor');
+  const leds = S.components.filter(c=>c.type==='led');
+  const switches = S.components.filter(c=>c.type==='switch');
+  const motors = S.components.filter(c=>c.type==='motor');
+  const buzzers = S.components.filter(c=>c.type==='buzzer');
+  const diodes = S.components.filter(c=>c.type==='diode');
+
+  if(batteries.length===0) return;
+
+  // Build adjacency from wires
+  const adj = {};
+  S.components.forEach(c=>{adj[c.id]={}; c.pins.forEach(p=>{adj[c.id][p.id]=[];});});
+  S.wires.forEach(w=>{
+    const a=w.from.comp, ap=w.from.pin, b=w.to.comp, bp=w.to.pin;
+    if(adj[a]&&adj[a][ap]) adj[a][ap].push({comp:b,pin:bp});
+    if(adj[b]&&adj[b][bp]) adj[b][bp].push({comp:a,pin:ap});
+  });
+
+  // Simple series circuit simulation
+  batteries.forEach(bat=>{
+    let totalR = 0;
+    let hasOpenSwitch = false;
+    let activeComponents = [bat];
+
+    // Trace circuit from battery + terminal
+    let currentComp = bat, currentPin = 'p';
+    let visited = new Set();
+    let loopFound = false;
+
+    while(!loopFound && !hasOpenSwitch) {
+      visited.add(currentComp.id+'_'+currentPin);
+      const neighbors = adj[currentComp.id] && adj[currentComp.id][currentPin] ? adj[currentComp.id][currentPin] : [];
+      if(neighbors.length===0) break;
+
+      let next = null;
+      for(const n of neighbors){
+        if(!visited.has(n.comp+'_'+n.pin)){next=n;break;}
+      }
+      if(!next) break;
+
+      const nextComp = getComp(next.comp);
+      if(!nextComp) break;
+
+      if(nextComp.type==='switch' && !nextComp.props.closed){
+        hasOpenSwitch = true; break;
+      }
+
+      if(nextComp.id===bat.id){
+        loopFound=true; break;
+      }
+
+      // Find exit pin
+      const otherPins = nextComp.pins.filter(p=>p.id!==next.pin);
+      if(otherPins.length===0) break;
+      currentPin = otherPins[0].id;
+      currentComp = nextComp;
+      activeComponents.push(nextComp);
+
+      // Add resistance
+      if(nextComp.type==='resistor') totalR += nextComp.props.resistance;
+      else if(nextComp.type==='led') totalR += (nextComp.props.forwardVoltage||2) * 100; // Simplified
+      else if(nextComp.type==='diode') totalR += (nextComp.props.forwardVoltage||0.7) * 100;
+      else if(nextComp.type==='motor') totalR += 100;
+      else if(nextComp.type==='buzzer') totalR += 50;
+      else if(nextComp.type==='inductor') totalR += nextComp.props.inductance * 10;
+      else totalR += 10; // wire resistance
+
+      if(totalR > 100000) break; // safety
+    }
+
+    if(loopFound && totalR > 0) {
+      const V = bat.props.voltage;
+      const I = (V / totalR) * 1000; // mA
+      const P = V * I; // mW
+
+      document.getElementById('simCurrent').textContent = I.toFixed(2)+' mA';
+      document.getElementById('simVoltage').textContent = V.toFixed(2)+' V';
+      document.getElementById('simPower').textContent = P.toFixed(2)+' mW';
+
+      activeComponents.forEach(c=>{c.simCurrent = I;});
+      // Update wires with current
+      S.wires.forEach(w=>{
+        const fc = getComp(w.from.comp), tc = getComp(w.to.comp);
+        if(fc && activeComponents.includes(fc)) w.current = I;
+      });
+    } else if(hasOpenSwitch){
+      document.getElementById('simCurrent').textContent='0.00 mA (断路)';
+      document.getElementById('simVoltage').textContent=bat.props.voltage.toFixed(2)+' V';
+      document.getElementById('simPower').textContent='0.00 mW';
+    } else {
+      document.getElementById('simCurrent').textContent='0.00 mA';
+      document.getElementById('simVoltage').textContent='0.00 V';
+      document.getElementById('simPower').textContent='0.00 mW';
+    }
+  });
+}
+
+// ============== View ==============
+function setView(mode) {
+  S.viewMode = mode;
+  document.getElementById('btnStandard').classList.toggle('active', mode==='standard');
+  document.getElementById('btnXray').classList.toggle('active', mode==='xray');
+  const area = document.getElementById('canvasArea');
+  area.classList.toggle('xray', mode==='xray');
+  render();
+}
+
+function toggleOption(el, opt) {
+  el.classList.toggle('on');
+  if(opt==='internal') S.showInternal=el.classList.contains('on');
+  if(opt==='currentDir') S.showCurrentDir=el.classList.contains('on');
+  render();
+}
+
+// ============== Wire ==============
+function cancelWire() {
+  S.wiring=false; S.wireStart=null;
+  document.getElementById('wireHint').style.display='none';
+  render();
+}
+
+// ============== Modals ==============
+function showExportModal(){document.getElementById('exportModal').classList.add('show');}
+function showCustomModal(){document.getElementById('customModal').classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+function setOpt(btn, group) {
+  btn.parentElement.querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  S.exportOpts[group] = btn.textContent;
+}
+
+function startExport() {
+  closeModal('exportModal');
+  document.getElementById('progressModal').classList.add('show');
+  let progress = 0;
+  const iv = setInterval(()=>{
+    progress += Math.random()*5 + 1;
+    if(progress>=100){progress=100;clearInterval(iv);
+      setTimeout(()=>{
+        closeModal('progressModal');
+        toast('动画导出完成！','success');
+      },500);
+    }
+    document.getElementById('exportProgress').style.width=progress+'%';
+    document.getElementById('exportPercent').textContent=Math.round(progress)+'%';
+  },100);
+}
+
+function addCustomComponent() {
+  const name=document.getElementById('customName').value.trim();
+  if(!name){toast('请输入元件名称','error');return;}
+  const cat=document.getElementById('customCat').value;
+  const icon=document.getElementById('customIcon').value||'🔧';
+  const desc=document.getElementById('customDesc').value||'自定义元件';
+  const pins=document.getElementById('customPins').value||'VCC,GND';
+  const propsStr=document.getElementById('customProps').value;
+  let props={};
+  try{props=JSON.parse(propsStr);}catch(e){toast('JSON格式错误','error');return;}
+
+  S.customComponents.push({name,cat,icon,desc,pins,props});
+  buildLibrary();
+  closeModal('customModal');
+  toast('已添加自定义元件: '+name,'success');
+  // Reset form
+  document.getElementById('customName').value='';
+  document.getElementById('customDesc').value='';
+  document.getElementById('customPins').value='';
+  document.getElementById('customProps').value='{}';
+}
+
+// ============== Toast ==============
+function toast(msg, type='') {
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className='toast show '+(type||'');
+  setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+// ============== Keyboard ==============
+document.addEventListener('keydown', e=>{
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(S.selected && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA'){
+      const comp=getComp(S.selected);
+      if(comp){
+        S.components=S.components.filter(c=>c.id!==comp.id);
+        S.wires=S.wires.filter(w=>w.from.comp!==comp.id&&w.to.comp!==comp.id);
+        S.selected=null;hideProps();
+        toast('已删除: '+comp.name,'success');
+        render();
+      }
+    }
+  }
+  if(e.key==='Escape') cancelWire();
+});
+
+// ============== Init ==============
+buildLibrary();
+resize();
+// Add a demo circuit
+setTimeout(()=>{
+  const cx=W/2/S.zoom-S.pan.x/S.zoom;
+  const cy=H/2/S.zoom-S.pan.y/S.zoom;
+  // Battery
+  addComponent(LIB[0].items[0], cx-200, cy);
+  // Resistor
+  addComponent(LIB[1].items[0], cx, cy);
+  // LED
+  addComponent(LIB[2].items[0], cx+200, cy);
+  // Switch
+  addComponent(LIB[1].items[3], cx, cy-100);
+  // Connect them
+  const ids=S.components.map(c=>c.id);
+  if(ids.length>=4){
+    S.wires.push({from:{comp:ids[0],pin:'p'},to:{comp:ids[3],pin:'a'},current:0});
+    S.wires.push({from:{comp:ids[3],pin:'b'},to:{comp:ids[1],pin:'a'},current:0});
+    S.wires.push({from:{comp:ids[1],pin:'b'},to:{comp:ids[2],pin:'a'},current:0});
+    S.wires.push({from:{comp:ids[2],pin:'b'},to:{comp:ids[0],pin:'n'},current:0});
+  }
+  S.selected=null;hideProps();
+  render();
+  toast('已加载示例电路：电池→开关→电阻→LED','success');
+},200);
+</script>
+</body>
+</html>
