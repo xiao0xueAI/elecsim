@@ -1124,21 +1124,43 @@ function startExport() {
   const dur = durMap[S.exportOpts.dur] || 10;
 
   document.getElementById('progressModal').classList.add('show');
-  document.getElementById('exportPercent').textContent='0%';
+  document.getElementById('exportPercent').textContent='准备录制...';
   document.getElementById('exportProgress').style.width='0%';
 
   // Make sure simulation is running for the export
   const wasRunning = S.simRunning;
   if(!S.simRunning) toggleSim();
 
-  // Create offscreen canvas at target resolution
-  const offCanvas = document.createElement('canvas');
-  offCanvas.width = res.w;
-  offCanvas.height = res.h;
-  const offCtx = offCanvas.getContext('2d');
+  // Save original canvas state
+  const origW = W, origH = H;
+  const origCanvasWidth = canvas.width;
+  const origCanvasHeight = canvas.height;
+  const origStyleWidth = canvas.style.width;
+  const origStyleHeight = canvas.style.height;
+  const origPan = {...S.pan};
+  const origZoom = S.zoom;
 
-  // Record using MediaRecorder
-  const stream = offCanvas.captureStream(30); // 30fps
+  // Temporarily resize main canvas to target resolution
+  canvas.width = res.w;
+  canvas.height = res.h;
+  canvas.style.width = res.w + 'px';
+  canvas.style.height = res.h + 'px';
+  W = res.w;
+  H = res.h;
+  ctx.setTransform(1,0,0,1,0,0); // 1:1 pixel ratio for export
+
+  // Center the circuit in the export frame
+  const bounds = getCircuitBounds();
+  if(bounds) {
+    const scaleX = (res.w - 100) / (bounds.maxX - bounds.minX + 200);
+    const scaleY = (res.h - 100) / (bounds.maxY - bounds.minY + 200);
+    S.zoom = Math.min(scaleX, scaleY, 2);
+    S.pan.x = res.w/2 - (bounds.minX + bounds.maxX)/2 * S.zoom;
+    S.pan.y = res.h/2 - (bounds.minY + bounds.maxY)/2 * S.zoom;
+  }
+
+  // Start recording from main canvas stream
+  const stream = canvas.captureStream(30);
   let mimeType = 'video/webm;codecs=vp9';
   if(!MediaRecorder.isTypeSupported(mimeType)){
     mimeType = 'video/webm;codecs=vp8';
@@ -1151,6 +1173,17 @@ function startExport() {
   recorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
 
   recorder.onstop = () => {
+    // Restore original canvas state
+    W = origW; H = origH;
+    canvas.width = origCanvasWidth;
+    canvas.height = origCanvasHeight;
+    canvas.style.width = origStyleWidth;
+    canvas.style.height = origStyleHeight;
+    S.pan = origPan;
+    S.zoom = origZoom;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+
     if(!wasRunning) toggleSim();
 
     const blob = new Blob(chunks, {type: mimeType});
@@ -1165,11 +1198,13 @@ function startExport() {
 
     closeModal('progressModal');
     toast('动画导出完成！文件已下载','success');
+    render();
   };
 
   recorder.start();
   const startTime = Date.now();
   const totalMs = dur * 1000;
+  let frameCount = 0;
 
   function exportFrame() {
     const elapsed = Date.now() - startTime;
@@ -1178,60 +1213,32 @@ function startExport() {
     document.getElementById('exportPercent').textContent = Math.round(progress*100)+'%';
     document.getElementById('exportProgress').style.width = (progress*100)+'%';
 
+    // Render to main canvas at export resolution
+    render();
+
     if(progress >= 1) {
       recorder.stop();
       return;
     }
 
-    // Render to offscreen canvas at target resolution
-    const scale = res.w / W;
-    offCtx.clearRect(0, 0, res.w, res.h);
-    offCtx.save();
-    offCtx.scale(scale, scale);
-
-    offCtx.translate(S.pan.x, S.pan.y);
-    offCtx.scale(S.zoom, S.zoom);
-    drawGridToCtx(offCtx);
-    drawWiresToCtx(offCtx);
-    drawComponentsToCtx(offCtx);
-    offCtx.restore();
-
+    frameCount++;
     requestAnimationFrame(exportFrame);
   }
 
-  // Temporary drawing functions for offscreen context
-  const origCtx = ctx;
-  const tempCtxRef = {ctx: offCtx};
+  // Wait a brief moment for the stream to initialize, then start frames
+  setTimeout(exportFrame, 100);
+}
 
-  // We need to render using offCtx but the draw functions use global ctx
-  // Solution: temporarily swap ctx
-  window._exportCtx = offCtx;
-  window._exportCtxW = res.w;
-  window._exportCtxH = res.h;
-
-  // Simpler approach: just use toDataURL on the main canvas each frame
-  function exportFrameSimple() {
-    const elapsed = Date.now() - startTime;
-    const progress = Math.min(elapsed / totalMs, 1);
-
-    document.getElementById('exportPercent').textContent = Math.round(progress*100)+'%';
-    document.getElementById('exportProgress').style.width = (progress*100)+'%';
-
-    if(progress >= 1) {
-      recorder.stop();
-      return;
-    }
-
-    // Draw current frame to offscreen canvas
-    offCtx.fillStyle = '#0d1117';
-    offCtx.fillRect(0, 0, res.w, res.h);
-    const scale = res.w / W;
-    offCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, res.w, res.h);
-
-    requestAnimationFrame(exportFrameSimple);
-  }
-
-  exportFrameSimple();
+function getCircuitBounds() {
+  if(S.components.length === 0) return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  S.components.forEach(c => {
+    minX = Math.min(minX, c.x - 60);
+    minY = Math.min(minY, c.y - 40);
+    maxX = Math.max(maxX, c.x + 60);
+    maxY = Math.max(maxY, c.y + 40);
+  });
+  return {minX, minY, maxX, maxY};
 }
 
 function addCustomComponent() {
