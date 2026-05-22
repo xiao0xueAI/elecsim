@@ -228,7 +228,7 @@ textarea.form-input{resize:vertical;min-height:60px;font-family:var(--font-mono)
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('exportModal')">取消</button>
-      <button class="btn-primary" onclick="startExport()">&#127909; 生成工作原理动画</button>
+      <button class="btn-primary" onclick="startExport()">&#127909; 导出 WebM 视频</button>
     </div>
   </div>
 </div>
@@ -1116,19 +1116,122 @@ function setOpt(btn, group) {
 
 function startExport() {
   closeModal('exportModal');
+
+  // Parse resolution
+  const resMap = {'720p':{w:1280,h:720},'1080p':{w:1920,h:1080},'4K':{w:3840,h:2160}};
+  const durMap = {'5 秒':5,'10 秒':10,'15 秒':15,'30 秒':30};
+  const res = resMap[S.exportOpts.res] || resMap['1080p'];
+  const dur = durMap[S.exportOpts.dur] || 10;
+
   document.getElementById('progressModal').classList.add('show');
-  let progress = 0;
-  const iv = setInterval(()=>{
-    progress += Math.random()*5 + 1;
-    if(progress>=100){progress=100;clearInterval(iv);
-      setTimeout(()=>{
-        closeModal('progressModal');
-        toast('动画导出完成！','success');
-      },500);
+  document.getElementById('exportPercent').textContent='0%';
+  document.getElementById('exportProgress').style.width='0%';
+
+  // Make sure simulation is running for the export
+  const wasRunning = S.simRunning;
+  if(!S.simRunning) toggleSim();
+
+  // Create offscreen canvas at target resolution
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = res.w;
+  offCanvas.height = res.h;
+  const offCtx = offCanvas.getContext('2d');
+
+  // Record using MediaRecorder
+  const stream = offCanvas.captureStream(30); // 30fps
+  let mimeType = 'video/webm;codecs=vp9';
+  if(!MediaRecorder.isTypeSupported(mimeType)){
+    mimeType = 'video/webm;codecs=vp8';
+    if(!MediaRecorder.isTypeSupported(mimeType)){
+      mimeType = 'video/webm';
     }
-    document.getElementById('exportProgress').style.width=progress+'%';
-    document.getElementById('exportPercent').textContent=Math.round(progress)+'%';
-  },100);
+  }
+  const recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond: res.w >= 3840 ? 20000000 : 8000000});
+  const chunks = [];
+  recorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+
+  recorder.onstop = () => {
+    if(!wasRunning) toggleSim();
+
+    const blob = new Blob(chunks, {type: mimeType});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ElecSim_一灯双控_' + S.exportOpts.res + '.webm';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    closeModal('progressModal');
+    toast('动画导出完成！文件已下载','success');
+  };
+
+  recorder.start();
+  const startTime = Date.now();
+  const totalMs = dur * 1000;
+
+  function exportFrame() {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / totalMs, 1);
+
+    document.getElementById('exportPercent').textContent = Math.round(progress*100)+'%';
+    document.getElementById('exportProgress').style.width = (progress*100)+'%';
+
+    if(progress >= 1) {
+      recorder.stop();
+      return;
+    }
+
+    // Render to offscreen canvas at target resolution
+    const scale = res.w / W;
+    offCtx.clearRect(0, 0, res.w, res.h);
+    offCtx.save();
+    offCtx.scale(scale, scale);
+
+    offCtx.translate(S.pan.x, S.pan.y);
+    offCtx.scale(S.zoom, S.zoom);
+    drawGridToCtx(offCtx);
+    drawWiresToCtx(offCtx);
+    drawComponentsToCtx(offCtx);
+    offCtx.restore();
+
+    requestAnimationFrame(exportFrame);
+  }
+
+  // Temporary drawing functions for offscreen context
+  const origCtx = ctx;
+  const tempCtxRef = {ctx: offCtx};
+
+  // We need to render using offCtx but the draw functions use global ctx
+  // Solution: temporarily swap ctx
+  window._exportCtx = offCtx;
+  window._exportCtxW = res.w;
+  window._exportCtxH = res.h;
+
+  // Simpler approach: just use toDataURL on the main canvas each frame
+  function exportFrameSimple() {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / totalMs, 1);
+
+    document.getElementById('exportPercent').textContent = Math.round(progress*100)+'%';
+    document.getElementById('exportProgress').style.width = (progress*100)+'%';
+
+    if(progress >= 1) {
+      recorder.stop();
+      return;
+    }
+
+    // Draw current frame to offscreen canvas
+    offCtx.fillStyle = '#0d1117';
+    offCtx.fillRect(0, 0, res.w, res.h);
+    const scale = res.w / W;
+    offCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, res.w, res.h);
+
+    requestAnimationFrame(exportFrameSimple);
+  }
+
+  exportFrameSimple();
 }
 
 function addCustomComponent() {
