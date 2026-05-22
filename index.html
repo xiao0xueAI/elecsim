@@ -305,6 +305,7 @@ const LIB = [
     {type:'capacitor', name:'电容', icon:'⚖️', desc:'储能/滤波', pins:[{id:'a',dx:-50,dy:0},{id:'b',dx:50,dy:0}], props:{capacitance:100}},
     {type:'inductor', name:'电感', icon:'🌀', desc:'储能/滤波', pins:[{id:'a',dx:-50,dy:0},{id:'b',dx:50,dy:0}], props:{inductance:10}},
     {type:'switch', name:'开关', icon:'🔘', desc:'通断控制', pins:[{id:'a',dx:-50,dy:0},{id:'b',dx:50,dy:0}], props:{closed:true}},
+    {type:'spdt', name:'单刀双掷开关', icon:'🔀', desc:'双控开关/换向', pins:[{id:'c',dx:-50,dy:0},{id:'t1',dx:50,dy:-20},{id:'t2',dx:50,dy:20}], props:{position:1}},
   ]},
   {cat:'半导体', items:[
     {type:'led', name:'LED', icon:'💡', desc:'发光二极管', pins:[{id:'a',dx:-40,dy:0},{id:'b',dx:40,dy:0}], props:{forwardVoltage:2, color:'#ff4444'}},
@@ -539,6 +540,7 @@ function drawComponents() {
     else if(c.type==='battery'||c.type==='ac') valStr = c.props.voltage+'V';
     else if(c.type==='led') valStr = c.props.forwardVoltage+'V';
     else if(c.type==='switch') valStr = c.props.closed?'ON':'OFF';
+    else if(c.type==='spdt') valStr = '拨向'+c.props.position;
     if(valStr){
       ctx.font='9px "Cascadia Code",monospace';
       ctx.fillStyle=S.viewMode==='xray'?'rgba(57,210,192,0.5)':'#484f58';
@@ -590,12 +592,24 @@ function drawInternal(c) {
     // +/- labels
     ctx.font='8px monospace';
     ctx.fillText('+',14,-4);ctx.fillText('-',-18,-4);
-  } else if(c.type==='switch'){
+  }     else if(c.type==='switch'){
     ctx.beginPath();ctx.moveTo(-20,0);ctx.lineTo(0,0);
     if(c.props.closed){ctx.lineTo(20,0);}
     else{ctx.lineTo(16,-14);}
     ctx.stroke();
     ctx.beginPath();ctx.arc(20,0,3,0,Math.PI*2);ctx.fill();
+  } else if(c.type==='spdt'){
+    // SPDT switch: common on left, t1 top-right, t2 bottom-right
+    ctx.beginPath();ctx.moveTo(-20,0);ctx.lineTo(0,0);
+    if(c.props.position===1){ctx.lineTo(16,-18);} // connected to t1
+    else{ctx.lineTo(16,18);} // connected to t2
+    ctx.stroke();
+    ctx.beginPath();ctx.arc(16,-18,3,0,Math.PI*2);ctx.fill(); // t1 dot
+    ctx.beginPath();ctx.arc(16,18,3,0,Math.PI*2);ctx.fill(); // t2 dot
+    // Label which is active
+    ctx.font='7px monospace';
+    ctx.fillText(c.props.position===1?'1':'',18,-18);
+    ctx.fillText(c.props.position===2?'2':'',18,20);
   } else if(c.type==='motor'){
     ctx.beginPath();ctx.arc(0,-2,14,0,Math.PI*2);ctx.stroke();
     ctx.font='10px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
@@ -875,6 +889,17 @@ function showProps(comp) {
     });
     content.appendChild(row);
   }
+  else if(comp.type==='spdt'){
+    const row=document.createElement('div');row.className='prop-row';
+    row.innerHTML=`<span class="label">拨向</span><div style="display:flex;gap:6px;"><button class="tbtn pos-btn" data-pos="1" style="font-size:11px;padding:3px 14px;${comp.props.position===1?'border-color:var(--green);color:var(--green);background:rgba(63,185,80,0.1)':''}">触点 1</button><button class="tbtn pos-btn" data-pos="2" style="font-size:11px;padding:3px 14px;${comp.props.position===2?'border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,0.1)':''}">触点 2</button></div>`;
+    row.querySelectorAll('.pos-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        comp.props.position=parseInt(btn.dataset.pos);
+        showProps(comp);render();
+      });
+    });
+    content.appendChild(row);
+  }
   else if(comp.type==='inductor') makeRow('电感 (mH)','inductance',comp.props.inductance);
   else if(comp.type==='npn') makeRow('放大倍数','beta',comp.props.beta);
 
@@ -997,10 +1022,20 @@ function simulateCircuit() {
         loopFound=true; break;
       }
 
-      // Find exit pin
-      const otherPins = nextComp.pins.filter(p=>p.id!==next.pin);
-      if(otherPins.length===0) break;
-      currentPin = otherPins[0].id;
+      // Find exit pin - handle SPDT switches
+      if(nextComp.type==='spdt'){
+        if(next.pin==='c'){
+          // Entering from common, exit via selected throw
+          currentPin = nextComp.props.position===1 ? 't1' : 't2';
+        } else {
+          // Entering from a throw, exit via common
+          currentPin = 'c';
+        }
+      } else {
+        const otherPins = nextComp.pins.filter(p=>p.id!==next.pin);
+        if(otherPins.length===0) break;
+        currentPin = otherPins[0].id;
+      }
       currentComp = nextComp;
       activeComponents.push(nextComp);
 
@@ -1011,6 +1046,7 @@ function simulateCircuit() {
       else if(nextComp.type==='motor') totalR += 100;
       else if(nextComp.type==='buzzer') totalR += 50;
       else if(nextComp.type==='inductor') totalR += nextComp.props.inductance * 10;
+      else if(nextComp.type==='spdt') totalR += 5; // switch contact resistance
       else totalR += 10; // wire resistance
 
       if(totalR > 100000) break; // safety
@@ -1145,30 +1181,57 @@ document.addEventListener('keydown', e=>{
 // ============== Init ==============
 buildLibrary();
 resize();
-// Add a demo circuit
+// Add 一灯双控 (one lamp, two-way switch) demo circuit
 setTimeout(()=>{
   const cx=W/2/S.zoom-S.pan.x/S.zoom;
   const cy=H/2/S.zoom-S.pan.y/S.zoom;
-  // Battery
-  addComponent(LIB[0].items[0], cx-200, cy);
-  // Resistor
-  addComponent(LIB[1].items[0], cx, cy);
-  // LED
-  addComponent(LIB[2].items[0], cx+200, cy);
-  // Switch
-  addComponent(LIB[1].items[3], cx, cy-100);
-  // Connect them
+
+  // Find SPDT switch in library
+  const spdtDef = LIB[1].items.find(i=>i.type==='spdt');
+  const batteryDef = LIB[0].items[0];
+  const ledDef = LIB[2].items[0];
+
+  // Place components
+  addComponentSilent(batteryDef, cx-240, cy);     // Battery (left)
+  addComponentSilent(spdtDef, cx-60, cy);          // Switch A (left-center)
+  addComponentSilent(spdtDef, cx+140, cy);         // Switch B (right-center)
+  addComponentSilent(ledDef, cx+300, cy);          // LED (right)
+
   const ids=S.components.map(c=>c.id);
-  if(ids.length>=4){
-    S.wires.push({from:{comp:ids[0],pin:'p'},to:{comp:ids[3],pin:'a'},current:0});
-    S.wires.push({from:{comp:ids[3],pin:'b'},to:{comp:ids[1],pin:'a'},current:0});
-    S.wires.push({from:{comp:ids[1],pin:'b'},to:{comp:ids[2],pin:'a'},current:0});
-    S.wires.push({from:{comp:ids[2],pin:'b'},to:{comp:ids[0],pin:'n'},current:0});
-  }
+  // ids: [0]=battery, [1]=switchA, [2]=switchB, [3]=led
+
+  // Wire 1: Battery(+) → SwitchA(common)
+  S.wires.push({from:{comp:ids[0],pin:'p'},to:{comp:ids[1],pin:'c'},current:0});
+  // Wire 2: SwitchA(t1) → SwitchB(t1) [traveler 1]
+  S.wires.push({from:{comp:ids[1],pin:'t1'},to:{comp:ids[2],pin:'t1'},current:0});
+  // Wire 3: SwitchA(t2) → SwitchB(t2) [traveler 2]
+  S.wires.push({from:{comp:ids[1],pin:'t2'},to:{comp:ids[2],pin:'t2'},current:0});
+  // Wire 4: SwitchB(common) → LED(anode)
+  S.wires.push({from:{comp:ids[2],pin:'c'},to:{comp:ids[3],pin:'a'},current:0});
+  // Wire 5: LED(cathode) → Battery(-)
+  S.wires.push({from:{comp:ids[3],pin:'b'},to:{comp:ids[0],pin:'n'},current:0});
+
   S.selected=null;hideProps();
   render();
-  toast('已加载示例电路：电池→开关→电阻→LED','success');
+  toast('已加载一灯双控电路 | 点击开关可切换拨向，运行仿真查看效果','success');
 },200);
+
+// Silent add component (no toast)
+function addComponentSilent(template, x, y) {
+  const g=S.grid;
+  const comp={
+    id: S.nextId++,
+    type: template.type,
+    name: template.name,
+    icon: template.icon,
+    x: Math.round(x/g)*g,
+    y: Math.round(y/g)*g,
+    pins: template.pins.map(p=>({...p})),
+    props: {...template.props},
+    simCurrent: 0
+  };
+  S.components.push(comp);
+}
 </script>
 </body>
 </html>
