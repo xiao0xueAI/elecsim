@@ -196,6 +196,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
     <div class="sep"></div>
     <button class="tbtn active" id="btnStandard" onclick="ElecSim.UI.setView('standard')">&#9673; 标准</button>
     <button class="tbtn" id="btnXray" onclick="ElecSim.UI.setView('xray')">&#9881; X光</button>
+    <button class="tbtn" id="btnDeleteWire" onclick="ElecSim.WireRouter.toggleDeleteMode()">&#128465; 删除布线</button>
     <div class="sep"></div>
     <button class="tbtn run" id="btnRun" onclick="ElecSim.Engine.toggle()">&#9654; 运行仿真</button>
     <div class="sep"></div>
@@ -1288,6 +1289,7 @@ const WireRouter = {
   wireType: 'live',
   routeWaypoints: [],    // accumulated waypoints during routing (snapped to grid)
   lastDir: null,         // 'h' | 'v' - direction of last committed segment
+  deleteMode: false,     // wire deletion mode
 
   WireColors: { live:'#e53935', neutral:'#1e88e5', ground:'#43a047' },
   WireWidth: 5,
@@ -1473,6 +1475,85 @@ const WireRouter = {
       (w.to.comp === compId && w.to.pin === pinId)
     );
     return wire ? (wire.wireType || 'live') : null;
+  },
+
+  // Toggle delete wire mode
+  toggleDeleteMode() {
+    this.deleteMode = !this.deleteMode;
+    // Cancel any active routing
+    if (this.deleteMode) {
+      this.cancel();
+    }
+    const btn = document.getElementById('btnDeleteWire');
+    if (btn) {
+      btn.classList.toggle('active', this.deleteMode);
+      btn.style.color = this.deleteMode ? '#fff' : '';
+      btn.style.background = this.deleteMode ? '#e53935' : '';
+    }
+    // Show/hide delete hint
+    let hint = document.getElementById('deleteHint');
+    if (this.deleteMode) {
+      if (!hint) {
+        hint = document.createElement('div');
+        hint.id = 'deleteHint';
+        hint.style.cssText = 'position:absolute;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(229,57,53,0.9);color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;pointer-events:none;z-index:10;';
+        hint.textContent = '点击附近的线即可删除，右键或按 Esc 取消';
+        document.getElementById('canvasArea').appendChild(hint);
+      }
+      hint.style.display = 'block';
+    } else {
+      if (hint) hint.style.display = 'none';
+    }
+    render();
+  },
+
+  // Find the closest wire segment to a point (within threshold)
+  findWireAt(x, y, threshold) {
+    const t = threshold || 12;
+    let closest = null;
+    let minDist = Infinity;
+
+    S.wires.forEach(w => {
+      const c1 = getComp(w.from.comp), c2 = getComp(w.to.comp);
+      if (!c1 || !c2) return;
+      const p1 = getPinPos(c1, w.from.pin), p2 = getPinPos(c2, w.to.pin);
+      if (!p1 || !p2) return;
+
+      // Build all segments: start->waypoints->end
+      const allPoints = [p1, ...(w.waypoints || []), p2];
+      for (let i = 0; i < allPoints.length - 1; i++) {
+        const a = allPoints[i], b = allPoints[i + 1];
+        const dist = this._pointToSegmentDist(x, y, a.x, a.y, b.x, b.y);
+        if (dist < t && dist < minDist) {
+          minDist = dist;
+          closest = w;
+        }
+      }
+    });
+    return closest;
+  },
+
+  // Distance from point (px, py) to line segment (x1,y1)-(x2,y2)
+  _pointToSegmentDist(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+  },
+
+  // Delete a wire by id
+  deleteWire(wire) {
+    if (!wire) return;
+    const idx = S.wires.indexOf(wire);
+    if (idx !== -1) {
+      S.wires.splice(idx, 1);
+      S.dirty = true;
+      History.push({ type: 'deleteWire', wire });
+      UI.toast('布线已删除', 'success');
+      render();
+    }
   },
 
   drawWires() {
@@ -2025,6 +2106,9 @@ const History = {
       S.components.push({ ...action.comp });
     } else if (action.type === 'wire') {
       S.wires = S.wires.filter(w => w.id !== action.wire.id);
+    } else if (action.type === 'deleteWire') {
+      // Undo delete: re-add the wire
+      S.wires.push({ ...action.wire });
     }
     S.selected = null;
     UI.hideProps();
@@ -2039,6 +2123,9 @@ const History = {
       WireRouter.removeWiresForComp(action.comp.id);
     } else if (action.type === 'wire') {
       S.wires.push({ ...action.wire });
+    } else if (action.type === 'deleteWire') {
+      // Redo delete: remove the wire again
+      S.wires = S.wires.filter(w => w.id !== action.wire.id);
     }
     render();
   },
@@ -2477,6 +2564,18 @@ function onMouseDown(e) {
     return;
   }
 
+  // Delete wire mode
+  if (WireRouter.deleteMode) {
+    const wire = WireRouter.findWireAt(pos.x, pos.y);
+    if (wire) {
+      WireRouter.deleteWire(wire);
+    } else {
+      // Clicked on empty space → cancel delete mode
+      WireRouter.toggleDeleteMode();
+    }
+    return;
+  }
+
   if (pin && !WireRouter.isActive()) {
     WireRouter.start({ comp: pin.comp, pin: pin.pin });
     return;
@@ -2522,7 +2621,12 @@ function onMouseMove(e) {
   const pos = screenToCanvas(e.offsetX, e.offsetY);
   const pin = findPinAt(pos.x, pos.y);
   const comp = findCompAt(pos.x, pos.y);
-  canvas.style.cursor = WireRouter.isActive() ? 'crosshair' : (pin ? 'pointer' : (comp ? 'move' : 'crosshair'));
+  const wire = WireRouter.deleteMode ? WireRouter.findWireAt(pos.x, pos.y) : null;
+  if (WireRouter.deleteMode) {
+    canvas.style.cursor = wire ? 'pointer' : 'not-allowed';
+  } else {
+    canvas.style.cursor = WireRouter.isActive() ? 'crosshair' : (pin ? 'pointer' : (comp ? 'move' : 'crosshair'));
+  }
 }
 
 function onMouseUp(e) {
@@ -2549,6 +2653,10 @@ function onContextMenu(e) {
   const comp = findCompAt(pos.x, pos.y);
   if (comp) {
     UI.showContextMenu(e.clientX, e.clientY, comp);
+  }
+  // Cancel delete mode on right-click
+  if (WireRouter.deleteMode) {
+    WireRouter.toggleDeleteMode();
   }
 }
 
@@ -2578,7 +2686,7 @@ function onKeyDown(e) {
       }
     }
   }
-  if (e.key === 'Escape') { WireRouter.cancel(); }
+  if (e.key === 'Escape') { WireRouter.cancel(); if (WireRouter.deleteMode) WireRouter.toggleDeleteMode(); }
   if (e.ctrlKey && e.key === 'z') { e.preventDefault(); History.undo(); }
   if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) { e.preventDefault(); History.redo(); }
   if (e.ctrlKey && e.key === 's') { e.preventDefault(); Persistence.save(); }
