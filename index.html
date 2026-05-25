@@ -1771,135 +1771,220 @@ const Engine = {
   },
 
   solve() {
-    // Clear previous
+    // Clear previous simulation state
     S.components.forEach(c => { c.simCurrent = 0; c.simVoltage = 0; c._fault = null; });
     S.wires.forEach(w => { w.current = 0; w._fault = false; });
 
     const faults = [];
+    const mkKey = (compId, pinId) => compId + '_' + pinId;
 
-    // Build adjacency map: pinKey -> [{compId, pinId}]
-    // For each wire, record both directions
-    const adj = new Map();
-    const addAdj = (from, to) => {
-      if (!adj.has(from)) adj.set(from, []);
-      adj.get(from).push(to);
-    };
+    // ==================== Build connectivity graph ====================
+    const adj = []; // Array of {from, to, wireId, compId}
+    const pinInfo = new Map(); // pinKey -> {comp, pinDef}
+
     S.components.forEach(c => {
-      // Internal connections within component (which pins are internally connected)
-      const type = c.type;
+      c.pins.forEach(p => pinInfo.set(mkKey(c.id, p.id), { comp: c, pin: p }));
+    });
+
+    // Helper: add edge (both directions for undirected graph)
+    const addEdge = (from, to, wireId, compId) => {
+      adj.push({ from, to, wireId, compId });
+      adj.push({ from: to, to: from, wireId, compId });
+    };
+
+    // Add component internal connections based on type
+    S.components.forEach(c => {
+      const t = c.type;
       const pins = c.pins;
-      if (type === 'spdt') {
-        // COM connects to active position only
+      if (t === 'spdt') {
         const pos = c.props.position || 1;
         const comPin = pins.find(p => p.id === 'c');
         const activePin = pos === 1 ? pins.find(p => p.id === 't1') : pins.find(p => p.id === 't2');
         if (comPin && activePin) {
-          const from = c.id + '_' + comPin.id;
-          const to = c.id + '_' + activePin.id;
-          addAdj(from, to);
-          addAdj(to, from);
+          addEdge(mkKey(c.id, comPin.id), mkKey(c.id, activePin.id), null, c.id);
         }
-      } else if (type === 'rotary') {
+      } else if (t === 'rotary') {
         const pos = c.props.position || 1;
         const comPin = pins.find(p => p.id === 'com');
         const activePin = pos === 1 ? pins.find(p => p.id === 'pos1') : pins.find(p => p.id === 'pos2');
         if (comPin && activePin) {
-          addAdj(c.id + '_' + comPin.id, c.id + '_' + activePin.id);
-          addAdj(c.id + '_' + activePin.id, c.id + '_' + comPin.id);
+          addEdge(mkKey(c.id, comPin.id), mkKey(c.id, activePin.id), null, c.id);
         }
-      } else if (type === 'switch' || type === 'breaker') {
-        if (c.props.closed) {
-          // Both pins internally connected
-          if (pins.length >= 2) {
-            addAdj(c.id + '_' + pins[0].id, c.id + '_' + pins[1].id);
-            addAdj(c.id + '_' + pins[1].id, c.id + '_' + pins[0].id);
-          }
+      } else if (t === 'switch' || t === 'breaker') {
+        if (c.props.closed && pins.length >= 2) {
+          addEdge(mkKey(c.id, pins[0].id), mkKey(c.id, pins[1].id), null, c.id);
         }
-      } else if (type === 'fuse') {
+      } else if (t === 'fuse') {
         if (!c.props.blown && pins.length >= 2) {
-          addAdj(c.id + '_' + pins[0].id, c.id + '_' + pins[1].id);
-          addAdj(c.id + '_' + pins[1].id, c.id + '_' + pins[0].id);
+          addEdge(mkKey(c.id, pins[0].id), mkKey(c.id, pins[1].id), null, c.id);
         }
-      } else if (type === 'push_no') {
+      } else if (t === 'push_no') {
         if (c.props.pressed && pins.length >= 2) {
-          addAdj(c.id + '_' + pins[0].id, c.id + '_' + pins[1].id);
-          addAdj(c.id + '_' + pins[1].id, c.id + '_' + pins[0].id);
+          addEdge(mkKey(c.id, pins[0].id), mkKey(c.id, pins[1].id), null, c.id);
         }
-      } else if (type === 'push_nc') {
+      } else if (t === 'push_nc') {
         if (!c.props.pressed && pins.length >= 2) {
-          addAdj(c.id + '_' + pins[0].id, c.id + '_' + pins[1].id);
-          addAdj(c.id + '_' + pins[1].id, c.id + '_' + pins[0].id);
+          addEdge(mkKey(c.id, pins[0].id), mkKey(c.id, pins[1].id), null, c.id);
         }
-      } else if (type === 'relay5' || type === 'relay8' || type === 'contactor') {
-        // Coil pins: always internally connected
+      } else if (t === 'relay5' || t === 'relay8' || t === 'contactor') {
         const coilPins = pins.filter(p => p.type === 'coil');
         if (coilPins.length >= 2) {
-          addAdj(c.id + '_' + coilPins[0].id, c.id + '_' + coilPins[1].id);
-          addAdj(c.id + '_' + coilPins[1].id, c.id + '_' + coilPins[0].id);
+          addEdge(mkKey(c.id, coilPins[0].id), mkKey(c.id, coilPins[1].id), null, c.id);
         }
-        // Contact pins: connected if energized
         const contactPins = pins.filter(p => p.type !== 'coil');
         if (c.props.energized && contactPins.length >= 2) {
-          addAdj(c.id + '_' + contactPins[0].id, c.id + '_' + contactPins[1].id);
-          addAdj(c.id + '_' + contactPins[1].id, c.id + '_' + contactPins[0].id);
+          addEdge(mkKey(c.id, contactPins[0].id), mkKey(c.id, contactPins[1].id), null, c.id);
         }
-      } else if (pins.length >= 2) {
-        // Default: all pins internally connected (2-pin components like resistor, LED, etc.)
-        // IMPORTANT: Do NOT connect battery/ac_source/dc_dc pins internally - they are the source
-        const skipTypes = ['battery', 'ac_source', 'dc_dc'];
-        if (skipTypes.includes(type)) {
-          // Don't add internal connections for power sources
-        } else {
-          // For multi-pin like NPN, connect adjacent pins
-          for (let i = 0; i < pins.length - 1; i++) {
-            addAdj(c.id + '_' + pins[i].id, c.id + '_' + pins[i + 1].id);
-            addAdj(c.id + '_' + pins[i + 1].id, c.id + '_' + pins[i].id);
-          }
+      } else if (pins.length >= 2 && !['battery', 'ac_source', 'dc_dc'].includes(t)) {
+        // Default: adjacent pins connected (for 2-pin pass-through components)
+        for (let i = 0; i < pins.length - 1; i++) {
+          addEdge(mkKey(c.id, pins[i].id), mkKey(c.id, pins[i + 1].id), null, c.id);
         }
       }
     });
 
-    // Add wire connections (external)
+    // Add wire connections
+    const wireMap = new Map();
     S.wires.forEach(w => {
-      const a = w.from.comp + '_' + w.from.pin;
-      const b = w.to.comp + '_' + w.to.pin;
-      addAdj(a, b);
-      addAdj(b, a);
+      const a = mkKey(w.from.comp, w.from.pin);
+      const b = mkKey(w.to.comp, w.to.pin);
+      addEdge(a, b, w.id, null);
+      wireMap.set(w.id, w);
     });
 
-    // Helper: get component from pin key
-    const getComp = (pinKey) => {
-      const compId = pinKey.substring(0, pinKey.indexOf('_'));
-      return S.components.find(c => c.id === compId);
-    };
-    const getPinId = (pinKey) => {
-      return pinKey.substring(pinKey.indexOf('_') + 1);
-    };
-    const getCompR = (comp) => {
+    // Build adjacency list for graph traversal
+    const graph = new Map();
+    adj.forEach(e => {
+      if (!graph.has(e.from)) graph.set(e.from, []);
+      graph.get(e.from).push(e);
+    });
+
+    // ==================== Component resistance & behavior ====================
+    const getR = (comp) => {
       const t = comp.type;
-      if (t === 'battery' || t === 'ac_source' || t === 'dc_dc') return 0.1; // internal resistance
-      if (t === 'resistor') return comp.props.resistance || 1000;
-      if (t === 'led') return comp.props.forwardV * 100 || 200;
-      if (t === 'diode') return comp.props.forwardV * 100 || 200;
-      if (t === 'motor_dc') return comp.props.resistance || 50;
+      if (t === 'battery' || t === 'ac_source' || t === 'dc_dc') return 0.001; // very small internal R
+      if (t === 'resistor') return Math.max(0.1, comp.props.resistance || 1000);
+      if (t === 'led' || t === 'diode') return 50; // dynamic R when conducting
+      if (t === 'motor_dc') return Math.max(0.1, comp.props.resistance || 50);
       if (t === 'buzzer') return 80;
-      if (t === 'solenoid') return comp.props.resistance || 200;
-      if (t === 'lamp') return (comp.props.voltage * comp.props.voltage) / (comp.props.wattage || 60);
-      if (t === 'inductor') return comp.props.inductance * 10 || 10;
-      if (t === 'thermistor') return comp.props.resistance || 10000;
-      if (t === 'photoresistor') return comp.props.resistance || 5000;
-      if (t === 'capacitor') return 0; // ideal capacitor: 0R at DC steady state
+      if (t === 'solenoid') return Math.max(0.1, comp.props.resistance || 200);
+      if (t === 'lamp') { const v = comp.props.voltage||220, w = comp.props.wattage||60; return Math.max(1, (v*v)/w); }
+      if (t === 'inductor') return Math.max(0.01, (comp.props.inductance||1)*10);
+      if (t === 'thermistor') return Math.max(100, comp.props.resistance || 10000);
+      if (t === 'photoresistor') return Math.max(100, comp.props.resistance || 5000);
+      if (t === 'capacitor') return 0; // short at DC steady state
       if (t === 'npn') return 500;
       if (t === 'relay5' || t === 'relay8' || t === 'contactor') return comp.props.coilResistance || comp.props.contactR || 10;
-      if (t === 'switch' || t === 'breaker' || t === 'push_no' || t === 'push_nc') return 0.01;
-      if (t === 'spdt' || t === 'rotary') return 0.01;
-      return 10; // default wire/base resistance
+      if (t === 'switch' || t === 'breaker' || t === 'push_no' || t === 'push_nc') return 0.001;
+      if (t === 'spdt' || t === 'rotary') return 0.001;
+      return 10;
     };
 
-    // Find batteries
+    const getLED_Vf = (comp) => (comp.type === 'led') ? (comp.props.forwardV || 2) : 0;
+
+    const isBlocking = (comp) => {
+      if (!comp) return false;
+      const t = comp.type;
+      if (t === 'switch' && !comp.props.closed) return true;
+      if (t === 'breaker' && !comp.props.closed) return true;
+      if (t === 'fuse' && comp.props.blown) return true;
+      if (t === 'push_no' && !comp.props.pressed) return true;
+      if (t === 'push_nc' && comp.props.pressed) return true;
+      return false;
+    };
+
+    // ==================== Find all paths using DFS ====================
+    const findAllPaths = (startKey, endKey, maxPaths = 50) => {
+      const paths = [];
+      const visitedEdges = new Set(); // to avoid duplicate paths
+
+      const dfs = (current, entryComp, entryPin, visitedPins, pathComps, pathWires, pathPins) => {
+        if (paths.length >= maxPaths) return;
+
+        if (current === endKey) {
+          // Valid path found
+          const compKey = pathComps.join(',');
+          if (!visitedEdges.has(compKey)) {
+            visitedEdges.add(compKey);
+            paths.push({
+              comps: [...pathComps],
+              wires: [...pathWires],
+              pins: [...pathPins]
+            });
+          }
+          return;
+        }
+
+        const neighbors = graph.get(current) || [];
+        for (const edge of neighbors) {
+          const { from, to, wireId, compId } = edge;
+
+          // Don't go back to the pin we just came from
+          if (to === entryPin) continue;
+
+          // Skip if this pin was already visited (avoid cycles)
+          if (visitedPins.has(to)) continue;
+
+          // Get component info for 'to' pin
+          const info = pinInfo.get(to);
+          if (!info) continue;
+
+          // Check if component blocks
+          if (isBlocking(info.comp)) continue;
+
+          // Determine if we're crossing into a new component or staying in the same one
+          let newEntryComp = entryComp;
+          let newEntryPin = entryPin;
+          const newPathComps = [...pathComps];
+          const newPathWires = [...pathWires];
+          const newPathPins = [...pathPins, to];
+          const newVisitedPins = new Set(visitedPins);
+
+          if (compId !== entryComp) {
+            // Entering a new component
+            if (pathComps.includes(compId)) {
+              // Already visited this component through another pin - allow if different pin
+              // This handles SPDT correctly (entering at one pin, exiting at another)
+            }
+            newEntryComp = compId;
+            newEntryPin = to;
+            if (!pathComps.includes(compId)) {
+              newPathComps.push(compId);
+            }
+            // Mark all pins of this component as visited to prevent re-entering
+            info.comp.pins.forEach(p => newVisitedPins.add(mkKey(compId, p.id)));
+          }
+
+          if (wireId && !newPathWires.includes(wireId)) {
+            newPathWires.push(wireId);
+          }
+
+          // Allow going to endKey even if visited
+          if (to === endKey) {
+            dfs(to, newEntryComp, newEntryPin, newVisitedPins, newPathComps, newPathWires, newPathPins);
+          } else {
+            dfs(to, newEntryComp, newEntryPin, newVisitedPins, newPathComps, newPathWires, newPathPins);
+          }
+        }
+      };
+
+      // Start DFS from battery positive
+      const startInfo = pinInfo.get(startKey);
+      const startComp = startInfo ? startInfo.comp.id : null;
+      const startVisited = new Set([startKey]);
+      if (startComp) {
+        startInfo.comp.pins.forEach(p => startVisited.add(mkKey(startComp, p.id)));
+      }
+
+      dfs(startKey, startComp, startKey, startVisited, [startComp], [], [startKey]);
+      return paths;
+    };
+
+    // ==================== Process each battery ====================
     const batteries = S.components.filter(c =>
       c.type === 'battery' || c.type === 'ac_source' || c.type === 'dc_dc'
     );
+
     if (batteries.length === 0) {
       document.getElementById('simCurrent').textContent = '0.00 mA';
       document.getElementById('simVoltage').textContent = '0.00 V';
@@ -1907,152 +1992,144 @@ const Engine = {
       return;
     }
 
-    // For each battery, trace loop using BFS/DFS on adjacency map
     batteries.forEach(bat => {
-      const negKey = bat.id + '_n';
-      const posKey = bat.id + '_p';
+      const posKey = mkKey(bat.id, 'p');
+      const negKey = mkKey(bat.id, 'n');
 
-      // BFS from posKey, trying to reach negKey
-      // Track path to find all components in the loop
-      const queue = [{ key: posKey, path: [bat.id], rTotal: 0, wireKeys: [] }];
-      const visited = new Set();
-      visited.add(posKey);
-      let found = null;
-      let traceLimit = 200;
-
-      while (queue.length > 0 && !found && traceLimit-- > 0) {
-        const cur = queue.shift();
-        const neighbors = adj.get(cur.key) || [];
-
-        for (const nb of neighbors) {
-          if (visited.has(nb)) continue;
-          visited.add(nb);
-
-          const nbComp = getComp(nb);
-
-          // Check if we reached battery negative
-          if (nb === negKey) {
-            found = { path: cur.path, rTotal: cur.rTotal, wireKeys: cur.wireKeys };
-            break;
-          }
-
-          // Skip if same component we just entered (already counted)
-          if (cur.path.length > 0 && nbComp && cur.path[cur.path.length - 1] === nbComp.id) continue;
-
-          // Check for open circuits - skip this neighbor if the component blocks
-          if (nbComp) {
-            const t = nbComp.type;
-            if (t === 'switch' && !nbComp.props.closed) continue;
-            if (t === 'breaker' && !nbComp.props.closed) continue;
-            if (t === 'fuse' && nbComp.props.blown) continue;
-          }
-
-          // Get resistance of this component (if not already counted)
-          let newR = cur.rTotal;
-          let newPath = [...cur.path];
-          let newWires = [...cur.wireKeys];
-
-          if (nbComp && !cur.path.includes(nbComp.id)) {
-            newPath.push(nbComp.id);
-            newR += getCompR(nbComp);
-            if (newR > 1000000) continue; // too much resistance, skip
-          }
-
-          // Track which wires connect to this pin
-          S.wires.forEach(w => {
-            const wa = w.from.comp + '_' + w.from.pin;
-            const wb = w.to.comp + '_' + w.to.pin;
-            const wKey = w.from.comp + '_' + w.from.pin + '-' + w.to.comp + '_' + w.to.pin;
-            if ((wa === cur.key && wb === nb) || (wb === cur.key && wa === nb)) {
-              if (!newWires.includes(wKey)) newWires.push(wKey);
-            }
-          });
-
-          queue.push({ key: nb, path: newPath, rTotal: newR, wireKeys: newWires });
-        }
+      // Check if positive terminal has any connections
+      if (!graph.has(posKey) || (graph.get(posKey) || []).length === 0) {
+        document.getElementById('simCurrent').textContent = '0.00 mA';
+        document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
+        document.getElementById('simPower').textContent = '0.00 mW';
+        return;
       }
 
-      if (found && found.rTotal > 0) {
-        const V = bat.props.voltage;
-        const I = (V / found.rTotal) * 1000; // mA
-        const P = V * I; // mW
+      const paths = findAllPaths(posKey, negKey);
 
-        document.getElementById('simCurrent').textContent = I.toFixed(2) + ' mA';
-        document.getElementById('simVoltage').textContent = V.toFixed(2) + ' V';
-        document.getElementById('simPower').textContent = P.toFixed(2) + ' mW';
+      if (paths.length === 0) {
+        document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
+        document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
+        document.getElementById('simPower').textContent = '0.00 mW';
+        return;
+      }
 
-        // Set current/voltage on active components
-        found.path.forEach(compId => {
+      // ==================== Calculate equivalent resistance ====================
+      // Each path represents a series circuit from + to -
+      // Parallel paths: 1/R_eq = 1/R1 + 1/R2 + ...
+
+      const pathData = paths.map(p => {
+        let R = 0;
+        for (const compId of p.comps) {
+          if (compId === bat.id) continue; // Don't count battery internal R
           const comp = S.components.find(c => c.id === compId);
-          if (comp) { comp.simCurrent = I; comp.simVoltage = V; }
-        });
+          if (comp) R += getR(comp);
+        }
+        return { ...p, R };
+      }).filter(p => p.R > 0 && p.R < 1e6);
 
-        // Set current on active wires
-        S.wires.forEach(w => {
-          const wKey1 = w.from.comp + '_' + w.from.pin + '-' + w.to.comp + '_' + w.to.pin;
-          const wKey2 = w.to.comp + '_' + w.to.pin + '-' + w.from.comp + '_' + w.from.pin;
-          if (found.wireKeys.includes(wKey1) || found.wireKeys.includes(wKey2)) {
-            w.current = I;
-          }
-        });
+      if (pathData.length === 0) {
+        document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
+        document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
+        document.getElementById('simPower').textContent = '0.00 mW';
+        return;
+      }
 
-        // Check overcurrent
-        found.path.forEach(compId => {
+      // Calculate equivalent resistance (parallel combination)
+      let G_eq = 0; // total conductance
+      pathData.forEach(p => { G_eq += 1 / p.R; });
+      const R_eq = 1 / G_eq;
+
+      // Short circuit check
+      if (R_eq < 0.1) {
+        faults.push({ type: 'short', msg: '检测到短路！等效电阻 ' + R_eq.toFixed(4) + ' Ω', comp: '' });
+        document.getElementById('simCurrent').textContent = '∞ (短路)';
+        document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
+        document.getElementById('simPower').textContent = '∞ mW';
+        return;
+      }
+
+      // ==================== Apply Ohm's Law ====================
+      const V = bat.props.voltage;
+      const I_total = V / R_eq; // Amps
+      const I_total_mA = I_total * 1000;
+
+      document.getElementById('simCurrent').textContent = I_total_mA.toFixed(2) + ' mA';
+      document.getElementById('simVoltage').textContent = V.toFixed(2) + ' V';
+      document.getElementById('simPower').textContent = (V * I_total_mA).toFixed(2) + ' mW';
+
+      // ==================== Distribute current/voltage ====================
+      // For each path: voltage is same (V), current divides: I_path = V / R_path
+      // For series components in path: same I, V_drop = I * R
+
+      const compCurrents = new Map();
+      const compVoltages = new Map();
+
+      pathData.forEach(p => {
+        const I_path = V / p.R; // current through this parallel path
+        const compsOnly = p.comps.filter(id => id !== bat.id);
+
+        compsOnly.forEach(compId => {
           const comp = S.components.find(c => c.id === compId);
           if (!comp) return;
-          const maxI = comp.props.maxCurrent || Infinity;
-          if (I / 1000 > maxI) {
-            comp._fault = 'overcurrent';
-            faults.push({ type: 'warn', msg: `${comp.name} 过流: ${I.toFixed(1)}mA > ${maxI}A`, comp: comp.name });
-          }
+
+          // Accumulate current (sum from all parallel paths)
+          compCurrents.set(compId, (compCurrents.get(compId) || 0) + I_path);
+
+          // Voltage drop for this component in series = I_path * R_comp
+          const R_comp = getR(comp);
+          const V_drop = I_path * R_comp;
+          compVoltages.set(compId, (compVoltages.get(compId) || 0) + V_drop);
         });
 
-        // Check short circuit
-        if (found.rTotal < 1 && I > 1000) {
-          faults.push({ type: 'short', msg: '检测到短路！电路电阻极低', comp: '' });
-          S.wires.forEach(w => {
-            const wKey1 = w.from.comp + '_' + w.from.pin + '-' + w.to.comp + '_' + w.to.pin;
-            const wKey2 = w.to.comp + '_' + w.to.pin + '-' + w.from.comp + '_' + w.from.pin;
-            if (found.wireKeys.includes(wKey1) || found.wireKeys.includes(wKey2)) {
-              w._fault = true;
-            }
-          });
+        // Set wire currents
+        p.wires.forEach(wId => {
+          const w = wireMap.get(wId);
+          if (w) w.current = I_path * 1000; // mA
+        });
+      });
+
+      // Apply to components
+      compCurrents.forEach((I, compId) => {
+        const comp = S.components.find(c => c.id === compId);
+        if (comp) {
+          comp.simCurrent = I * 1000; // mA
+          comp.simVoltage = compVoltages.get(compId) || 0;
         }
-      } else if (found && found.rTotal <= 0) {
-        // Loop found but zero resistance = short
-        faults.push({ type: 'short', msg: '检测到短路！电路无负载', comp: '' });
-        document.getElementById('simCurrent').textContent = '∞ (短路)';
-        document.getElementById('simVoltage').textContent = bat.props.voltage.toFixed(2) + ' V';
-        document.getElementById('simPower').textContent = '∞ mW';
-      } else {
-        // No loop found = open circuit
-        // Check if battery at least has connections
-        const hasConnection = adj.has(posKey) && (adj.get(posKey) || []).length > 0;
-        if (hasConnection) {
-          document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
-          document.getElementById('simVoltage').textContent = bat.props.voltage.toFixed(2) + ' V';
+      });
+
+      // ==================== LED special handling ====================
+      // LEDs only conduct if forward voltage is exceeded
+      S.components.forEach(comp => {
+        if (comp.type !== 'led') return;
+        const Vf = getLED_Vf(comp);
+        const V_comp = comp.simVoltage || 0;
+        const I_comp = comp.simCurrent / 1000; // A
+
+        // LED turns on only if V across it >= forward voltage AND current flows
+        if (V_comp < Vf || I_comp < 0.001) {
+          comp.simCurrent = 0;
+          comp._fault = 'off'; // LED is off
         } else {
-          document.getElementById('simCurrent').textContent = '0.00 mA';
-          document.getElementById('simVoltage').textContent = bat.props.voltage.toFixed(2) + ' V';
+          comp._fault = null;
         }
-        document.getElementById('simPower').textContent = '0.00 mW';
-      }
+      });
+
+      // ==================== Check faults ====================
+      S.components.forEach(comp => {
+        if (comp._fault === 'off') return; // Don't flag LED off as fault
+        const maxI = comp.props.maxCurrent || Infinity;
+        if (comp.simCurrent / 1000 > maxI) {
+          comp._fault = 'overcurrent';
+          faults.push({ type: 'warn', msg: `${comp.name} 过流: ${(comp.simCurrent).toFixed(1)}mA > ${maxI}A`, comp: comp.name });
+        }
+      });
+
+      // ==================== Update relays ====================
+      S.components.filter(c => ['relay5', 'relay8', 'contactor'].includes(c.type)).forEach(relay => {
+        relay.props.energized = relay.simCurrent > 1; // 1mA threshold
+      });
     });
 
-    // Update relay states (second pass since relay energization depends on current)
-    const relays = S.components.filter(c =>
-      c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor'
-    );
-    relays.forEach(relay => {
-      const wasEnergized = relay.props.energized;
-      relay.props.energized = relay.simCurrent > 0.1;
-      // If state changed, mark as needing re-solve
-      if (wasEnergized !== relay.props.energized) {
-        relay._stateChanged = true;
-      }
-    });
-
-    // Display faults
     this.showFaults(faults);
   },
 
