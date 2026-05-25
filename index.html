@@ -88,6 +88,9 @@ html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--b
 .canvas-overlay{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:5px 14px;background:rgba(22,27,34,.92);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--text-dim);z-index:5;backdrop-filter:blur(8px);}
 .canvas-overlay button{background:none;border:none;color:var(--red);cursor:pointer;font-size:11px;padding:2px 6px;border-radius:4px;}
 .canvas-overlay button:hover{background:rgba(248,81,73,.15);}
+.wire-type-btn{padding:2px 8px;background:transparent;border:1px solid;border-radius:4px;font-size:10px;cursor:pointer;opacity:.4;transition:all .15s;font-family:var(--font);}
+.wire-type-btn:hover{opacity:.7;}
+.wire-type-btn.active{opacity:1;font-weight:600;border-width:2px;}
 .zoom-info{position:absolute;bottom:8px;right:12px;font-size:10px;color:var(--text-muted);z-index:5;}
 .status-bar{display:flex;align-items:center;gap:12px;padding:4px 12px;background:var(--bg-panel);border-top:1px solid var(--border);font-size:10px;color:var(--text-muted);flex-shrink:0;}
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;}
@@ -251,7 +254,12 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
     <div class="canvas-area" id="canvasArea">
       <canvas id="canvas"></canvas>
       <div class="canvas-overlay" id="wireHint" style="display:none;">
-        <span id="wireHintText">&#128279; 点击目标引脚完成连线</span>
+        <div style="display:flex;gap:3px;margin-right:6px;" id="wireTypeBar">
+          <button class="wire-type-btn active" data-wtype="live" onclick="ElecSim.WireRouter.setWireType('live')" style="color:#f85149;border-color:#f85149">火线</button>
+          <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#58a6ff;border-color:#58a6ff">零线</button>
+          <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#3fb950;border-color:#3fb950">地线</button>
+        </div>
+        <span id="wireHintText">点击目标引脚完成连线</span>
         <button onclick="ElecSim.WireRouter.cancel()">取消</button>
       </div>
       <div class="zoom-info">缩放: <span id="zoomLevel">100</span>% | 网格: 20px</div>
@@ -1195,12 +1203,40 @@ const Renderer = {
 const WireRouter = {
   active: false,
   startPin: null,
+  wireType: 'live',
+
+  WireColors: { live:'#f85149', neutral:'#58a6ff', ground:'#3fb950' },
+  WireWidths: { live:2.5, neutral:2.5, ground:2 },
 
   isActive() { return this.active; },
+
+  setWireType(type) {
+    this.wireType = type;
+    document.querySelectorAll('#wireTypeBar .wire-type-btn').forEach(b => {
+      const isActive = b.dataset.wtype === type;
+      b.classList.toggle('active', isActive);
+      const c = b.dataset.wtype === 'live' ? '#f85149' : b.dataset.wtype === 'neutral' ? '#58a6ff' : '#3fb950';
+      b.style.background = isActive ? c : 'transparent';
+      b.style.color = isActive ? '#fff' : c;
+      b.style.borderColor = c;
+    });
+    render();
+  },
+
+  detectWireType(pinLabel) {
+    const l = (pinLabel || '').toUpperCase();
+    if (l.includes('GND') || l === 'PE' || l === 'E') return 'ground';
+    if (l === 'N' || l === '-' || l.includes('NEUTRAL')) return 'neutral';
+    return 'live';
+  },
 
   start(pin) {
     this.active = true;
     this.startPin = { ...pin };
+    const comp = getComp(pin.comp);
+    const pinDef = comp ? comp.pins.find(p => p.id === pin.pin) : null;
+    if (pinDef) { this.wireType = this.detectWireType(pinDef.label); }
+    this.setWireType(this.wireType);
     document.getElementById('wireHint').style.display = 'flex';
     document.getElementById('wireHintText').textContent = '点击目标引脚完成连线';
   },
@@ -1223,11 +1259,15 @@ const WireRouter = {
     );
     if (exists) { UI.toast('连线已存在', 'warning'); this.cancel(); return; }
 
+    const c1 = getComp(sp.comp), c2 = getComp(endPin.comp);
+    const p1 = getPinPos(c1, sp.pin), p2 = getPinPos(c2, endPin.pin);
+    const waypoints = computeOrthoWaypoints(p1, p2);
     const wire = {
       id: S.nextWireId++,
       from: { ...sp },
       to: { ...endPin },
-      waypoints: [],
+      waypoints: waypoints,
+      wireType: this.wireType,
       current: 0
     };
     S.wires.push(wire);
@@ -1245,13 +1285,16 @@ const WireRouter = {
       const p1 = getPinPos(c1, w.from.pin), p2 = getPinPos(c2, w.to.pin);
       if (!p1 || !p2) return;
 
-      const allPoints = [p1, ...w.waypoints, p2];
+      const allPoints = [p1, ...(w.waypoints || []), p2];
+      const wt = w.wireType || 'live';
+      const wColor = w._fault ? '#f85149' : (isXray ? 'rgba(57,210,192,0.5)' : this.WireColors[wt]);
+      const wWidth = w._fault ? 2.5 : (isXray ? 1.5 : this.WireWidths[wt]);
 
-      // Draw wire path
-      ctx.strokeStyle = w._fault ? '#f85149' : (isXray ? 'rgba(57,210,192,0.5)' : 'rgba(88,166,255,0.65)');
-      ctx.lineWidth = w._fault ? 2.5 : 2;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
+      // Draw wire path (orthogonal)
+      ctx.strokeStyle = wColor;
+      ctx.lineWidth = wWidth;
+      ctx.lineJoin = 'miter';
+      ctx.lineCap = 'butt';
       ctx.beginPath();
       ctx.moveTo(allPoints[0].x, allPoints[0].y);
       for (let i = 1; i < allPoints.length; i++) {
@@ -1259,15 +1302,15 @@ const WireRouter = {
       }
       ctx.stroke();
 
-      // Junction dots
-      ctx.fillStyle = isXray ? '#39d2c0' : '#58a6ff';
+      // Junction dots at endpoints
+      ctx.fillStyle = isXray ? '#39d2c0' : wColor;
       [p1, p2].forEach(p => {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2); ctx.fill();
       });
 
       // Corner dots for orthogonal waypoints
       if (w.waypoints && w.waypoints.length > 0) {
-        ctx.fillStyle = isXray ? 'rgba(57,210,192,0.6)' : 'rgba(88,166,255,0.4)';
+        ctx.fillStyle = isXray ? 'rgba(57,210,192,0.6)' : (wColor + '88');
         w.waypoints.forEach(wp => {
           ctx.beginPath(); ctx.arc(wp.x, wp.y, 2.5, 0, Math.PI * 2); ctx.fill();
         });
@@ -1275,16 +1318,19 @@ const WireRouter = {
 
       // Current flow animation
       if (S.simRunning && S.showCurrentDir && w.current > 0) {
-        this.drawCurrentFlow(allPoints, w.current);
+        this.drawCurrentFlow(allPoints, w.current, wColor);
       }
     });
+    // Reset ctx defaults for subsequent drawing
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
   },
 
-  drawCurrentFlow(points, current) {
+  drawCurrentFlow(points, current, wireColor) {
     const speed = Math.min(Math.abs(current) / 5, 3);
     const particleCount = Math.ceil(Math.abs(current) / 3);
-    const color = current > 20 ? '#f85149' : current > 10 ? '#f0883e' : '#58a6ff';
     const isXray = S.viewMode === 'xray';
+    const color = isXray ? '#39d2c0' : (wireColor || (current > 20 ? '#f85149' : current > 10 ? '#f0883e' : '#58a6ff'));
 
     // Calculate total path length
     let totalLen = 0;
@@ -1314,14 +1360,32 @@ const WireRouter = {
     const sx = c.x + pin.dx, sy = c.y + pin.dy;
     const m = screenToCanvas(S.mouse.x, S.mouse.y);
 
-    ctx.strokeStyle = 'rgba(88,166,255,0.4)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]);
+    // Orthogonal preview path
+    const waypoints = computeOrthoWaypoints({x:sx,y:sy}, m);
+    const allPoints = [{x:sx,y:sy}, ...waypoints, {x:m.x,y:m.y}];
+    const color = this.WireColors[this.wireType] || this.WireColors.live;
+    const width = this.WireWidths[this.wireType] || 2;
+
+    ctx.strokeStyle = color + '55';
+    ctx.lineWidth = width;
+    ctx.setLineDash([6, 4]);
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'butt';
     ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(m.x, m.y);
+    ctx.moveTo(allPoints[0].x, allPoints[0].y);
+    for (let i = 1; i < allPoints.length; i++) {
+      ctx.lineTo(allPoints[i].x, allPoints[i].y);
+    }
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // Corner preview dots
+    if (waypoints.length > 0) {
+      ctx.fillStyle = color + '88';
+      waypoints.forEach(wp => {
+        ctx.beginPath(); ctx.arc(wp.x, wp.y, 3, 0, Math.PI * 2); ctx.fill();
+      });
+    }
   },
 
   isPinConnected(compId, pinId) {
@@ -2258,6 +2322,15 @@ function hexToRGBA(hex, alpha) {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+function computeOrthoWaypoints(p1, p2) {
+  const g = S.grid;
+  const sx = p1.x, sy = p1.y, ex = p2.x, ey = p2.y;
+  // Already aligned on same row or column - direct orthogonal line
+  if (Math.abs(sy - ey) < 2 || Math.abs(sx - ex) < 2) return [];
+  // Z-shape: horizontal → vertical → horizontal through midpoint
+  const midX = Math.round((sx + ex) / 2 / g) * g;
+  return [{ x: midX, y: sy }, { x: midX, y: ey }];
 }
 function getCircuitBounds() {
   if (S.components.length === 0) return null;
