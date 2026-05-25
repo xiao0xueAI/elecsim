@@ -2002,8 +2002,16 @@ const Engine = {
     }
 
     batteries.forEach(bat => {
-      const posKey = mkKey(bat.id, 'p');
-      const negKey = mkKey(bat.id, 'n');
+      // Determine positive/negative pin IDs based on component type
+      // (Cannot hardcode 'p'/'n' because different power sources use different pin names)
+      let posPin, negPin;
+      if (bat.type === 'battery') { posPin = 'p'; negPin = 'n'; }
+      else if (bat.type === 'ac_source') { posPin = 'l'; negPin = 'n'; }
+      else if (bat.type === 'dc_dc') { posPin = 'vout'; negPin = 'gnd2'; }
+      else { posPin = 'p'; negPin = 'n'; } // fallback
+
+      const posKey = mkKey(bat.id, posPin);
+      const negKey = mkKey(bat.id, negPin);
 
       // Check if positive terminal has any connections
       if (!graph.has(posKey) || (graph.get(posKey) || []).length === 0) {
