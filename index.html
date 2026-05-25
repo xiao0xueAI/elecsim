@@ -252,10 +252,6 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
       <canvas id="canvas"></canvas>
       <div class="canvas-overlay" id="wireHint" style="display:none;">
         <span id="wireHintText">&#128279; 点击目标引脚完成连线</span>
-        <div style="display:flex;gap:4px;margin-left:8px;">
-          <button id="wireModeStraight" class="tbtn" style="font-size:11px;padding:2px 10px;border-color:var(--blue);color:var(--blue);background:rgba(88,166,255,0.1);" onclick="ElecSim.WireRouter.setMode('straight')">&#8212; 直线</button>
-          <button id="wireModeOrtho" class="tbtn" style="font-size:11px;padding:2px 10px;" onclick="ElecSim.WireRouter.setMode('ortho')">&#9654; 拐线</button>
-        </div>
         <button onclick="ElecSim.WireRouter.cancel()">取消</button>
       </div>
       <div class="zoom-info">缩放: <span id="zoomLevel">100</span>% | 网格: 20px</div>
@@ -1199,30 +1195,14 @@ const Renderer = {
 const WireRouter = {
   active: false,
   startPin: null,
-  mode: 'ortho', // 'straight' | 'ortho'
 
   isActive() { return this.active; },
-
-  setMode(m) {
-    this.mode = m;
-    const btnS = document.getElementById('wireModeStraight');
-    const btnO = document.getElementById('wireModeOrtho');
-    if (m === 'straight') {
-      btnS.style.borderColor = 'var(--blue)'; btnS.style.color = 'var(--blue)'; btnS.style.background = 'rgba(88,166,255,0.1)';
-      btnO.style.borderColor = ''; btnO.style.color = ''; btnO.style.background = '';
-    } else {
-      btnO.style.borderColor = 'var(--blue)'; btnO.style.color = 'var(--blue)'; btnO.style.background = 'rgba(88,166,255,0.1)';
-      btnS.style.borderColor = ''; btnS.style.color = ''; btnS.style.background = '';
-    }
-    render();
-  },
 
   start(pin) {
     this.active = true;
     this.startPin = { ...pin };
     document.getElementById('wireHint').style.display = 'flex';
     document.getElementById('wireHintText').textContent = '点击目标引脚完成连线';
-    this.setMode(this.mode); // update button styles
   },
 
   cancel() {
@@ -1237,27 +1217,17 @@ const WireRouter = {
     const sp = this.startPin;
     if (sp.comp === endPin.comp && sp.pin === endPin.pin) { this.cancel(); return; }
 
-    // Check duplicate
     const exists = S.wires.some(w =>
       (w.from.comp === sp.comp && w.from.pin === sp.pin && w.to.comp === endPin.comp && w.to.pin === endPin.pin) ||
       (w.to.comp === sp.comp && w.to.pin === sp.pin && w.from.comp === endPin.comp && w.from.pin === endPin.pin)
     );
     if (exists) { UI.toast('连线已存在', 'warning'); this.cancel(); return; }
 
-    // Calculate waypoints based on mode
-    const c1 = getComp(sp.comp), c2 = getComp(endPin.comp);
-    const p1 = getPinPos(c1, sp.pin), p2 = getPinPos(c2, endPin.pin);
-    let waypoints = [];
-
-    if (this.mode === 'ortho') {
-      waypoints = this.calcOrthoPath(p1, p2, sp, endPin);
-    }
-
     const wire = {
       id: S.nextWireId++,
       from: { ...sp },
       to: { ...endPin },
-      waypoints: waypoints,
+      waypoints: [],
       current: 0
     };
     S.wires.push(wire);
@@ -1265,44 +1235,6 @@ const WireRouter = {
     History.push({ type: 'wire', wire });
     UI.toast('连线成功', 'success');
     this.cancel();
-  },
-
-  // Calculate orthogonal (right-angle) path between two pins
-  calcOrthoPath(p1, p2, sp, ep) {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-
-    // Straight horizontal or vertical - no waypoints needed
-    if (Math.abs(dx) < 1 || Math.abs(dy) < 1) return [];
-
-    const midX = p1.x + dx / 2;
-    const midY = p1.y + dy / 2;
-
-    // Strategy: determine best routing based on pin directions
-    // If start pin is on left/right side → go horizontal first, then vertical
-    // If start pin is on top/bottom → go vertical first, then horizontal
-    const c1 = getComp(sp.comp);
-    const pin1 = c1 ? c1.pins.find(p => p.id === sp.pin) : null;
-    const c2 = getComp(ep.comp);
-    const pin2 = c2 ? c2.pins.find(p => p.id === ep.pin) : null;
-
-    const pin1Horizontal = pin1 ? Math.abs(pin1.dx) >= Math.abs(pin1.dy) : true;
-    const pin2Horizontal = pin2 ? Math.abs(pin2.dx) >= Math.abs(pin2.dy) : true;
-
-    // Both horizontal or both vertical → use middle turn
-    if (pin1Horizontal && pin2Horizontal) {
-      // Both exit horizontally → horizontal then vertical then horizontal
-      return [{ x: midX, y: p1.y }];
-    } else if (!pin1Horizontal && !pin2Horizontal) {
-      // Both exit vertically → vertical then horizontal then vertical
-      return [{ x: p1.x, y: midY }];
-    } else if (pin1Horizontal) {
-      // Start horizontal, end vertical → L-shape from start
-      return [{ x: p2.x, y: p1.y }];
-    } else {
-      // Start vertical, end horizontal → L-shape from start
-      return [{ x: p1.x, y: p2.y }];
-    }
   },
 
   drawWires() {
@@ -1382,22 +1314,12 @@ const WireRouter = {
     const sx = c.x + pin.dx, sy = c.y + pin.dy;
     const m = screenToCanvas(S.mouse.x, S.mouse.y);
 
-    let points;
-    if (this.mode === 'ortho') {
-      const wp = this.calcOrthoPath({x: sx, y: sy}, m, this.startPin, {comp: null, pin: null});
-      points = [{ x: sx, y: sy }, ...wp, m];
-    } else {
-      points = [{ x: sx, y: sy }, m];
-    }
-
     ctx.strokeStyle = 'rgba(88,166,255,0.4)';
     ctx.lineWidth = 2;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(m.x, m.y);
     ctx.stroke();
     ctx.setLineDash([]);
   },
