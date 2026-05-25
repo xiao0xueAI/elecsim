@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ElecSim Studio Pro</title>
+  <title>ElecSim Studio Pro v2.0 - QIACHIP 电工电路仿真平台</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -17,11 +17,12 @@
       min-height: 100vh;
       padding: 40px 20px;
     }
-    .container { max-width: 600px; text-align: center; }
-    .logo { font-size: 48px; margin-bottom: 16px; }
-    h1 { font-size: 28px; margin-bottom: 8px; background: linear-gradient(135deg, #58a6ff, #bc8cff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .version { color: #8b949e; font-size: 14px; margin-bottom: 32px; }
-    .desc { color: #8b949e; font-size: 15px; line-height: 1.6; margin-bottom: 32px; }
+    .container { max-width: 640px; text-align: center; }
+    .logo { font-size: 52px; margin-bottom: 12px; }
+    h1 { font-size: 30px; margin-bottom: 6px; background: linear-gradient(135deg, #58a6ff, #bc8cff, #ff7eb3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .version { color: #8b949e; font-size: 14px; margin-bottom: 8px; }
+    .badge { display: inline-block; padding: 3px 12px; background: rgba(255,126,179,.1); border: 1px solid #ff7eb3; border-radius: 20px; font-size: 12px; color: #ff7eb3; margin-bottom: 28px; }
+    .desc { color: #8b949e; font-size: 15px; line-height: 1.7; margin-bottom: 28px; }
     .btn {
       display: inline-block;
       padding: 12px 32px;
@@ -35,30 +36,36 @@
       border: 1px solid #238636;
     }
     .btn:hover { background: linear-gradient(135deg, #2ea043, #3fb950); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(46,160,67,.3); }
-    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 40px; text-align: left; }
-    .feature { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
-    .feature .icon { font-size: 24px; margin-bottom: 8px; }
-    .feature .title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-    .feature .text { font-size: 12px; color: #8b949e; }
-    .footer { margin-top: 48px; font-size: 12px; color: #484f58; }
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 36px; text-align: left; }
+    .feature { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px; }
+    .feature .icon { font-size: 22px; margin-bottom: 6px; }
+    .feature .title { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+    .feature .text { font-size: 11px; color: #8b949e; line-height: 1.4; }
+    .footer { margin-top: 44px; font-size: 12px; color: #484f58; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="logo">⚡</div>
     <h1>ElecSim Studio Pro</h1>
-    <p class="version">v2026.05.06 — 电工电路仿真与工作原理可视化</p>
+    <p class="version">v2.0</p>
+    <div class="badge">QIACHIP 电工电路仿真平台</div>
     <p class="desc">
-      基于浏览器的交互式电路仿真工具。支持拖放搭建电路、实时仿真计算、电流可视化动画。
+      基于 HTML5 Canvas 的专业级电路仿真工具。支持拖放搭建电路、实时仿真计算、
+      电流粒子可视化、继电器行为模拟、故障检测，以及 QIACHIP 产品集成演示。
     </p>
-    <a href="index.html" class="btn">🚀 打开工具</a>
+    <a href="index.html" class="btn">🚀 打开仿真工具</a>
     <div class="features">
-      <div class="feature"><div class="icon">🔌</div><div class="title">丰富的元件库</div><div class="text">电源、电阻、电容、LED、开关等</div></div>
-      <div class="feature"><div class="icon">⚡</div><div class="title">实时仿真</div><div class="text">电压/电流/功率实时计算</div></div>
-      <div class="feature"><div class="icon">💡</div><div class="title">可视化效果</div><div class="text">LED发光、电流流向动画</div></div>
-      <div class="feature"><div class="icon">🔬</div><div class="title">X光视图</div><div class="text">透视查看元件内部结构</div></div>
+      <div class="feature"><div class="icon">🔌</div><div class="title">30+ 内置元件</div><div class="text">电源/开关/继电器/传感器/输出/仪表</div></div>
+      <div class="feature"><div class="icon">⚡</div><div class="title">实时仿真引擎</div><div class="text">串联+并联电路、继电器行为模拟</div></div>
+      <div class="feature"><div class="icon">📦</div><div class="title">继电器系统</div><div class="text">5针/8针继电器、交流接触器</div></div>
+      <div class="feature"><div class="icon">📡</div><div class="title">QIACHIP 产品</div><div class="text">遥控模块上传、引脚编辑、仿真集成</div></div>
+      <div class="feature"><div class="icon">💡</div><div class="title">电流粒子可视化</div><div class="text">速度和颜色反映电流大小与状态</div></div>
+      <div class="feature"><div class="icon">🛡️</div><div class="title">故障检测</div><div class="text">短路/断路/过流实时诊断</div></div>
+      <div class="feature"><div class="icon">🔄</div><div class="title">撤销/重做</div><div class="text">Ctrl+Z / Ctrl+Y 操作回退</div></div>
+      <div class="feature"><div class="icon">💾</div><div class="title">保存/加载</div><div class="text">自动保存、JSON导入导出</div></div>
     </div>
-    <div class="footer">MIT License · Built with HTML5 Canvas</div>
+    <div class="footer">MIT License · Built with HTML5 Canvas · Zero Dependencies</div>
   </div>
 </body>
 </html>
