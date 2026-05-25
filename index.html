@@ -1951,17 +1951,14 @@ const Engine = {
 
           if (compId !== entryComp) {
             // Entering a new component
-            if (pathComps.includes(compId)) {
-              // Already visited this component through another pin - allow if different pin
-              // This handles SPDT correctly (entering at one pin, exiting at another)
-            }
             newEntryComp = compId;
             newEntryPin = to;
             if (!pathComps.includes(compId)) {
               newPathComps.push(compId);
             }
-            // Mark all pins of this component as visited to prevent re-entering
-            info.comp.pins.forEach(p => newVisitedPins.add(mkKey(compId, p.id)));
+            // Only mark the entry pin as visited (not all pins of this component)
+            // This allows traversing internal edges within the same component (e.g., Lamp L→N)
+            newVisitedPins.add(to);
           }
 
           if (wireId && !newPathWires.includes(wireId)) {
@@ -1970,7 +1967,9 @@ const Engine = {
 
           // Allow going to endKey even if visited
           if (to === endKey) {
-            dfs(to, newEntryComp, newEntryPin, newVisitedPins, newPathComps, newPathWires, newPathPins);
+            // Reached the negative terminal - record this complete path immediately
+            paths.push({ comps: [...newPathComps], wires: [...newPathWires], pins: [...newPathPins] });
+            continue;
           } else {
             dfs(to, newEntryComp, newEntryPin, newVisitedPins, newPathComps, newPathWires, newPathPins);
           }
@@ -1980,10 +1979,9 @@ const Engine = {
       // Start DFS from battery positive
       const startInfo = pinInfo.get(startKey);
       const startComp = startInfo ? startInfo.comp.id : null;
+      // Only mark the starting pin as visited - NOT all pins of the start component
+      // (otherwise the other pin of a 2-pin component like AC Source would be unreachable)
       const startVisited = new Set([startKey]);
-      if (startComp) {
-        startInfo.comp.pins.forEach(p => startVisited.add(mkKey(startComp, p.id)));
-      }
 
       dfs(startKey, startComp, startKey, startVisited, [startComp], [], [startKey]);
       return paths;
@@ -2006,8 +2004,8 @@ const Engine = {
       // (Cannot hardcode 'p'/'n' because different power sources use different pin names)
       let posPin, negPin;
       if (bat.type === 'battery') { posPin = 'p'; negPin = 'n'; }
-      else if (bat.type === 'ac_source') { posPin = 'l'; negPin = 'n'; }
-      else if (bat.type === 'dc_dc') { posPin = 'vout'; negPin = 'gnd2'; }
+      else if (bat.type === 'ac_source') { posPin = 'p'; negPin = 'n'; } // AC Source: L=active(p), N=neutral(n)
+      else if (bat.type === 'dc_dc') { posPin = 'vout'; negPin = 'gnd_out'; }
       else { posPin = 'p'; negPin = 'n'; } // fallback
 
       const posKey = mkKey(bat.id, posPin);
