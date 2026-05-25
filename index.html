@@ -877,6 +877,8 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let W, H;
 
+function render() { Renderer.render(); }
+
 function resize() {
   const r = window.devicePixelRatio || 1;
   const area = document.getElementById('canvasArea');
@@ -2498,7 +2500,7 @@ function buildLibrary() {
 // ==================== Public API ====================
 return {
   Config, S, Registry, QIACHIP, Renderer, WireRouter, Engine, History, Persistence, Templates, Export, UI,
-  render, resize, zoomToFit
+  init, render, resize, zoomToFit
 };
 
 })();
