@@ -199,18 +199,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
     <div class="dropdown">
       <button class="tbtn" onclick="ElecSim.UI.toggleDropdown('templateMenu')">&#128193; 电路模板</button>
       <div class="dropdown-menu" id="templateMenu">
-        <div class="dropdown-item" onclick="ElecSim.Templates.load('oneLampTwoSwitch')">
-          一灯双控<span class="desc">两个SPDT开关控制一个灯</span>
-        </div>
-        <div class="dropdown-item" onclick="ElecSim.Templates.load('relayControl')">
-          继电器控制<span class="desc">按钮控制继电器带动LED</span>
-        </div>
-        <div class="dropdown-item" onclick="ElecSim.Templates.load('qiachip1ch')">
-          QIACHIP 1路遥控<span class="desc">无线继电器模块+灯泡</span>
-        </div>
-        <div class="dropdown-item" onclick="ElecSim.Templates.load('qiachip2ch')">
-          QIACHIP 2路互锁<span class="desc">双路无线继电器互锁控制</span>
-        </div>
+        <div class="dropdown-item" style="color:var(--fg-muted);cursor:default;">暂无模板，后续更新</div>
       </div>
     </div>
     <button class="tbtn export-btn" onclick="ElecSim.UI.showModal('exportModal')">&#128249; 导出视频</button>
@@ -1777,108 +1766,16 @@ const Persistence = {
 
 // ==================== Section 10: Templates ====================
 const Templates = {
-  list: [
-    { id: 'oneLampTwoSwitch', name: '一灯双控', desc: '两个SPDT开关控制一个灯' },
-    { id: 'relayControl', name: '继电器控制', desc: '按钮→继电器→LED' },
-    { id: 'qiachip1ch', name: 'QIACHIP 1路遥控', desc: '无线继电器模块 + 灯泡' },
-    { id: 'qiachip2ch', name: 'QIACHIP 2路互锁', desc: '双路无线继电器互锁' },
-  ],
+  list: [],
 
   buildTemplateList() {
     const list = document.getElementById('templateList');
     if (!list) return;
-    list.innerHTML = '';
-    this.list.forEach(t => {
-      const el = document.createElement('div');
-      el.className = 'comp-item';
-      el.innerHTML = `<div class="comp-icon">📋</div><div class="comp-info"><div class="comp-name">${t.name}</div><div class="comp-desc">${t.desc}</div></div>`;
-      el.addEventListener('click', () => this.load(t.id));
-      list.appendChild(el);
-    });
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--fg-muted);font-size:12px;">暂无模板<br><span style="font-size:11px;">后续可在此添加电路模板</span></div>';
   },
 
   load(id) {
-    S.components = [];
-    S.wires = [];
-    S.nextId = 1;
-    S.nextWireId = 1;
-    S.selected = null;
-    if (Engine.running) Engine.toggle();
-    UI.hideProps();
-
-    const cx = W / 2 / S.zoom - S.pan.x / S.zoom;
-    const cy = H / 2 / S.zoom - S.pan.y / S.zoom;
-
-    if (id === 'oneLampTwoSwitch') {
-      const bat = Renderer.addComponentSilent(Registry.getDef('battery'), cx - 240, cy);
-      const sw1 = Renderer.addComponentSilent(Registry.getDef('spdt'), cx - 60, cy);
-      const sw2 = Renderer.addComponentSilent(Registry.getDef('spdt'), cx + 140, cy);
-      const lamp = Renderer.addComponentSilent(Registry.getDef('lamp'), cx + 300, cy);
-      const ids = [bat.id, sw1.id, sw2.id, lamp.id];
-      S.wires.push(
-        { id: S.nextWireId++, from: { comp: ids[0], pin: 'p' }, to: { comp: ids[1], pin: 'c' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[1], pin: 't1' }, to: { comp: ids[2], pin: 't1' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[1], pin: 't2' }, to: { comp: ids[2], pin: 't2' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[2], pin: 'c' }, to: { comp: ids[3], pin: 'p' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[3], pin: 'n' }, to: { comp: ids[0], pin: 'n' }, waypoints: [], current: 0 }
-      );
-      UI.toast('已加载: 一灯双控 | 点击开关切换拨向，运行仿真查看效果', 'success');
-    } else if (id === 'relayControl') {
-      const bat = Renderer.addComponentSilent(Registry.getDef('battery'), cx - 260, cy);
-      const btn = Renderer.addComponentSilent(Registry.getDef('push_no'), cx - 80, cy);
-      const relay = Renderer.addComponentSilent(Registry.getDef('relay5'), cx + 100, cy);
-      const led = Renderer.addComponentSilent(Registry.getDef('led'), cx + 300, cy);
-      const ids = [bat.id, btn.id, relay.id, led.id];
-      S.wires.push(
-        { id: S.nextWireId++, from: { comp: ids[0], pin: 'p' }, to: { comp: ids[1], pin: 'a' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[1], pin: 'b' }, to: { comp: ids[2], pin: 'coil_a' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[2], pin: 'coil_b' }, to: { comp: ids[0], pin: 'n' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[0], pin: 'p' }, to: { comp: ids[2], pin: 'com' }, waypoints: [{ x: cx + 100, y: cy - 80 }], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[2], pin: 'no' }, to: { comp: ids[3], pin: 'a' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[3], pin: 'b' }, to: { comp: ids[0], pin: 'n' }, waypoints: [{ x: cx + 300, y: cy + 80 }], current: 0 }
-      );
-      UI.toast('已加载: 继电器控制 | 运行仿真后按下按钮观察继电器吸合', 'success');
-    } else if (id === 'qiachip1ch') {
-      const bat = Renderer.addComponentSilent(Registry.getDef('battery'), cx - 260, cy);
-      const prodDef = QIACHIP.getAsDefs()[0]; // 1ch relay
-      const prod = Renderer.addComponentSilent(prodDef, cx + 20, cy);
-      const lamp = Renderer.addComponentSilent(Registry.getDef('lamp'), cx + 260, cy);
-      const ids = [bat.id, prod.id, lamp.id];
-      S.wires.push(
-        { id: S.nextWireId++, from: { comp: ids[0], pin: 'p' }, to: { comp: ids[1], pin: 'vcc' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[0], pin: 'n' }, to: { comp: ids[1], pin: 'gnd' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[0], pin: 'p' }, to: { comp: ids[1], pin: 'com' }, waypoints: [{ x: cx + 20, y: cy - 80 }], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[1], pin: 'no' }, to: { comp: ids[2], pin: 'p' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[2], pin: 'n' }, to: { comp: ids[0], pin: 'n' }, waypoints: [{ x: cx + 260, y: cy + 80 }], current: 0 }
-      );
-      UI.toast('已加载: QIACHIP 1路遥控 | 产品模块已连接到灯泡电路', 'success');
-    } else if (id === 'qiachip2ch') {
-      const bat = Renderer.addComponentSilent(Registry.getDef('battery'), cx - 280, cy);
-      const prodDef = QIACHIP.getAsDefs()[1]; // 2ch relay
-      const prod = Renderer.addComponentSilent(prodDef, cx, cy);
-      const led1 = Renderer.addComponentSilent(Registry.getDef('led'), cx + 240, cy - 40);
-      const led2 = Renderer.addComponentSilent(Registry.getDef('led'), cx + 240, cy + 40);
-      const ids = [bat.id, prod.id, led1.id, led2.id];
-      S.wires.push(
-        { id: S.nextWireId++, from: { comp: ids[0], pin: 'p' }, to: { comp: ids[1], pin: 'vcc' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[0], pin: 'n' }, to: { comp: ids[1], pin: 'gnd' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[1], pin: 'com1' }, to: { comp: ids[2], pin: 'a' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[2], pin: 'b' }, to: { comp: ids[0], pin: 'n' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[1], pin: 'no2' }, to: { comp: ids[3], pin: 'a' }, waypoints: [], current: 0 },
-        { id: S.nextWireId++, from: { comp: ids[3], pin: 'b' }, to: { comp: ids[0], pin: 'n' }, waypoints: [], current: 0 }
-      );
-      UI.toast('已加载: QIACHIP 2路互锁 | 双路无线继电器模块', 'success');
-    } else {
-      UI.toast('模板未找到', 'warning');
-      return;
-    }
-
-    History.stack = [];
-    History.index = -1;
-    History.updateButtons();
-    render();
-    // Close template dropdown
-    document.getElementById('templateMenu').classList.remove('show');
+    UI.toast('模板暂未配置，请等待后续更新', 'warning');
   }
 };
 
@@ -2438,10 +2335,8 @@ function init() {
   // Start auto-save
   Persistence.startAutoSave();
 
-  // Load default template
-  setTimeout(() => {
-    Templates.load('oneLampTwoSwitch');
-  }, 300);
+  // Start with empty canvas (no default template)
+  UI.toast('就绪 | 从左侧元件库拖放元件，或从模板库加载', 'success');
 }
 
 function buildLibrary() {
