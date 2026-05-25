@@ -544,36 +544,38 @@ const Registry = {
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'K',dx:40,dy:0}],
       props:{forwardV:2,color:'#ff4444'} },
-    { type:'motor_dc', name:'直流电机', cat:'输出器件', icon:'⚙️', desc:'转动输出',
+    { type:'motor_dc', name:'直流电机', cat:'输出器件', icon:'⚙️', desc:'直流转动负载',
       w:120, h:80,
       pins:[{id:'p',label:'+',dx:-60,dy:0},{id:'n',label:'-',dx:60,dy:0}],
-      props:{voltage:9,rpm:3000,resistance:50} },
-    { type:'buzzer', name:'蜂鸣器', cat:'输出器件', icon:'📢', desc:'声音输出',
+      props:{voltage:9,rpm:3000,resistance:50} },  // voltage=额定电压(V,参考值), resistance=绕组电阻(Ω,决定电流)
+    { type:'buzzer', name:'蜂鸣器', cat:'输出器件', icon:'📢', desc:'无源蜂鸣器（交直流）',
       w:80, h:40,
       pins:[{id:'p',label:'+',dx:-40,dy:0},{id:'n',label:'-',dx:40,dy:0}],
-      props:{voltage:5,freq:2000} },
-    { type:'solenoid', name:'电磁阀', cat:'输出器件', icon:'🔧', desc:'液压/气动',
+      props:{voltage:5,freq:2000} },  // voltage=额定电压(V,参考值), freq=驱动频率(Hz), simulation用R=80Ω
+    { type:'solenoid', name:'电磁阀', cat:'输出器件', icon:'🔧', desc:'电磁驱动阀',
       w:120, h:60,
       pins:[{id:'p',label:'+',dx:-60,dy:0},{id:'n',label:'-',dx:60,dy:0}],
-      props:{voltage:12,resistance:200} },
-    { type:'indicator', name:'指示灯', cat:'输出器件', icon:'🔴', desc:'信号指示',
+      props:{voltage:12,resistance:200} },  // voltage=额定电压(V,参考值), resistance=线圈电阻(Ω,决定电流)
+    { type:'indicator', name:'指示灯', cat:'输出器件', icon:'🔴', desc:'信号指示灯',
       w:80, h:40,
-      pins:[{id:'p',label:'+',dx:-40,dy:0},{id:'n',label:'-',dx:40,dy:0}],
-      props:{voltage:12,color:'#3fb950'} },
-    { type:'lamp', name:'灯泡', cat:'输出器件', icon:'💡', desc:'照明负载',
+      pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'K',dx:40,dy:0}],
+      props:{forwardV:2.2,color:'#3fb950'} },  // forwardV=正向压降(V), 与LED同为二极管模型
+    { type:'lamp', name:'灯泡', cat:'输出器件', icon:'💡', desc:'白炽灯/卤素灯（交直流均可）',
       w:80, h:80,
-      pins:[{id:'p',label:'+',dx:-40,dy:0},{id:'n',label:'-',dx:40,dy:0}],
-      props:{voltage:220,wattage:60} },
+      pins:[{id:'l',label:'L',dx:-40,dy:0},{id:'n',label:'N',dx:40,dy:0}],
+      props:{voltage:220,wattage:60} },  // voltage=额定电压(V), wattage=额定功率(W), R热态=V²/P
 
     // --- 测量仪表 ---
-    { type:'voltmeter', name:'电压表', cat:'测量仪表', icon:'📊', desc:'测量电压',
+    // 电压表：内阻极大（≥1MΩ），并联在电路中测量电压，几乎不分流
+    { type:'voltmeter', name:'电压表', cat:'测量仪表', icon:'📊', desc:'测量电压（并联）',
       w:80, h:40,
       pins:[{id:'p',label:'+',dx:-40,dy:0},{id:'n',label:'-',dx:40,dy:0}],
-      props:{range:50} },
-    { type:'ammeter', name:'电流表', cat:'测量仪表', icon:'📊', desc:'测量电流',
+      props:{range:50,resistance:1000000} },  // resistance=内阻(Ω)，默认1MΩ（数字万用表10MΩ）
+    // 电流表：内阻极小（≤0.01Ω），串联在电路中测量电流，几乎不产生压降
+    { type:'ammeter', name:'电流表', cat:'测量仪表', icon:'📊', desc:'测量电流（串联）',
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'B',dx:40,dy:0}],
-      props:{range:500} },
+      props:{range:500,resistance:0.01} },  // resistance=内阻(Ω)，默认0.01Ω（模拟表头0.001Ω）
 
     // --- 无源元件 ---
     { type:'resistor', name:'电阻', cat:'无源元件', icon:'〰️', desc:'限流/分压',
@@ -1879,11 +1881,15 @@ const Engine = {
       if (t === 'switch' || t === 'breaker') return 0.05; // realistic contact resistance (~50mΩ)
       if (t === 'push_no' || t === 'push_nc') return 0.05;
       if (t === 'spdt' || t === 'rotary') return 0.05;
+      if (t === 'voltmeter') return comp.props.resistance || 1e6; // very high R, almost no current draw
+      if (t === 'ammeter') return comp.props.resistance || 0.01; // very low R, almost no voltage drop
+      if (t === 'indicator') return 0; // use Vf-based conduction model like LED
       return 10;
     };
 
     const getLED_Vf = (comp) => (comp.type === 'led') ? (comp.props.forwardV || 2) :
-                             (comp.type === 'diode') ? (comp.props.forwardV || 0.7) : 0;
+                             (comp.type === 'diode') ? (comp.props.forwardV || 0.7) :
+                             (comp.type === 'indicator') ? (comp.props.forwardV || 2.2) : 0;
 
     const isBlocking = (comp) => {
       if (!comp) return false;
@@ -2123,13 +2129,13 @@ const Engine = {
         }
       });
 
-      // ==================== Diode/LED conduction check ====================
-      // Diodes and LEDs only conduct when forward voltage is reached
+      // ==================== Diode/LED/Indicator conduction check ====================
+      // Diodes, LEDs and Indicators only conduct when forward voltage is reached
       S.components.forEach(comp => {
-        if (comp.type !== 'led' && comp.type !== 'diode') return;
+        if (comp.type !== 'led' && comp.type !== 'diode' && comp.type !== 'indicator') return;
         const Vf = getLED_Vf(comp);
         const V_comp = comp.simVoltage || 0;
-        // Diode/LED conducts only if forward voltage is reached
+        // Conducts only if forward voltage is reached
         if (V_comp < Vf || comp.simCurrent < 0.1) {
           comp.simCurrent = 0;
           comp.simVoltage = 0;
@@ -2555,7 +2561,16 @@ const UI = {
     else if (comp.type === 'motor_dc') makeRow('电压 (V)', 'voltage', comp.props.voltage);
     else if (comp.type === 'buzzer') makeRow('电压 (V)', 'voltage', comp.props.voltage);
     else if (comp.type === 'solenoid') makeRow('电压 (V)', 'voltage', comp.props.voltage);
-    else if (comp.type === 'lamp') { makeRow('电压 (V)', 'voltage', comp.props.voltage); makeRow('功率 (W)', 'wattage', comp.props.wattage); }
+    else if (comp.type === 'lamp') {
+      makeRow('额定电压 (V)', 'voltage', comp.props.voltage);
+      makeRow('额定功率 (W)', 'wattage', comp.props.wattage);
+      // 热态电阻 R = V²/P，由以上两值自动计算，不可编辑
+      const hotR = Math.max(1, (comp.props.voltage*comp.props.voltage)/(comp.props.wattage||1)).toFixed(1);
+      const row = document.createElement('div'); row.className = 'prop-row';
+      row.innerHTML = `<span class="label">热态电阻 (Ω)</span><span style="color:var(--yellow);font-size:11px">${hotR}</span>`;
+      content.appendChild(row);
+    }
+    else if (comp.type === 'indicator') makeRow('正向压降 (V)', 'forwardV', comp.props.forwardV);
     else if (comp.type === 'diode') makeRow('正向压降 (V)', 'forwardV', comp.props.forwardV);
     else if (comp.type === 'npn') makeRow('放大倍数', 'beta', comp.props.beta);
     else if (comp.props.behavior === 'relay') {
