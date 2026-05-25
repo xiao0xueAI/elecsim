@@ -1000,10 +1000,11 @@ const Renderer = {
       // Lamp glow
       if (c.type === 'lamp' && S.simRunning && c.simCurrent > 0) {
         const intensity = Math.min(c.simCurrent / 50, 1);
-        const glowR = 16 + intensity * 10 + Math.sin(Date.now() / 200) * 2;
+        const glowR = 16 + intensity * 14 + Math.sin(Date.now() / 200) * 2;
         const grd = ctx.createRadialGradient(0, -2, 1, 0, -2, glowR);
-        grd.addColorStop(0, '#ffe066');
-        grd.addColorStop(0.4, '#ffaa0066');
+        grd.addColorStop(0, 'rgba(255,240,150,0.9)');
+        grd.addColorStop(0.3, 'rgba(255,200,50,0.5)');
+        grd.addColorStop(0.7, 'rgba(255,170,0,0.15)');
         grd.addColorStop(1, 'transparent');
         ctx.fillStyle = grd;
         ctx.beginPath();
@@ -1015,19 +1016,33 @@ const Renderer = {
       if ((c.type === 'motor_dc') && S.simRunning && c.simCurrent > 0) {
         const speed = Math.min(c.simCurrent / 5, 1);
         const angle = Date.now() / (200 - speed * 150);
-        ctx.strokeStyle = 'rgba(240,136,62,0.5)';
+        ctx.strokeStyle = 'rgba(240,136,62,0.6)';
         ctx.lineWidth = 2;
         for (let i = 0; i < 3; i++) {
           const a = angle + i * Math.PI * 2 / 3;
           ctx.beginPath();
-          ctx.arc(0, 0, 14, a, a + 0.8);
+          ctx.arc(0, -2, 14, a, a + 0.8);
           ctx.stroke();
         }
       }
 
-      // Buzzer vibration
+      // Buzzer vibration + ripple
       if (c.type === 'buzzer' && S.simRunning && c.simCurrent > 0) {
         ctx.translate(Math.sin(Date.now() / 50) * 1.5, Math.sin(Date.now() / 50) * 1.5);
+        // Sound wave ripple
+        const ripplePhase = (Date.now() / 300) % 1;
+        const rippleR = 15 + ripplePhase * 15;
+        ctx.strokeStyle = `rgba(88,166,255,${0.4 * (1 - ripplePhase)})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, rippleR, -0.5, 0.5);
+        ctx.stroke();
+        const ripplePhase2 = ((Date.now() / 300) + 0.5) % 1;
+        const rippleR2 = 15 + ripplePhase2 * 15;
+        ctx.strokeStyle = `rgba(88,166,255,${0.3 * (1 - ripplePhase2)})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, rippleR2, -0.5, 0.5);
+        ctx.stroke();
       }
 
       // Internal structure
@@ -1172,8 +1187,15 @@ const Renderer = {
     } else if (c.type === 'inductor') {
       for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(-12 + i * 8, 0, 4, Math.PI, 0); ctx.stroke(); }
     } else if (c.type === 'led') {
+      const isOn = S.simRunning && c.simCurrent > 0;
+      const ledColor = isOn ? (c.props.color || '#ff4444') : style;
+      if (isOn) {
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = ledColor; ctx.fillStyle = ledColor;
+      }
       ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-4, -5); ctx.lineTo(5, 0); ctx.lineTo(-4, 5); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-4, -5); ctx.lineTo(5, 0); ctx.lineTo(-4, 5); ctx.closePath();
+      if (isOn) ctx.fill(); else ctx.stroke();
     } else if (c.type === 'battery' || c.type === 'ac_source') {
       ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-10, -8); ctx.lineTo(-10, 8); ctx.stroke();
       ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-4, -5); ctx.lineTo(-4, 5); ctx.stroke();
@@ -1210,8 +1232,17 @@ const Renderer = {
       ctx.beginPath(); ctx.moveTo(-3, -5); ctx.lineTo(5, 0); ctx.lineTo(-3, 5); ctx.closePath(); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(5, -5); ctx.lineTo(5, 5); ctx.stroke();
     } else if (c.type === 'lamp') {
-      ctx.beginPath(); ctx.arc(0, -2, 10, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-5, 4); ctx.lineTo(5, 4); ctx.stroke();
+      const isOn = S.simRunning && c.simCurrent > 0;
+      if (isOn) {
+        // Glowing filament
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = '#ffcc00';
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath(); ctx.arc(0, -2, 7, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(0, -2, 10, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-5, 4); ctx.lineTo(5, 4); ctx.stroke();
+      }
     } else if (c.type === 'fuse') {
       ctx.beginPath(); ctx.moveTo(-15, -3); ctx.lineTo(15, -3); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-15, 3); ctx.lineTo(15, 3); ctx.stroke();
@@ -1615,6 +1646,7 @@ const Engine = {
 
   toggle() {
     this.running = !this.running;
+    S.simRunning = this.running; // Sync state for visual effects
     const btn = document.getElementById('btnRun');
     const dot = document.getElementById('simDot');
     const status = document.getElementById('simStatus');
@@ -1664,193 +1696,283 @@ const Engine = {
 
     const faults = [];
 
-    // Build Union-Find from wires
-    const uf = new UnionFind();
-    // Register all pins
+    // Build adjacency map: pinKey -> [{compId, pinId}]
+    // For each wire, record both directions
+    const adj = new Map();
+    const addAdj = (from, to) => {
+      if (!adj.has(from)) adj.set(from, []);
+      adj.get(from).push(to);
+    };
     S.components.forEach(c => {
-      c.pins.forEach(p => { uf.make(c.id + '_' + p.id); });
+      // Internal connections within component (which pins are internally connected)
+      const type = c.type;
+      const pins = c.pins;
+      if (type === 'spdt') {
+        // COM connects to active position only
+        const pos = c.props.position || 1;
+        const comPin = pins.find(p => p.id === 'c');
+        const activePin = pos === 1 ? pins.find(p => p.id === 't1') : pins.find(p => p.id === 't2');
+        if (comPin && activePin) {
+          const from = c.id + '_' + comPin.id;
+          const to = c.id + '_' + activePin.id;
+          addAdj(from, to);
+          addAdj(to, from);
+        }
+      } else if (type === 'rotary') {
+        const pos = c.props.position || 1;
+        const comPin = pins.find(p => p.id === 'com');
+        const activePin = pos === 1 ? pins.find(p => p.id === 'pos1') : pins.find(p => p.id === 'pos2');
+        if (comPin && activePin) {
+          addAdj(c.id + '_' + comPin.id, c.id + '_' + activePin.id);
+          addAdj(c.id + '_' + activePin.id, c.id + '_' + comPin.id);
+        }
+      } else if (type === 'switch' || type === 'breaker') {
+        if (c.props.closed) {
+          // Both pins internally connected
+          if (pins.length >= 2) {
+            addAdj(c.id + '_' + pins[0].id, c.id + '_' + pins[1].id);
+            addAdj(c.id + '_' + pins[1].id, c.id + '_' + pins[0].id);
+          }
+        }
+      } else if (type === 'fuse') {
+        if (!c.props.blown && pins.length >= 2) {
+          addAdj(c.id + '_' + pins[0].id, c.id + '_' + pins[1].id);
+          addAdj(c.id + '_' + pins[1].id, c.id + '_' + pins[0].id);
+        }
+      } else if (type === 'push_no') {
+        if (c.props.pressed && pins.length >= 2) {
+          addAdj(c.id + '_' + pins[0].id, c.id + '_' + pins[1].id);
+          addAdj(c.id + '_' + pins[1].id, c.id + '_' + pins[0].id);
+        }
+      } else if (type === 'push_nc') {
+        if (!c.props.pressed && pins.length >= 2) {
+          addAdj(c.id + '_' + pins[0].id, c.id + '_' + pins[1].id);
+          addAdj(c.id + '_' + pins[1].id, c.id + '_' + pins[0].id);
+        }
+      } else if (type === 'relay5' || type === 'relay8' || type === 'contactor') {
+        // Coil pins: always internally connected
+        const coilPins = pins.filter(p => p.type === 'coil');
+        if (coilPins.length >= 2) {
+          addAdj(c.id + '_' + coilPins[0].id, c.id + '_' + coilPins[1].id);
+          addAdj(c.id + '_' + coilPins[1].id, c.id + '_' + coilPins[0].id);
+        }
+        // Contact pins: connected if energized
+        const contactPins = pins.filter(p => p.type !== 'coil');
+        if (c.props.energized && contactPins.length >= 2) {
+          addAdj(c.id + '_' + contactPins[0].id, c.id + '_' + contactPins[1].id);
+          addAdj(c.id + '_' + contactPins[1].id, c.id + '_' + contactPins[0].id);
+        }
+      } else if (pins.length >= 2) {
+        // Default: all pins internally connected (2-pin components like resistor, LED, etc.)
+        // IMPORTANT: Do NOT connect battery/ac_source/dc_dc pins internally - they are the source
+        const skipTypes = ['battery', 'ac_source', 'dc_dc'];
+        if (skipTypes.includes(type)) {
+          // Don't add internal connections for power sources
+        } else {
+          // For multi-pin like NPN, connect adjacent pins
+          for (let i = 0; i < pins.length - 1; i++) {
+            addAdj(c.id + '_' + pins[i].id, c.id + '_' + pins[i + 1].id);
+            addAdj(c.id + '_' + pins[i + 1].id, c.id + '_' + pins[i].id);
+          }
+        }
+      }
     });
-    // Merge wire-connected pins
+
+    // Add wire connections (external)
     S.wires.forEach(w => {
       const a = w.from.comp + '_' + w.from.pin;
       const b = w.to.comp + '_' + w.to.pin;
-      if (uf.has(a) && uf.has(b)) uf.union(a, b);
+      addAdj(a, b);
+      addAdj(b, a);
     });
 
-    // Find batteries/power sources
+    // Helper: get component from pin key
+    const getComp = (pinKey) => {
+      const compId = pinKey.substring(0, pinKey.indexOf('_'));
+      return S.components.find(c => c.id === compId);
+    };
+    const getPinId = (pinKey) => {
+      return pinKey.substring(pinKey.indexOf('_') + 1);
+    };
+    const getCompR = (comp) => {
+      const t = comp.type;
+      if (t === 'battery' || t === 'ac_source' || t === 'dc_dc') return 0.1; // internal resistance
+      if (t === 'resistor') return comp.props.resistance || 1000;
+      if (t === 'led') return comp.props.forwardV * 100 || 200;
+      if (t === 'diode') return comp.props.forwardV * 100 || 200;
+      if (t === 'motor_dc') return comp.props.resistance || 50;
+      if (t === 'buzzer') return 80;
+      if (t === 'solenoid') return comp.props.resistance || 200;
+      if (t === 'lamp') return (comp.props.voltage * comp.props.voltage) / (comp.props.wattage || 60);
+      if (t === 'inductor') return comp.props.inductance * 10 || 10;
+      if (t === 'thermistor') return comp.props.resistance || 10000;
+      if (t === 'photoresistor') return comp.props.resistance || 5000;
+      if (t === 'capacitor') return 0; // ideal capacitor: 0R at DC steady state
+      if (t === 'npn') return 500;
+      if (t === 'relay5' || t === 'relay8' || t === 'contactor') return comp.props.coilResistance || comp.props.contactR || 10;
+      if (t === 'switch' || t === 'breaker' || t === 'push_no' || t === 'push_nc') return 0.01;
+      if (t === 'spdt' || t === 'rotary') return 0.01;
+      return 10; // default wire/base resistance
+    };
+
+    // Find batteries
     const batteries = S.components.filter(c =>
       c.type === 'battery' || c.type === 'ac_source' || c.type === 'dc_dc'
     );
-    if (batteries.length === 0) return;
+    if (batteries.length === 0) {
+      document.getElementById('simCurrent').textContent = '0.00 mA';
+      document.getElementById('simVoltage').textContent = '0.00 V';
+      document.getElementById('simPower').textContent = '0.00 mW';
+      return;
+    }
 
-    // For each battery, trace circuit loop
+    // For each battery, trace loop using BFS/DFS on adjacency map
     batteries.forEach(bat => {
-      let totalR = 0;
-      let hasOpen = false;
-      let activeComps = [bat];
-      let activeWires = [];
+      const negKey = bat.id + '_n';
+      const posKey = bat.id + '_p';
 
-      // Trace from + terminal
-      const startKey = bat.id + '_p';
-      let currentComp = bat;
-      let currentPin = 'p';
-      let visited = new Set();
-      let loopFound = false;
-      let traceLimit = 50;
+      // BFS from posKey, trying to reach negKey
+      // Track path to find all components in the loop
+      const queue = [{ key: posKey, path: [bat.id], rTotal: 0, wireKeys: [] }];
+      const visited = new Set();
+      visited.add(posKey);
+      let found = null;
+      let traceLimit = 200;
 
-      while (!loopFound && !hasOpen && traceLimit-- > 0) {
-        const key = currentComp.id + '_' + currentPin;
-        visited.add(key);
+      while (queue.length > 0 && !found && traceLimit-- > 0) {
+        const cur = queue.shift();
+        const neighbors = adj.get(cur.key) || [];
 
-        // Find which other component pins are in the same union
-        const neighbors = [];
-        S.components.forEach(c => {
-          if (c.id === currentComp.id) return;
-          c.pins.forEach(p => {
-            const pKey = c.id + '_' + p.id;
-            if (uf.connected(key, pKey) && !visited.has(pKey)) {
-              neighbors.push({ comp: c, pin: p });
-            }
-          });
-        });
+        for (const nb of neighbors) {
+          if (visited.has(nb)) continue;
+          visited.add(nb);
 
-        if (neighbors.length === 0) break;
+          const nbComp = getComp(nb);
 
-        // Also check if we've looped back to battery
-        for (const n of neighbors) {
-          if (n.comp.id === bat.id && n.pin === 'n') {
-            loopFound = true;
+          // Check if we reached battery negative
+          if (nb === negKey) {
+            found = { path: cur.path, rTotal: cur.rTotal, wireKeys: cur.wireKeys };
             break;
           }
-        }
-        if (loopFound) break;
 
-        const next = neighbors[0];
-        const nextComp = next.comp;
+          // Skip if same component we just entered (already counted)
+          if (cur.path.length > 0 && nbComp && cur.path[cur.path.length - 1] === nbComp.id) continue;
 
-        // Check for open switches/fuses
-        if (nextComp.type === 'switch' && !nextComp.props.closed) { hasOpen = true; break; }
-        if (nextComp.type === 'breaker' && !nextComp.props.closed) { hasOpen = true; break; }
-        if (nextComp.type === 'fuse' && nextComp.props.blown) { hasOpen = true; break; }
-        if (nextComp.type === 'push_nc' && nextComp.props.pressed) { hasOpen = true; break; }
-        if (nextComp.type === 'push_no' && !nextComp.props.pressed) { hasOpen = true; break; }
-
-        // Check relay contact state
-        if (nextComp.type === 'relay5' || nextComp.type === 'relay8' || nextComp.type === 'contactor') {
-          // This is the contact side - check if energized
-          // Contact resistance depends on state
-        }
-
-        // Find exit pin
-        if (nextComp.type === 'spdt') {
-          currentPin = next.pin === 'c' ? (nextComp.props.position === 1 ? 't1' : 't2') : 'c';
-        } else if (nextComp.type === 'rotary') {
-          currentPin = next.pin === 'com' ? (nextComp.props.position === 1 ? 'pos1' : 'pos2') : 'com';
-        } else {
-          const otherPins = nextComp.pins.filter(p => p.id !== next.pin.id);
-          if (otherPins.length === 0) break;
-          currentPin = otherPins[0].id;
-        }
-
-        currentComp = nextComp;
-        activeComps.push(currentComp);
-
-        // Add resistance
-        if (currentComp.type === 'resistor') totalR += currentComp.props.resistance;
-        else if (currentComp.type === 'led') totalR += currentComp.props.forwardV * 100;
-        else if (currentComp.type === 'diode') totalR += currentComp.props.forwardV * 100;
-        else if (currentComp.type === 'motor_dc') totalR += currentComp.props.resistance || 50;
-        else if (currentComp.type === 'buzzer') totalR += 80;
-        else if (currentComp.type === 'solenoid') totalR += currentComp.props.resistance || 200;
-        else if (currentComp.type === 'lamp') totalR += (currentComp.props.voltage * currentComp.props.voltage) / (currentComp.props.wattage || 60);
-        else if (currentComp.type === 'inductor') totalR += currentComp.props.inductance * 10;
-        else if (currentComp.type === 'thermistor') totalR += currentComp.props.resistance || 10000;
-        else if (currentComp.type === 'photoresistor') totalR += currentComp.props.resistance || 5000;
-        else if (currentComp.type === 'relay5' || currentComp.type === 'relay8' || currentComp.type === 'contactor') {
-          totalR += next.pin.type === 'coil' ? (currentComp.props.coilResistance || 100) : (currentComp.props.contactR || 0.05);
-        }
-        else if (currentComp.type === 'npn') totalR += 500;
-        else totalR += 10; // wire/base resistance
-
-        if (totalR > 1000000) break;
-
-        // Track wires
-        S.wires.forEach(w => {
-          if ((w.from.comp === currentComp.id || w.to.comp === currentComp.id) && !activeWires.includes(w)) {
-            activeWires.push(w);
+          // Check for open circuits - skip this neighbor if the component blocks
+          if (nbComp) {
+            const t = nbComp.type;
+            if (t === 'switch' && !nbComp.props.closed) continue;
+            if (t === 'breaker' && !nbComp.props.closed) continue;
+            if (t === 'fuse' && nbComp.props.blown) continue;
           }
-        });
+
+          // Get resistance of this component (if not already counted)
+          let newR = cur.rTotal;
+          let newPath = [...cur.path];
+          let newWires = [...cur.wireKeys];
+
+          if (nbComp && !cur.path.includes(nbComp.id)) {
+            newPath.push(nbComp.id);
+            newR += getCompR(nbComp);
+            if (newR > 1000000) continue; // too much resistance, skip
+          }
+
+          // Track which wires connect to this pin
+          S.wires.forEach(w => {
+            const wa = w.from.comp + '_' + w.from.pin;
+            const wb = w.to.comp + '_' + w.to.pin;
+            const wKey = w.from.comp + '_' + w.from.pin + '-' + w.to.comp + '_' + w.to.pin;
+            if ((wa === cur.key && wb === nb) || (wb === cur.key && wa === nb)) {
+              if (!newWires.includes(wKey)) newWires.push(wKey);
+            }
+          });
+
+          queue.push({ key: nb, path: newPath, rTotal: newR, wireKeys: newWires });
+        }
       }
 
-      if (loopFound && totalR > 0) {
+      if (found && found.rTotal > 0) {
         const V = bat.props.voltage;
-        const I = (V / totalR) * 1000; // mA
+        const I = (V / found.rTotal) * 1000; // mA
         const P = V * I; // mW
 
         document.getElementById('simCurrent').textContent = I.toFixed(2) + ' mA';
         document.getElementById('simVoltage').textContent = V.toFixed(2) + ' V';
         document.getElementById('simPower').textContent = P.toFixed(2) + ' mW';
 
-        activeComps.forEach(c => { c.simCurrent = I; c.simVoltage = V; });
-        activeWires.forEach(w => { w.current = I; });
+        // Set current/voltage on active components
+        found.path.forEach(compId => {
+          const comp = S.components.find(c => c.id === compId);
+          if (comp) { comp.simCurrent = I; comp.simVoltage = V; }
+        });
 
-        // Check overcurrent
-        activeComps.forEach(c => {
-          const maxI = c.props.maxCurrent || Infinity;
-          if (I / 1000 > maxI) {
-            c._fault = 'overcurrent';
-            faults.push({ type: 'warn', msg: `${c.name} 过流: ${I.toFixed(1)}mA > ${maxI}A`, comp: c.name });
+        // Set current on active wires
+        S.wires.forEach(w => {
+          const wKey1 = w.from.comp + '_' + w.from.pin + '-' + w.to.comp + '_' + w.to.pin;
+          const wKey2 = w.to.comp + '_' + w.to.pin + '-' + w.from.comp + '_' + w.from.pin;
+          if (found.wireKeys.includes(wKey1) || found.wireKeys.includes(wKey2)) {
+            w.current = I;
           }
         });
 
-        // Check for short circuit (very low resistance)
-        if (totalR < 1 && I > 1000) {
+        // Check overcurrent
+        found.path.forEach(compId => {
+          const comp = S.components.find(c => c.id === compId);
+          if (!comp) return;
+          const maxI = comp.props.maxCurrent || Infinity;
+          if (I / 1000 > maxI) {
+            comp._fault = 'overcurrent';
+            faults.push({ type: 'warn', msg: `${comp.name} 过流: ${I.toFixed(1)}mA > ${maxI}A`, comp: comp.name });
+          }
+        });
+
+        // Check short circuit
+        if (found.rTotal < 1 && I > 1000) {
           faults.push({ type: 'short', msg: '检测到短路！电路电阻极低', comp: '' });
-          activeWires.forEach(w => { w._fault = true; });
+          S.wires.forEach(w => {
+            const wKey1 = w.from.comp + '_' + w.from.pin + '-' + w.to.comp + '_' + w.to.pin;
+            const wKey2 = w.to.comp + '_' + w.to.pin + '-' + w.from.comp + '_' + w.from.pin;
+            if (found.wireKeys.includes(wKey1) || found.wireKeys.includes(wKey2)) {
+              w._fault = true;
+            }
+          });
         }
-      } else if (hasOpen) {
-        document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
+      } else if (found && found.rTotal <= 0) {
+        // Loop found but zero resistance = short
+        faults.push({ type: 'short', msg: '检测到短路！电路无负载', comp: '' });
+        document.getElementById('simCurrent').textContent = '∞ (短路)';
         document.getElementById('simVoltage').textContent = bat.props.voltage.toFixed(2) + ' V';
-        document.getElementById('simPower').textContent = '0.00 mW';
+        document.getElementById('simPower').textContent = '∞ mW';
       } else {
-        document.getElementById('simCurrent').textContent = '0.00 mA';
-        document.getElementById('simVoltage').textContent = '0.00 V';
+        // No loop found = open circuit
+        // Check if battery at least has connections
+        const hasConnection = adj.has(posKey) && (adj.get(posKey) || []).length > 0;
+        if (hasConnection) {
+          document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
+          document.getElementById('simVoltage').textContent = bat.props.voltage.toFixed(2) + ' V';
+        } else {
+          document.getElementById('simCurrent').textContent = '0.00 mA';
+          document.getElementById('simVoltage').textContent = bat.props.voltage.toFixed(2) + ' V';
+        }
         document.getElementById('simPower').textContent = '0.00 mW';
       }
     });
 
-    // Update relay states
-    this.updateRelays(uf);
+    // Update relay states (second pass since relay energization depends on current)
+    const relays = S.components.filter(c =>
+      c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor'
+    );
+    relays.forEach(relay => {
+      const wasEnergized = relay.props.energized;
+      relay.props.energized = relay.simCurrent > 0.1;
+      // If state changed, mark as needing re-solve
+      if (wasEnergized !== relay.props.energized) {
+        relay._stateChanged = true;
+      }
+    });
 
     // Display faults
     this.showFaults(faults);
-  },
-
-  updateRelays(uf) {
-    const relays = S.components.filter(c =>
-      c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor' ||
-      c.props.behavior === 'relay'
-    );
-
-    relays.forEach(relay => {
-      const coilPins = relay.pins.filter(p => p.type === 'coil');
-      if (coilPins.length < 2) return;
-
-      const coilKey1 = relay.id + '_' + coilPins[0].id;
-      const coilKey2 = relay.id + '_' + coilPins[1].id;
-
-      // Check if coil is in a powered loop
-      let coilPowered = false;
-      const batteries = S.components.filter(c => c.type === 'battery' || c.type === 'ac_source');
-      batteries.forEach(bat => {
-        const pKey = bat.id + '_p';
-        if (uf.connected(pKey, coilKey1) || uf.connected(pKey, coilKey2)) {
-          coilPowered = true;
-        }
-      });
-
-      relay.props.energized = coilPowered && relay.simCurrent > 0.1;
-    });
   },
 
   showFaults(faults) {
