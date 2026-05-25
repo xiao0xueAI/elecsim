@@ -1050,36 +1050,37 @@ const Renderer = {
 
       // Draw pins
       c.pins.forEach(pin => {
-        // Use snapped position (same as wire endpoints) for visual alignment
-        const rawPx = c.x + pin.dx, rawPy = c.y + pin.dy;
-        const snapped = getPinPos(c, pin.id);
-        const px = snapped ? snapped.x : rawPx;
-        const py = snapped ? snapped.y : rawPy;
+        const px = c.x + pin.dx, py = c.y + pin.dy;
         const connected = WireRouter.isPinConnected(c.id, pin.id);
         const pinWireType = connected ? WireRouter.getPinWireType(c.id, pin.id) : null;
         const wireColor = pinWireType ? WireRouter.WireColors[pinWireType] : null;
+        const pinR = 5; // pin radius - half embedded in component edge
 
         if (connected && wireColor && !isXray) {
-          // Connected pin: 3D crimp connector effect
+          // Connected pin: 3D crimp connector (slightly larger, vivid)
           drawCrimp3D(px, py, wireColor, 4.5);
         } else {
-          // Unconnected or xray: simple pin circle
+          // Unconnected: subtle embedded circle
           ctx.beginPath();
-          ctx.arc(px, py, Config.pinRadius, 0, Math.PI * 2);
+          ctx.arc(px, py, pinR, 0, Math.PI * 2);
           if (isXray) {
             ctx.fillStyle = connected ? '#39d2c0' : 'rgba(57,210,192,0.4)';
           } else {
-            ctx.fillStyle = '#30363d';
+            // Dark fill with slight gradient for 3D feel
+            const grd = ctx.createRadialGradient(px - 1, py - 1, 0, px, py, pinR);
+            grd.addColorStop(0, '#484f58');
+            grd.addColorStop(1, '#2d333b');
+            ctx.fillStyle = grd;
           }
           ctx.fill();
-          ctx.strokeStyle = isXray ? 'rgba(57,210,192,0.7)' : '#484f58';
-          ctx.lineWidth = 1;
+          ctx.strokeStyle = isXray ? 'rgba(57,210,192,0.7)' : '#6e7681';
+          ctx.lineWidth = 1.5;
           ctx.stroke();
         }
 
-        // Pin label - always visible with wire type color
+        // Pin label - positioned based on pin direction to avoid overlap
         if (pin.label) {
-          ctx.font = 'bold 9px monospace';
+          ctx.font = 'bold 8px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           if (wireColor && !isXray) {
@@ -1089,8 +1090,21 @@ const Renderer = {
           } else {
             ctx.fillStyle = '#8b949e';
           }
-          let labelY = py - 12;
-          ctx.fillText(pin.label, px, labelY);
+          // Smart label positioning based on pin dx/dy
+          let lx = px, ly = py;
+          const adx = Math.abs(pin.dx), ady = Math.abs(pin.dy);
+          if (adx > ady) {
+            // Horizontal pin: label above or below
+            ly = py + (pin.dy >= 0 ? 10 : -10);
+            // Offset toward center for pins on same edge
+            if (ady > 0) ly = py + (pin.dy > 0 ? 10 : -10);
+            else ly = py - 10; // center pins: label above
+          } else {
+            // Vertical pin or corner: label to side
+            lx = px + (pin.dx > 0 ? 12 : (pin.dx < 0 ? -12 : 0));
+            ly = py + (ady > 0 ? (pin.dy > 0 ? 10 : -10) : 0);
+          }
+          ctx.fillText(pin.label, lx, ly);
         }
       });
 
@@ -1279,13 +1293,12 @@ const WireRouter = {
   // Constrain mouse position to be orthogonal from head
   // Returns the constrained point (one axis matches head, other follows mouse)
   _constrainOrtho(head, mouse) {
-    const dx = Math.abs(mouse.x - head.x);
-    const dy = Math.abs(mouse.y - head.y);
     const snapped = this._snap(mouse);
 
     if (this.lastDir === null) {
-      // First segment: choose direction based on larger displacement
-      if (dx >= dy) {
+      // First segment: use pin's natural direction (h for left/right pins, v for top/bottom)
+      const dir = this.pinNaturalDir || (Math.abs(mouse.x - head.x) >= Math.abs(mouse.y - head.y) ? 'h' : 'v');
+      if (dir === 'h') {
         return { x: snapped.x, y: head.y, dir: 'h' };
       } else {
         return { x: head.x, y: snapped.y, dir: 'v' };
@@ -1306,10 +1319,19 @@ const WireRouter = {
     this.startPin = { comp: pin.comp, pin: pin.pin };
     this.routeWaypoints = [];
     this.lastDir = null;
+    this.pinNaturalDir = null; // will be set below
 
     const comp = getComp(pin.comp);
     const pinDef = comp ? comp.pins.find(p => p.id === pin.pin) : null;
-    if (pinDef) { this.wireType = this.detectWireType(pinDef.label); }
+    if (pinDef) {
+      this.wireType = this.detectWireType(pinDef.label);
+      // Determine pin's natural direction from its dx/dy
+      if (Math.abs(pinDef.dx) >= Math.abs(pinDef.dy)) {
+        this.pinNaturalDir = 'h'; // horizontal pin (left/right edge)
+      } else {
+        this.pinNaturalDir = 'v'; // vertical pin (top/bottom edge)
+      }
+    }
     this.setWireType(this.wireType);
     document.getElementById('wireHint').style.display = 'flex';
   },
@@ -1364,6 +1386,7 @@ const WireRouter = {
     this.startPin = null;
     this.routeWaypoints = [];
     this.lastDir = null;
+    this.pinNaturalDir = null;
     document.getElementById('wireHint').style.display = 'none';
     render();
   },
@@ -2441,17 +2464,13 @@ function onDrop(e) {
 function getComp(id) { return S.components.find(c => c.id === id); }
 function getPinPos(comp, pinId) {
   const p = comp.pins.find(pp => pp.id === pinId);
-  if (!p) return null;
-  const g = S.grid;
-  // Snap pin position to grid intersection for perfect alignment
-  return { x: Math.round((comp.x + p.dx) / g) * g, y: Math.round((comp.y + p.dy) / g) * g };
+  return p ? { x: comp.x + p.dx, y: comp.y + p.dy } : null;
 }
 function findPinAt(cx, cy) {
   for (const c of S.components) {
     for (const pin of c.pins) {
-      const pos = getPinPos(c, pin.id);
-      if (!pos) continue;
-      if (Math.hypot(cx - pos.x, cy - pos.y) < Config.pinHitRadius) return { comp: c.id, pin: pin.id };
+      const px = c.x + pin.dx, py = c.y + pin.dy;
+      if (Math.hypot(cx - px, cy - py) < Config.pinHitRadius) return { comp: c.id, pin: pin.id };
     }
   }
   return null;
