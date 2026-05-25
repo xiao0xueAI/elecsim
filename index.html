@@ -1118,7 +1118,15 @@ const Renderer = {
           ctx.font = 'bold 11px Arial';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          if (wireColor && !isXray) {
+          // Color rule: L/+ = red(hot/live), N/- = blue(neutral/negative), others = default
+          const lbl = pin.label.toUpperCase();
+          const isLive = lbl === 'L' || lbl === '+';
+          const isNeutral = lbl === 'N' || lbl === '-';
+          if (isLive) {
+            ctx.fillStyle = '#f85149'; // RED for L (相线) and + (正极)
+          } else if (isNeutral) {
+            ctx.fillStyle = '#58a6ff'; // BLUE for N (中性线) and - (负极)
+          } else if (wireColor && !isXray) {
             ctx.fillStyle = wireColor;
           } else if (isXray) {
             ctx.fillStyle = 'rgba(57,210,192,0.9)';
