@@ -289,7 +289,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
         <div class="panel-title"><div class="dot blue"></div>视图选项</div>
         <div class="toggle-row"><span>显示内部结构</span><div class="toggle" id="togInternal" onclick="ElecSim.UI.toggleOpt(this,'internal')"></div></div>
         <div class="toggle-row"><span>显示电流方向</span><div class="toggle on" id="togCurrent" onclick="ElecSim.UI.toggleOpt(this,'currentDir')"></div></div>
-        <div class="toggle-row"><span>显示引脚标签</span><div class="toggle" id="togPinLabels" onclick="ElecSim.UI.toggleOpt(this,'pinLabels')"></div></div>
+        <div class="toggle-row"><span>显示引脚标签</span><div class="toggle on" id="togPinLabels" onclick="ElecSim.UI.toggleOpt(this,'pinLabels')"></div></div>
       </div>
       <div class="panel-section" id="propPanel" style="display:none;">
         <div class="panel-title"><div class="dot yellow"></div>元件属性</div>
@@ -429,7 +429,7 @@ const S = {
   viewMode: 'standard',
   showInternal: false,
   showCurrentDir: true,
-  showPinLabels: false,
+  showPinLabels: true,
   nextId: 1,
   nextWireId: 1,
   grid: Config.grid,
@@ -817,10 +817,10 @@ const QIACHIP = {
       ctx.arc(pin.dx, pin.dy, 6, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = '#fff';
-      ctx.font = '9px monospace';
+      ctx.fillStyle = '#c9d1d9';
+      ctx.font = 'bold 11px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(pin.label, pin.dx, pin.dy - 10);
+      ctx.fillText(pin.label, pin.dx, pin.dy - 12);
     });
   },
 
@@ -1115,29 +1115,28 @@ const Renderer = {
 
         // Pin label - positioned based on pin direction to avoid overlap
         if (pin.label) {
-          ctx.font = 'bold 8px monospace';
+          ctx.font = 'bold 11px Arial';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           if (wireColor && !isXray) {
             ctx.fillStyle = wireColor;
           } else if (isXray) {
-            ctx.fillStyle = 'rgba(57,210,192,0.7)';
+            ctx.fillStyle = 'rgba(57,210,192,0.9)';
           } else {
-            ctx.fillStyle = '#8b949e';
+            ctx.fillStyle = '#c9d1d9';
           }
           // Smart label positioning based on pin dx/dy
           let lx = px, ly = py;
           const adx = Math.abs(pin.dx), ady = Math.abs(pin.dy);
           if (adx > ady) {
-            // Horizontal pin: label above or below
-            ly = py + (pin.dy >= 0 ? 10 : -10);
-            // Offset toward center for pins on same edge
-            if (ady > 0) ly = py + (pin.dy > 0 ? 10 : -10);
-            else ly = py - 10; // center pins: label above
+            // Horizontal pin: label above or below (increase offset for larger font)
+            ly = py + (pin.dy >= 0 ? 14 : -14);
+            if (ady > 0) ly = py + (pin.dy > 0 ? 14 : -14);
+            else ly = py - 12; // center pins: label above
           } else {
             // Vertical pin or corner: label to side
-            lx = px + (pin.dx > 0 ? 12 : (pin.dx < 0 ? -12 : 0));
-            ly = py + (ady > 0 ? (pin.dy > 0 ? 10 : -10) : 0);
+            lx = px + (pin.dx > 0 ? 16 : (pin.dx < 0 ? -16 : 0));
+            ly = py + (ady > 0 ? (pin.dy > 0 ? 14 : -14) : 0);
           }
           ctx.fillText(pin.label, lx, ly);
         }
