@@ -254,13 +254,17 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
     <div class="canvas-area" id="canvasArea">
       <canvas id="canvas"></canvas>
       <div class="canvas-overlay" id="wireHint" style="display:none;">
-        <div style="display:flex;gap:3px;margin-right:6px;" id="wireTypeBar">
-          <button class="wire-type-btn active" data-wtype="live" onclick="ElecSim.WireRouter.setWireType('live')" style="color:#f85149;border-color:#f85149">火线</button>
-          <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#58a6ff;border-color:#58a6ff">零线</button>
-          <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#3fb950;border-color:#3fb950">地线</button>
+        <div style="display:flex;gap:3px;margin-right:8px;" id="wireTypeBar">
+          <button class="wire-type-btn active" data-wtype="live" onclick="ElecSim.WireRouter.setWireType('live')" style="color:#f85149;border-color:#f85149">火线 L</button>
+          <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#58a6ff;border-color:#58a6ff">零线 N</button>
+          <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#3fb950;border-color:#3fb950">地线 PE</button>
         </div>
-        <span id="wireHintText">点击目标引脚完成连线</span>
-        <button onclick="ElecSim.WireRouter.cancel()">取消</button>
+        <div style="display:flex;gap:3px;margin-right:8px;" id="routeModeBar">
+          <button class="wire-type-btn active" data-mode="auto" onclick="ElecSim.WireRouter.setRouteMode('auto')" style="color:#d29922;border-color:#d29922">自动</button>
+          <button class="wire-type-btn" data-mode="vh" onclick="ElecSim.WireRouter.setRouteMode('vh')" style="color:#d29922;border-color:#d29922">先垂直</button>
+          <button class="wire-type-btn" data-mode="hv" onclick="ElecSim.WireRouter.setRouteMode('hv')" style="color:#d29922;border-color:#d29922">先水平</button>
+        </div>
+        <button onclick="ElecSim.WireRouter.cancel()" style="color:var(--red);">取消</button>
       </div>
       <div class="zoom-info">缩放: <span id="zoomLevel">100</span>% | 网格: 20px</div>
     </div>
@@ -1051,21 +1055,39 @@ const Renderer = {
       c.pins.forEach(pin => {
         const px = c.x + pin.dx, py = c.y + pin.dy;
         const connected = WireRouter.isPinConnected(c.id, pin.id);
+        const pinWireType = connected ? WireRouter.getPinWireType(c.id, pin.id) : null;
+        const wireColor = pinWireType ? WireRouter.WireColors[pinWireType] : null;
 
+        // Pin circle - color matches wire type when connected
         ctx.beginPath();
         ctx.arc(px, py, Config.pinRadius, 0, Math.PI * 2);
-        ctx.fillStyle = connected ? (isXray ? '#39d2c0' : catColor) : (isXray ? 'rgba(57,210,192,0.4)' : '#30363d');
+        if (isXray) {
+          ctx.fillStyle = connected ? '#39d2c0' : 'rgba(57,210,192,0.4)';
+        } else if (wireColor) {
+          ctx.fillStyle = wireColor; // red for L, blue for N, green for PE
+        } else {
+          ctx.fillStyle = '#30363d'; // default grey when unconnected
+        }
         ctx.fill();
-        ctx.strokeStyle = isXray ? 'rgba(57,210,192,0.7)' : '#484f58';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = wireColor || (isXray ? 'rgba(57,210,192,0.7)' : '#484f58');
+        ctx.lineWidth = wireColor ? 2 : 1;
         ctx.stroke();
 
-        // Pin label
-        if (S.showPinLabels && pin.label) {
-          ctx.font = '8px monospace';
-          ctx.fillStyle = isXray ? 'rgba(57,210,192,0.7)' : '#8b949e';
+        // Pin label - always visible with wire type color
+        if (pin.label) {
+          ctx.font = 'bold 9px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText(pin.label, px, py - 10);
+          ctx.textBaseline = 'middle';
+          if (wireColor) {
+            ctx.fillStyle = wireColor;
+          } else if (isXray) {
+            ctx.fillStyle = 'rgba(57,210,192,0.7)';
+          } else {
+            ctx.fillStyle = '#8b949e';
+          }
+          // Position label: above for top pins, below for bottom, left/right for sides
+          let labelY = py - 12;
+          ctx.fillText(pin.label, px, labelY);
         }
       });
 
@@ -1204,9 +1226,10 @@ const WireRouter = {
   active: false,
   startPin: null,
   wireType: 'live',
+  routeMode: 'auto', // 'auto' | 'vh' (vertical-first) | 'hv' (horizontal-first)
 
   WireColors: { live:'#f85149', neutral:'#58a6ff', ground:'#3fb950' },
-  WireWidths: { live:2.5, neutral:2.5, ground:2 },
+  WireWidth: 2.5,
 
   isActive() { return this.active; },
 
@@ -1218,7 +1241,17 @@ const WireRouter = {
       const c = b.dataset.wtype === 'live' ? '#f85149' : b.dataset.wtype === 'neutral' ? '#58a6ff' : '#3fb950';
       b.style.background = isActive ? c : 'transparent';
       b.style.color = isActive ? '#fff' : c;
-      b.style.borderColor = c;
+    });
+    render();
+  },
+
+  setRouteMode(mode) {
+    this.routeMode = mode;
+    document.querySelectorAll('#routeModeBar .wire-type-btn').forEach(b => {
+      const isActive = b.dataset.mode === mode;
+      b.classList.toggle('active', isActive);
+      b.style.background = isActive ? '#d29922' : 'transparent';
+      b.style.color = isActive ? '#fff' : '#d29922';
     });
     render();
   },
@@ -1226,7 +1259,7 @@ const WireRouter = {
   detectWireType(pinLabel) {
     const l = (pinLabel || '').toUpperCase();
     if (l.includes('GND') || l === 'PE' || l === 'E') return 'ground';
-    if (l === 'N' || l === '-' || l.includes('NEUTRAL')) return 'neutral';
+    if (l === 'N' || l.includes('NEUTRAL')) return 'neutral';
     return 'live';
   },
 
@@ -1237,8 +1270,8 @@ const WireRouter = {
     const pinDef = comp ? comp.pins.find(p => p.id === pin.pin) : null;
     if (pinDef) { this.wireType = this.detectWireType(pinDef.label); }
     this.setWireType(this.wireType);
+    this.setRouteMode(this.routeMode);
     document.getElementById('wireHint').style.display = 'flex';
-    document.getElementById('wireHintText').textContent = '点击目标引脚完成连线';
   },
 
   cancel() {
@@ -1261,13 +1294,14 @@ const WireRouter = {
 
     const c1 = getComp(sp.comp), c2 = getComp(endPin.comp);
     const p1 = getPinPos(c1, sp.pin), p2 = getPinPos(c2, endPin.pin);
-    const waypoints = computeOrthoWaypoints(p1, p2);
+    const waypoints = this.computeWaypoints(p1, p2);
     const wire = {
       id: S.nextWireId++,
       from: { ...sp },
       to: { ...endPin },
       waypoints: waypoints,
       wireType: this.wireType,
+      routeMode: this.routeMode,
       current: 0
     };
     S.wires.push(wire);
@@ -1275,6 +1309,59 @@ const WireRouter = {
     History.push({ type: 'wire', wire });
     UI.toast('连线成功', 'success');
     this.cancel();
+  },
+
+  computeWaypoints(p1, p2) {
+    const g = S.grid;
+    const sx = p1.x, sy = p1.y, ex = p2.x, ey = p2.y;
+    // Already aligned on same row or column
+    if (Math.abs(sy - ey) < 2) return [];
+    if (Math.abs(sx - ex) < 2) return [];
+
+    let mode = this.routeMode;
+    if (mode === 'auto') {
+      // Choose shorter path
+      const vhLen = Math.abs(ey - sy) + Math.abs(ex - sx);
+      const hvLen = Math.abs(ex - sx) + Math.abs(ey - sy);
+      // Both same length; use V-H when horizontal distance > vertical (looks cleaner)
+      mode = Math.abs(ex - sx) > Math.abs(ey - sy) ? 'vh' : 'hv';
+    }
+
+    const offset = this.getOffsetForNewWire(p1, p2);
+
+    if (mode === 'vh') {
+      // Vertical first, then horizontal
+      return [{ x: sx + offset, y: ey }];
+    } else {
+      // Horizontal first, then vertical
+      return [{ x: ex + offset, y: sy }];
+    }
+  },
+
+  // Simple offset to avoid wire overlap: checks existing wires and shifts slightly
+  getOffsetForNewWire(p1, p2) {
+    const g = S.grid;
+    // Check if a similar orthogonal path already exists near this route
+    for (const w of S.wires) {
+      const c1 = getComp(w.from.comp), c2 = getComp(w.to.comp);
+      if (!c1 || !c2) continue;
+      const wp1 = getPinPos(c1, w.from.pin), wp2 = getPinPos(c2, w.to.pin);
+      // Check if endpoints overlap with new wire endpoints (same component pair)
+      if ((w.from.comp === this.startPin.comp || w.to.comp === this.startPin.comp) &&
+          Math.abs(wp1.y - p1.y) < g && Math.abs(wp1.x - p1.x) < g) {
+        return g; // shift by one grid unit
+      }
+    }
+    return 0;
+  },
+
+  // Get the wire type color for a specific pin
+  getPinWireType(compId, pinId) {
+    const wire = S.wires.find(w =>
+      (w.from.comp === compId && w.from.pin === pinId) ||
+      (w.to.comp === compId && w.to.pin === pinId)
+    );
+    return wire ? (wire.wireType || 'live') : null;
   },
 
   drawWires() {
@@ -1288,11 +1375,10 @@ const WireRouter = {
       const allPoints = [p1, ...(w.waypoints || []), p2];
       const wt = w.wireType || 'live';
       const wColor = w._fault ? '#f85149' : (isXray ? 'rgba(57,210,192,0.5)' : this.WireColors[wt]);
-      const wWidth = w._fault ? 2.5 : (isXray ? 1.5 : this.WireWidths[wt]);
 
-      // Draw wire path (orthogonal)
+      // Draw wire path - orthogonal
       ctx.strokeStyle = wColor;
-      ctx.lineWidth = wWidth;
+      ctx.lineWidth = w._fault ? 3 : this.WireWidth;
       ctx.lineJoin = 'miter';
       ctx.lineCap = 'butt';
       ctx.beginPath();
@@ -1302,17 +1388,11 @@ const WireRouter = {
       }
       ctx.stroke();
 
-      // Junction dots at endpoints
-      ctx.fillStyle = isXray ? '#39d2c0' : wColor;
-      [p1, p2].forEach(p => {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2); ctx.fill();
-      });
-
-      // Corner dots for orthogonal waypoints
+      // Corner dots at waypoints
       if (w.waypoints && w.waypoints.length > 0) {
-        ctx.fillStyle = isXray ? 'rgba(57,210,192,0.6)' : (wColor + '88');
+        ctx.fillStyle = wColor;
         w.waypoints.forEach(wp => {
-          ctx.beginPath(); ctx.arc(wp.x, wp.y, 2.5, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(wp.x, wp.y, 3, 0, Math.PI * 2); ctx.fill();
         });
       }
 
@@ -1321,7 +1401,6 @@ const WireRouter = {
         this.drawCurrentFlow(allPoints, w.current, wColor);
       }
     });
-    // Reset ctx defaults for subsequent drawing
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
   },
@@ -1330,9 +1409,8 @@ const WireRouter = {
     const speed = Math.min(Math.abs(current) / 5, 3);
     const particleCount = Math.ceil(Math.abs(current) / 3);
     const isXray = S.viewMode === 'xray';
-    const color = isXray ? '#39d2c0' : (wireColor || (current > 20 ? '#f85149' : current > 10 ? '#f0883e' : '#58a6ff'));
+    const color = isXray ? '#39d2c0' : (wireColor || '#58a6ff');
 
-    // Calculate total path length
     let totalLen = 0;
     for (let i = 1; i < points.length; i++) {
       totalLen += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
@@ -1343,8 +1421,8 @@ const WireRouter = {
       const dist = t * totalLen;
       const pt = getPointOnPath(points, dist);
 
-      ctx.fillStyle = isXray ? '#39d2c0' : color;
-      ctx.shadowColor = isXray ? '#39d2c0' : color;
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
       ctx.shadowBlur = 6;
       ctx.beginPath();
       ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
@@ -1361,13 +1439,12 @@ const WireRouter = {
     const m = screenToCanvas(S.mouse.x, S.mouse.y);
 
     // Orthogonal preview path
-    const waypoints = computeOrthoWaypoints({x:sx,y:sy}, m);
+    const waypoints = this.computeWaypoints({x:sx,y:sy}, m);
     const allPoints = [{x:sx,y:sy}, ...waypoints, {x:m.x,y:m.y}];
     const color = this.WireColors[this.wireType] || this.WireColors.live;
-    const width = this.WireWidths[this.wireType] || 2;
 
     ctx.strokeStyle = color + '55';
-    ctx.lineWidth = width;
+    ctx.lineWidth = this.WireWidth;
     ctx.setLineDash([6, 4]);
     ctx.lineJoin = 'miter';
     ctx.lineCap = 'butt';
@@ -2322,15 +2399,6 @@ function hexToRGBA(hex, alpha) {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
-}
-function computeOrthoWaypoints(p1, p2) {
-  const g = S.grid;
-  const sx = p1.x, sy = p1.y, ex = p2.x, ey = p2.y;
-  // Already aligned on same row or column - direct orthogonal line
-  if (Math.abs(sy - ey) < 2 || Math.abs(sx - ex) < 2) return [];
-  // Z-shape: horizontal → vertical → horizontal through midpoint
-  const midX = Math.round((sx + ex) / 2 / g) * g;
-  return [{ x: midX, y: sy }, { x: midX, y: ey }];
 }
 function getCircuitBounds() {
   if (S.components.length === 0) return null;
