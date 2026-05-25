@@ -259,11 +259,8 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
           <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#58a6ff;border-color:#58a6ff">零线 N</button>
           <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#3fb950;border-color:#3fb950">地线 PE</button>
         </div>
-        <div style="display:flex;gap:3px;margin-right:8px;" id="routeModeBar">
-          <button class="wire-type-btn active" data-mode="auto" onclick="ElecSim.WireRouter.setRouteMode('auto')" style="color:#d29922;border-color:#d29922">自动</button>
-          <button class="wire-type-btn" data-mode="vh" onclick="ElecSim.WireRouter.setRouteMode('vh')" style="color:#d29922;border-color:#d29922">先垂直</button>
-          <button class="wire-type-btn" data-mode="hv" onclick="ElecSim.WireRouter.setRouteMode('hv')" style="color:#d29922;border-color:#d29922">先水平</button>
-        </div>
+        <span id="wireHintText" style="color:var(--yellow);">点击画布布线，点击端子完成连接</span>
+        <button onclick="ElecSim.WireRouter.undoSegment()" style="color:var(--yellow);font-size:11px;">撤销段</button>
         <button onclick="ElecSim.WireRouter.cancel()" style="color:var(--red);">取消</button>
       </div>
       <div class="zoom-info">缩放: <span id="zoomLevel">100</span>% | 网格: 20px</div>
@@ -1221,12 +1218,14 @@ const Renderer = {
   }
 };
 
-// ==================== Section 6: Wiring System ====================
+// ==================== Section 6: Wiring System (Segmented Orthogonal) ====================
 const WireRouter = {
   active: false,
-  startPin: null,
+  phase: 'idle',        // 'idle' | 'routing'
+  startPin: null,        // { comp, pin } - the pin where routing started
   wireType: 'live',
-  routeMode: 'auto', // 'auto' | 'vh' (vertical-first) | 'hv' (horizontal-first)
+  routeWaypoints: [],    // accumulated waypoints during routing (snapped to grid)
+  lastDir: null,         // 'h' | 'v' - direction of last committed segment
 
   WireColors: { live:'#f85149', neutral:'#58a6ff', ground:'#3fb950' },
   WireWidth: 2.5,
@@ -1245,17 +1244,6 @@ const WireRouter = {
     render();
   },
 
-  setRouteMode(mode) {
-    this.routeMode = mode;
-    document.querySelectorAll('#routeModeBar .wire-type-btn').forEach(b => {
-      const isActive = b.dataset.mode === mode;
-      b.classList.toggle('active', isActive);
-      b.style.background = isActive ? '#d29922' : 'transparent';
-      b.style.color = isActive ? '#fff' : '#d29922';
-    });
-    render();
-  },
-
   detectWireType(pinLabel) {
     const l = (pinLabel || '').toUpperCase();
     if (l.includes('GND') || l === 'PE' || l === 'E') return 'ground';
@@ -1263,20 +1251,112 @@ const WireRouter = {
     return 'live';
   },
 
+  // Get the position of the current "drawing head" (last waypoint or start pin)
+  _getHeadPos() {
+    if (this.routeWaypoints.length > 0) {
+      return this.routeWaypoints[this.routeWaypoints.length - 1];
+    }
+    if (!this.startPin) return null;
+    const c = getComp(this.startPin.comp);
+    const pin = c ? c.pins.find(p => p.id === this.startPin.pin) : null;
+    if (!c || !pin) return null;
+    return getPinPos(c, this.startPin.pin);
+  },
+
+  // Snap a point to the grid
+  _snap(pt) {
+    const g = S.grid;
+    return { x: Math.round(pt.x / g) * g, y: Math.round(pt.y / g) * g };
+  },
+
+  // Constrain mouse position to be orthogonal from head
+  // Returns the constrained point (one axis matches head, other follows mouse)
+  _constrainOrtho(head, mouse) {
+    const dx = Math.abs(mouse.x - head.x);
+    const dy = Math.abs(mouse.y - head.y);
+    const snapped = this._snap(mouse);
+
+    if (this.lastDir === null) {
+      // First segment: choose direction based on larger displacement
+      if (dx >= dy) {
+        return { x: snapped.x, y: head.y, dir: 'h' };
+      } else {
+        return { x: head.x, y: snapped.y, dir: 'v' };
+      }
+    } else {
+      // Subsequent segments: alternate direction
+      if (this.lastDir === 'h') {
+        return { x: head.x, y: snapped.y, dir: 'v' };
+      } else {
+        return { x: snapped.x, y: head.y, dir: 'h' };
+      }
+    }
+  },
+
   start(pin) {
     this.active = true;
-    this.startPin = { ...pin };
+    this.phase = 'routing';
+    this.startPin = { comp: pin.comp, pin: pin.pin };
+    this.routeWaypoints = [];
+    this.lastDir = null;
+
     const comp = getComp(pin.comp);
     const pinDef = comp ? comp.pins.find(p => p.id === pin.pin) : null;
     if (pinDef) { this.wireType = this.detectWireType(pinDef.label); }
     this.setWireType(this.wireType);
-    this.setRouteMode(this.routeMode);
     document.getElementById('wireHint').style.display = 'flex';
+  },
+
+  // Click during routing: either add waypoint or complete wire
+  routeClick(canvasPos) {
+    const pin = findPinAt(canvasPos.x, canvasPos.y);
+    const head = this._getHeadPos();
+    if (!head) return;
+
+    if (pin) {
+      // Clicked on a pin → complete the wire
+      // But don't complete if it's the start pin itself
+      if (pin.comp === this.startPin.comp && pin.pin === this.startPin.pin) return;
+      this.complete({ comp: pin.comp, pin: pin.pin });
+      return;
+    }
+
+    // Clicked on blank space → add a waypoint
+    const constrained = this._constrainOrtho(head, canvasPos);
+    // Only add waypoint if it actually moves from head
+    if (Math.abs(constrained.x - head.x) > 1 || Math.abs(constrained.y - head.y) > 1) {
+      this.routeWaypoints.push({ x: constrained.x, y: constrained.y });
+      this.lastDir = constrained.dir;
+    }
+  },
+
+  undoSegment() {
+    if (this.routeWaypoints.length > 0) {
+      this.routeWaypoints.pop();
+      // Recalculate lastDir from remaining waypoints
+      if (this.routeWaypoints.length === 0) {
+        this.lastDir = null;
+      } else {
+        const c = getComp(this.startPin.comp);
+        const startPos = c ? getPinPos(c, this.startPin.pin) : null;
+        if (startPos && this.routeWaypoints.length > 0) {
+          const last = this.routeWaypoints[this.routeWaypoints.length - 1];
+          const prev = this.routeWaypoints.length > 1
+            ? this.routeWaypoints[this.routeWaypoints.length - 2]
+            : startPos;
+          this.lastDir = Math.abs(last.x - prev.x) > 1 ? 'h' : 'v';
+        }
+      }
+      render();
+    }
   },
 
   cancel() {
     this.active = false;
+    this.phase = 'idle';
     this.startPin = null;
+    this.routeWaypoints = [];
+    this.lastDir = null;
     document.getElementById('wireHint').style.display = 'none';
     render();
   },
@@ -1284,7 +1364,6 @@ const WireRouter = {
   complete(endPin) {
     if (!this.startPin) return;
     const sp = this.startPin;
-    if (sp.comp === endPin.comp && sp.pin === endPin.pin) { this.cancel(); return; }
 
     const exists = S.wires.some(w =>
       (w.from.comp === sp.comp && w.from.pin === sp.pin && w.to.comp === endPin.comp && w.to.pin === endPin.pin) ||
@@ -1294,14 +1373,18 @@ const WireRouter = {
 
     const c1 = getComp(sp.comp), c2 = getComp(endPin.comp);
     const p1 = getPinPos(c1, sp.pin), p2 = getPinPos(c2, endPin.pin);
-    const waypoints = this.computeWaypoints(p1, p2);
+    const head = this._getHeadPos();
+    // Build final waypoints: existing route waypoints only
+    const waypoints = this.routeWaypoints.filter(wp =>
+      !(Math.abs(wp.x - p2.x) < 2 && Math.abs(wp.y - p2.y) < 2)
+    );
+
     const wire = {
       id: S.nextWireId++,
       from: { ...sp },
       to: { ...endPin },
       waypoints: waypoints,
       wireType: this.wireType,
-      routeMode: this.routeMode,
       current: 0
     };
     S.wires.push(wire);
@@ -1309,50 +1392,6 @@ const WireRouter = {
     History.push({ type: 'wire', wire });
     UI.toast('连线成功', 'success');
     this.cancel();
-  },
-
-  computeWaypoints(p1, p2) {
-    const g = S.grid;
-    const sx = p1.x, sy = p1.y, ex = p2.x, ey = p2.y;
-    // Already aligned on same row or column
-    if (Math.abs(sy - ey) < 2) return [];
-    if (Math.abs(sx - ex) < 2) return [];
-
-    let mode = this.routeMode;
-    if (mode === 'auto') {
-      // Choose shorter path
-      const vhLen = Math.abs(ey - sy) + Math.abs(ex - sx);
-      const hvLen = Math.abs(ex - sx) + Math.abs(ey - sy);
-      // Both same length; use V-H when horizontal distance > vertical (looks cleaner)
-      mode = Math.abs(ex - sx) > Math.abs(ey - sy) ? 'vh' : 'hv';
-    }
-
-    const offset = this.getOffsetForNewWire(p1, p2);
-
-    if (mode === 'vh') {
-      // Vertical first, then horizontal
-      return [{ x: sx + offset, y: ey }];
-    } else {
-      // Horizontal first, then vertical
-      return [{ x: ex + offset, y: sy }];
-    }
-  },
-
-  // Simple offset to avoid wire overlap: checks existing wires and shifts slightly
-  getOffsetForNewWire(p1, p2) {
-    const g = S.grid;
-    // Check if a similar orthogonal path already exists near this route
-    for (const w of S.wires) {
-      const c1 = getComp(w.from.comp), c2 = getComp(w.to.comp);
-      if (!c1 || !c2) continue;
-      const wp1 = getPinPos(c1, w.from.pin), wp2 = getPinPos(c2, w.to.pin);
-      // Check if endpoints overlap with new wire endpoints (same component pair)
-      if ((w.from.comp === this.startPin.comp || w.to.comp === this.startPin.comp) &&
-          Math.abs(wp1.y - p1.y) < g && Math.abs(wp1.x - p1.x) < g) {
-        return g; // shift by one grid unit
-      }
-    }
-    return 0;
   },
 
   // Get the wire type color for a specific pin
@@ -1376,7 +1415,7 @@ const WireRouter = {
       const wt = w.wireType || 'live';
       const wColor = w._fault ? '#f85149' : (isXray ? 'rgba(57,210,192,0.5)' : this.WireColors[wt]);
 
-      // Draw wire path - orthogonal
+      // Draw wire path
       ctx.strokeStyle = wColor;
       ctx.lineWidth = w._fault ? 3 : this.WireWidth;
       ctx.lineJoin = 'miter';
@@ -1388,7 +1427,7 @@ const WireRouter = {
       }
       ctx.stroke();
 
-      // Corner dots at waypoints
+      // Corner dots
       if (w.waypoints && w.waypoints.length > 0) {
         ctx.fillStyle = wColor;
         w.waypoints.forEach(wp => {
@@ -1396,13 +1435,62 @@ const WireRouter = {
         });
       }
 
-      // Current flow animation
+      // Current flow
       if (S.simRunning && S.showCurrentDir && w.current > 0) {
         this.drawCurrentFlow(allPoints, w.current, wColor);
       }
     });
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
+  },
+
+  drawTempWire() {
+    if (this.phase !== 'routing') return;
+    const head = this._getHeadPos();
+    if (!head) return;
+    const m = screenToCanvas(S.mouse.x, S.mouse.y);
+    const constrained = this._constrainOrtho(head, m);
+    const color = this.WireColors[this.wireType] || this.WireColors.live;
+
+    // Draw all committed segments (solid)
+    const c = getComp(this.startPin.comp);
+    const startPos = c ? getPinPos(c, this.startPin.pin) : head;
+    const allCommitted = [startPos, ...this.routeWaypoints];
+
+    if (allCommitted.length > 1) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = this.WireWidth;
+      ctx.lineJoin = 'miter';
+      ctx.lineCap = 'butt';
+      ctx.beginPath();
+      ctx.moveTo(allCommitted[0].x, allCommitted[0].y);
+      for (let i = 1; i < allCommitted.length; i++) {
+        ctx.lineTo(allCommitted[i].x, allCommitted[i].y);
+      }
+      ctx.stroke();
+
+      // Corner dots on committed waypoints
+      ctx.fillStyle = color;
+      this.routeWaypoints.forEach(wp => {
+        ctx.beginPath(); ctx.arc(wp.x, wp.y, 3, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+
+    // Draw current preview segment (dashed)
+    ctx.strokeStyle = color + '88';
+    ctx.lineWidth = this.WireWidth;
+    ctx.setLineDash([6, 4]);
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'butt';
+    ctx.beginPath();
+    ctx.moveTo(head.x, head.y);
+    ctx.lineTo(constrained.x, constrained.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Preview corner dot
+    ctx.fillStyle = color + 'aa';
+    ctx.beginPath(); ctx.arc(constrained.x, constrained.y, 3, 0, Math.PI * 2); ctx.fill();
   },
 
   drawCurrentFlow(points, current, wireColor) {
@@ -1429,40 +1517,6 @@ const WireRouter = {
       ctx.fill();
     }
     ctx.shadowBlur = 0;
-  },
-
-  drawTempWire() {
-    const c = getComp(this.startPin.comp);
-    const pin = c ? c.pins.find(p => p.id === this.startPin.pin) : null;
-    if (!c || !pin) return;
-    const sx = c.x + pin.dx, sy = c.y + pin.dy;
-    const m = screenToCanvas(S.mouse.x, S.mouse.y);
-
-    // Orthogonal preview path
-    const waypoints = this.computeWaypoints({x:sx,y:sy}, m);
-    const allPoints = [{x:sx,y:sy}, ...waypoints, {x:m.x,y:m.y}];
-    const color = this.WireColors[this.wireType] || this.WireColors.live;
-
-    ctx.strokeStyle = color + '55';
-    ctx.lineWidth = this.WireWidth;
-    ctx.setLineDash([6, 4]);
-    ctx.lineJoin = 'miter';
-    ctx.lineCap = 'butt';
-    ctx.beginPath();
-    ctx.moveTo(allPoints[0].x, allPoints[0].y);
-    for (let i = 1; i < allPoints.length; i++) {
-      ctx.lineTo(allPoints[i].x, allPoints[i].y);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Corner preview dots
-    if (waypoints.length > 0) {
-      ctx.fillStyle = color + '88';
-      waypoints.forEach(wp => {
-        ctx.beginPath(); ctx.arc(wp.x, wp.y, 3, 0, Math.PI * 2); ctx.fill();
-      });
-    }
   },
 
   isPinConnected(compId, pinId) {
@@ -2224,9 +2278,12 @@ function onMouseDown(e) {
 
   if (WireRouter.isActive()) {
     if (pin) {
+      // Clicked on a pin → complete the wire
       WireRouter.complete({ comp: pin.comp, pin: pin.pin });
+    } else {
+      // Clicked on blank space → add waypoint (fix current segment)
+      WireRouter.routeClick(pos);
     }
-    // Clicking blank space does nothing in wiring mode
     return;
   }
 
