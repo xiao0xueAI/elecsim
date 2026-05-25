@@ -1862,25 +1862,28 @@ const Engine = {
     // ==================== Component resistance & behavior ====================
     const getR = (comp) => {
       const t = comp.type;
-      if (t === 'battery' || t === 'ac_source' || t === 'dc_dc') return 0.001; // very small internal R
+      if (t === 'battery' || t === 'ac_source' || t === 'dc_dc') return 0.1; // realistic internal R (~100mΩ)
       if (t === 'resistor') return Math.max(0.1, comp.props.resistance || 1000);
-      if (t === 'led' || t === 'diode') return 50; // dynamic R when conducting
-      if (t === 'motor_dc') return Math.max(0.1, comp.props.resistance || 50);
+      if (t === 'led') return 1; // LED dynamic R ~1Ω when conducting (approximates If=20mA at Vf=2V)
+      if (t === 'diode') return 0.1; // diode ~0.1Ω forward resistance
+      if (t === 'motor_dc') return Math.max(0.5, comp.props.resistance || 50);
       if (t === 'buzzer') return 80;
-      if (t === 'solenoid') return Math.max(0.1, comp.props.resistance || 200);
+      if (t === 'solenoid') return Math.max(1, comp.props.resistance || 200);
       if (t === 'lamp') { const v = comp.props.voltage||220, w = comp.props.wattage||60; return Math.max(1, (v*v)/w); }
       if (t === 'inductor') return Math.max(0.01, (comp.props.inductance||1)*10);
       if (t === 'thermistor') return Math.max(100, comp.props.resistance || 10000);
       if (t === 'photoresistor') return Math.max(100, comp.props.resistance || 5000);
-      if (t === 'capacitor') return 0; // short at DC steady state
+      if (t === 'capacitor') return 1e9; // DC steady state: open circuit (does NOT conduct)
       if (t === 'npn') return 500;
-      if (t === 'relay5' || t === 'relay8' || t === 'contactor') return comp.props.coilResistance || comp.props.contactR || 10;
-      if (t === 'switch' || t === 'breaker' || t === 'push_no' || t === 'push_nc') return 0.001;
-      if (t === 'spdt' || t === 'rotary') return 0.001;
+      if (t === 'relay5' || t === 'relay8' || t === 'contactor') return comp.props.coilResistance || 10;
+      if (t === 'switch' || t === 'breaker') return 0.05; // realistic contact resistance (~50mΩ)
+      if (t === 'push_no' || t === 'push_nc') return 0.05;
+      if (t === 'spdt' || t === 'rotary') return 0.05;
       return 10;
     };
 
-    const getLED_Vf = (comp) => (comp.type === 'led') ? (comp.props.forwardV || 2) : 0;
+    const getLED_Vf = (comp) => (comp.type === 'led') ? (comp.props.forwardV || 2) :
+                             (comp.type === 'diode') ? (comp.props.forwardV || 0.7) : 0;
 
     const isBlocking = (comp) => {
       if (!comp) return false;
@@ -2039,9 +2042,32 @@ const Engine = {
       pathData.forEach(p => { G_eq += 1 / p.R; });
       const R_eq = 1 / G_eq;
 
-      // Short circuit check
-      if (R_eq < 0.1) {
-        faults.push({ type: 'short', msg: '检测到短路！等效电阻 ' + R_eq.toFixed(4) + ' Ω', comp: '' });
+      // Short circuit detection: only when a path has NO significant load (only wire/switch/conductive elements)
+      // A true short: battery+ -> [wire/switch ONLY] -> battery- with no resistor/LED/motor/load in between
+      const isLoadComp = (compId) => {
+        const comp = S.components.find(c => c.id === compId);
+        if (!comp) return false;
+        const t = comp.type;
+        // Load components that consume power (not just conduct)
+        return ['resistor', 'led', 'diode', 'motor_dc', 'buzzer', 'solenoid', 'lamp',
+                'capacitor', 'inductor', 'thermistor', 'photoresistor', 'npn',
+                'relay5', 'relay8', 'contactor', 'ac_source', 'dc_dc'].includes(t);
+      };
+
+      // Check each path: if a path has only wire/switch elements (no load), it's a direct short
+      let hasDirectShort = false;
+      let shortPathCount = 0;
+      pathData.forEach(p => {
+        const loadComps = p.comps.filter(id => id !== bat.id && isLoadComp(id));
+        if (loadComps.length === 0 && p.R < 0.5) {
+          // Path has no load components and very low resistance → direct short
+          hasDirectShort = true;
+          shortPathCount++;
+        }
+      });
+
+      if (hasDirectShort) {
+        faults.push({ type: 'short', msg: '检测到短路！电池正负极直接相连（无负载）', comp: '' });
         document.getElementById('simCurrent').textContent = '∞ (短路)';
         document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
         document.getElementById('simPower').textContent = '∞ mW';
@@ -2097,20 +2123,33 @@ const Engine = {
         }
       });
 
-      // ==================== LED special handling ====================
-      // LEDs only conduct if forward voltage is exceeded
+      // ==================== Diode/LED conduction check ====================
+      // Diodes and LEDs only conduct when forward voltage is reached
       S.components.forEach(comp => {
-        if (comp.type !== 'led') return;
+        if (comp.type !== 'led' && comp.type !== 'diode') return;
         const Vf = getLED_Vf(comp);
         const V_comp = comp.simVoltage || 0;
-        const I_comp = comp.simCurrent / 1000; // A
-
-        // LED turns on only if V across it >= forward voltage AND current flows
-        if (V_comp < Vf || I_comp < 0.001) {
+        // Diode/LED conducts only if forward voltage is reached
+        if (V_comp < Vf || comp.simCurrent < 0.1) {
           comp.simCurrent = 0;
-          comp._fault = 'off'; // LED is off
+          comp.simVoltage = 0;
+          comp._fault = 'off';
         } else {
           comp._fault = null;
+          comp._power = comp.simVoltage * (comp.simCurrent / 1000);
+        }
+      });
+
+      // ==================== Fuse overcurrent fault ====================
+      S.components.forEach(comp => {
+        if (comp.type !== 'fuse') return;
+        if (comp.props.blown) return; // already blown
+        const rating = comp.props.rating || 1; // default 1A
+        if (comp.simCurrent / 1000 > rating * 1.5) {
+          // 150% of rating trips the fuse
+          comp.props.blown = true;
+          comp._fault = 'blown';
+          faults.push({ type: 'warn', msg: `${comp.name} 熔断！电流 ${(comp.simCurrent).toFixed(1)}mA 超过 ${rating}A 额定值`, comp: comp.name });
         }
       });
 
