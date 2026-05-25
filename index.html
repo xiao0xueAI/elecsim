@@ -465,11 +465,17 @@ const Registry = {
       props:{inputV:12,outputV:5,maxI:3} },
 
     // --- 开关/按钮 ---
+    // SPST (单开单控): 最简单的开关，L1=相线入，L2=相线出，闭合导通断开截止
+    { type:'spst', name:'单开单控', cat:'开关/按钮', icon:'🔌', desc:'单刀单掷/单开单控',
+      w:120, h:40,
+      pins:[{id:'l1',label:'L1',dx:-60,dy:0},{id:'l2',label:'L2',dx:60,dy:0}],
+      props:{closed:true} },
+    // 普通通断开关（通用）
     { type:'switch', name:'开关', cat:'开关/按钮', icon:'🔘', desc:'通断控制',
       w:120, h:40,
       pins:[{id:'a',label:'A',dx:-60,dy:0},{id:'b',label:'B',dx:60,dy:0}],
       props:{closed:true} },
-    { type:'spdt', name:'单刀双掷', cat:'开关/按钮', icon:'🔀', desc:'双控开关',
+    { type:'spdt', name:'单刀双掷', cat:'开关/按钮', icon:'🔀', desc:'双控开关(单刀双掷)',
       w:120, h:80,
       pins:[{id:'c',label:'COM',dx:-60,dy:0},{id:'t1',label:'T1',dx:60,dy:-20},{id:'t2',label:'T2',dx:60,dy:20}],
       props:{position:1} },
@@ -1206,11 +1212,15 @@ const Renderer = {
       ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(10, 5); ctx.stroke();
       ctx.font = '7px monospace'; ctx.textAlign = 'center';
       ctx.fillText('+', 12, -4); ctx.fillText('-', -14, -4);
-    } else if (c.type === 'switch') {
+    } else if (c.type === 'switch' || c.type === 'spst') {
+      // SPST / 普通开关: 水平线进，闭合=直线，断开=斜线
       ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(0, 0);
       if (c.props.closed) ctx.lineTo(18, 0); else ctx.lineTo(14, -12);
       ctx.stroke();
+      // 右端触点圆点
       ctx.beginPath(); ctx.arc(18, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+      // 左端触点圆点
+      ctx.beginPath(); ctx.arc(-18, 0, 2.5, 0, Math.PI * 2); ctx.fill();
     } else if (c.type === 'spdt' || c.type === 'rotary') {
       ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(0, 0);
       const tgt = c.props.position === 1 ? -15 : 15;
@@ -1812,7 +1822,7 @@ const Engine = {
         if (comPin && activePin) {
           addEdge(mkKey(c.id, comPin.id), mkKey(c.id, activePin.id), null, c.id);
         }
-      } else if (t === 'switch' || t === 'breaker') {
+      } else if (t === 'switch' || t === 'spst' || t === 'breaker') {
         if (c.props.closed && pins.length >= 2) {
           addEdge(mkKey(c.id, pins[0].id), mkKey(c.id, pins[1].id), null, c.id);
         }
@@ -1878,7 +1888,7 @@ const Engine = {
       if (t === 'capacitor') return 1e9; // DC steady state: open circuit (does NOT conduct)
       if (t === 'npn') return 500;
       if (t === 'relay5' || t === 'relay8' || t === 'contactor') return comp.props.coilResistance || 10;
-      if (t === 'switch' || t === 'breaker') return 0.05; // realistic contact resistance (~50mΩ)
+      if (t === 'switch' || t === 'spst' || t === 'breaker') return 0.05; // realistic contact resistance (~50mΩ)
       if (t === 'push_no' || t === 'push_nc') return 0.05;
       if (t === 'spdt' || t === 'rotary') return 0.05;
       if (t === 'voltmeter') return comp.props.resistance || 1e6; // very high R, almost no current draw
@@ -1894,8 +1904,7 @@ const Engine = {
     const isBlocking = (comp) => {
       if (!comp) return false;
       const t = comp.type;
-      if (t === 'switch' && !comp.props.closed) return true;
-      if (t === 'breaker' && !comp.props.closed) return true;
+      if ((t === 'switch' || t === 'spst' || t === 'breaker') && !comp.props.closed) return true;
       if (t === 'fuse' && comp.props.blown) return true;
       if (t === 'push_no' && !comp.props.pressed) return true;
       if (t === 'push_nc' && comp.props.pressed) return true;
@@ -2530,7 +2539,7 @@ const UI = {
       row.querySelector('input').addEventListener('input', e => { comp.props.color = e.target.value; render(); });
       content.appendChild(row);
     }
-    else if (comp.type === 'switch' || comp.type === 'breaker') {
+    else if (comp.type === 'switch' || comp.type === 'spst' || comp.type === 'breaker') {
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.closed ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.closed ? '闭合 ON' : '断开 OFF'}</button>`;
       row.querySelector('button').addEventListener('click', () => { comp.props.closed = !comp.props.closed; S.dirty = true; this.showProps(comp); render(); });
