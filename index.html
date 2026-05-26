@@ -2675,7 +2675,8 @@ const Recorder = {
       this.mediaRecorder.ondataavailable = e => {
         if (e.data && e.data.size > 0) this.chunks.push(e.data);
       };
-      this.mediaRecorder.onstop = () => this._onVideoStop();
+      // Note: onstop is NOT set here; stop() uses setTimeout to call _onVideoStop
+      // after a 200ms delay to ensure the final chunk is collected (MOOV atom fix)
       this.mediaRecorder.start(100);
     }
 
