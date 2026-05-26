@@ -185,36 +185,22 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 .xray-mode .wire-line{opacity:.3 !important;}
 
 /* ==================== Recording Indicator ==================== */
-#recIndicator{display:none;align-items:center;gap:6px;padding:4px 10px;background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);border-radius:20px;font-size:11px;color:#f85149;font-weight:600;cursor:pointer;user-select:none;}
-#recIndicator.recording{display:flex;}
-.rec-dot{width:8px;height:8px;background:#f85149;border-radius:50%;animation:recPulse 1s ease-in-out infinite;}
+#recIndicator{display:none;align-items:center;gap:5px;padding:3px 8px;background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);border-radius:20px;font-size:10px;color:#f85149;font-weight:600;cursor:pointer;user-select:none;}
+#recIndicator.recording{display:inline-flex;}
+#recIndicator.paused{background:rgba(210,153,34,.15);border-color:rgba(210,153,34,.4);color:#d29922;}
+#recIndicator.paused .rec-dot{background:#d29922;animation:none;}
+.rec-dot{width:7px;height:7px;background:#f85149;border-radius:50%;animation:recPulse 1s ease-in-out infinite;flex-shrink:0;}
 @keyframes recPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
 .rec-time{font-variant-numeric:tabular-nums;letter-spacing:.5px;}
 
-/* ==================== Recording Studio Modal ==================== */
-.rec-studio{display:flex;flex-direction:column;gap:14px;}
-.rec-studio .rec-preview{width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#666;font-size:12px;overflow:hidden;position:relative;}
-.rec-studio .rec-preview video{width:100%;height:100%;object-fit:contain;border-radius:8px;}
-.rec-studio .rec-preview canvas{display:none;}
-.rec-studio .rec-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#c9d1d9;}
-.rec-studio .rec-status.rec-on{color:#f85149;}
-.rec-studio .form-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;}
-.rec-studio .form-row .label{font-size:11px;color:#8b949e;}
-.rec-studio select{background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:#c9d1d9;padding:4px 8px;font-size:12px;cursor:pointer;}
-.rec-studio .fmt-btns{display:flex;gap:6px;}
-.rec-studio .fmt-btn{padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:#8b949e;font-size:12px;cursor:pointer;transition:all .15s;}
-.rec-studio .fmt-btn:hover{border-color:#58a6ff;color:#58a6ff;}
-.rec-studio .fmt-btn.active{background:rgba(88,166,255,.15);border-color:#58a6ff;color:#58a6ff;}
-.rec-studio .rec-controls{display:flex;gap:8px;align-items:center;}
-.rec-studio .btn-record{padding:8px 20px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;}
-.rec-studio .btn-record:hover{background:#da3633;}
-.rec-studio .btn-record.recording{background:#484f58;}
-.rec-studio .btn-stop{padding:8px 20px;background:#484f58;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;}
-.rec-studio .btn-stop:hover{background:#6e7681;}
-.rec-studio .btn-export{padding:8px 20px;background:#238636;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;}
-.rec-studio .btn-export:hover{background:#2ea043;}
-.rec-studio .btn-export:disabled{opacity:.4;cursor:not-allowed;}
-.rec-studio .gif-note{font-size:10px;color:#6e7681;text-align:center;}
+/* ==================== Recording Panel ==================== */
+.rec-preview{width:100%;aspect-ratio:16/9;background:#000;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#555;font-size:11px;overflow:hidden;position:relative;}
+.rec-preview video{width:100%;height:100%;object-fit:contain;border-radius:6px;}
+.rec-preview canvas{display:none;}
+.fmt-btn{padding:4px 10px;border:1px solid var(--border);border-radius:5px;background:transparent;color:#8b949e;font-size:11px;cursor:pointer;transition:all .15s;}
+.fmt-btn:hover{border-color:#58a6ff;color:#58a6ff;}
+.fmt-btn.active{background:rgba(88,166,255,.12);border-color:#58a6ff;color:#58a6ff;}
+.gif-note{font-size:10px;color:#6e7681;}
 
 /* ==================== Record Preview Modal ==================== */
 .preview-modal .modal{width:720px;}
@@ -245,11 +231,12 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
         <div class="dropdown-item" style="color:var(--fg-muted);cursor:default;">暂无模板，后续更新</div>
       </div>
     </div>
-    <button class="tbtn export-btn" onclick="ElecSim.UI.showModal('recordingModal')">&#128249; 录屏</button>
-    <div id="recIndicator" onclick="ElecSim.Recorder.toggle()">
+    <button class="tbtn export-btn" id="recStartBtn" onclick="ElecSim.Recorder.start()">&#128249; 开始录制</button>
+    <button class="tbtn" id="recPauseBtn" onclick="ElecSim.Recorder.toggle()" style="display:none;color:#d29922;">&#10074;&#10074; 暂停</button>
+    <button class="tbtn" id="recStopBtn" onclick="ElecSim.Recorder.stop()" style="display:none;color:#f85149;">&#9632; 停止</button>
+    <div id="recIndicator" onclick="ElecSim.Recorder.togglePanel()" style="display:none;cursor:pointer;">
       <div class="rec-dot"></div>
       <span class="rec-time" id="recTime">00:00</span>
-      <span>录制中</span>
     </div>
     <button class="tbtn product-btn" onclick="ElecSim.UI.showModal('productModal')">&#128268; 上传产品</button>
     <div style="flex:1"></div>
@@ -351,63 +338,89 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 </div>
 
 <!-- Recording Studio Modal -->
-<div class="modal-mask" id="recordingModal">
-  <div class="modal" style="width:520px;">
-    <div class="modal-head"><h3>&#128249; 录屏工作室</h3><button class="modal-close" onclick="ElecSim.Recorder.close()">&times;</button></div>
+<!-- ==================== Recording Floating Panel ==================== -->
+<div id="recPanel" style="display:none;position:fixed;bottom:16px;right:16px;width:280px;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:80;font-size:12px;overflow:hidden;">
+  <!-- Collapsed view (shown during recording) -->
+  <div id="recPanelCollapsed" style="display:none;flex-direction:column;padding:12px 14px;gap:8px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="rec-dot"></div>
+      <span id="recPanelStatus" style="font-size:12px;color:#f85149;font-weight:600;">录制中 00:00</span>
+      <div style="flex:1;"></div>
+      <span class="rec-time" id="recTime2" style="font-variant-numeric:tabular-nums;color:#c9d1d9;font-size:13px;">00:00</span>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button onclick="ElecSim.Recorder.toggle()" style="flex:1;padding:5px;background:#d29922;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">&#10074;&#10074; 暂停</button>
+      <button onclick="ElecSim.Recorder.stop()" style="flex:1;padding:5px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">&#9632; 停止</button>
+      <button onclick="ElecSim.Recorder.togglePanel()" style="padding:5px 8px;background:var(--bg-card);color:#8b949e;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;">&#9660; 详情</button>
+    </div>
+  </div>
+
+  <!-- Expanded view (settings / preview) -->
+  <div id="recPanelExpanded" style="display:none;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;font-weight:600;color:#c9d1d9;">&#128249; 录屏设置</span>
+      <button onclick="ElecSim.Recorder.hidePanel()" style="background:none;border:none;color:#8b949e;font-size:14px;cursor:pointer;padding:2px 4px;">&#9650;</button>
+    </div>
+    <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px;">
+      <!-- Preview area -->
+      <div class="rec-preview" id="recPreview">
+        <span id="recPreviewHint">点击「开始录制」后将实时预览</span>
+        <video id="recPreviewVideo" controls style="display:none;width:100%;height:100%;object-fit:contain;border-radius:4px;"></video>
+      </div>
+      <!-- Status -->
+      <div style="font-size:11px;color:#8b949e;text-align:center;" id="recPanelStatusExp">准备就绪</div>
+      <!-- Format -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:11px;color:#8b949e;">格式</span>
+        <div style="display:flex;gap:4px;">
+          <button class="fmt-btn active" id="fmtWebm" onclick="ElecSim.Recorder.setFormat('webm')">WebM</button>
+          <button class="fmt-btn" id="fmtMp4" onclick="ElecSim.Recorder.setFormat('mp4')">MP4</button>
+          <button class="fmt-btn" id="fmtGif" onclick="ElecSim.Recorder.setFormat('gif')">GIF</button>
+        </div>
+      </div>
+      <!-- FPS -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:11px;color:#8b949e;">帧率</span>
+        <select id="recFps" onchange="ElecSim.Recorder.setFps(this.value)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:#c9d1d9;padding:3px 8px;font-size:11px;cursor:pointer;">
+          <option value="30" selected>30 fps</option>
+          <option value="60">60 fps</option>
+          <option value="15">15 fps</option>
+        </select>
+      </div>
+      <!-- Quality -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:11px;color:#8b949e;">画质</span>
+        <select id="recQuality" onchange="ElecSim.Recorder.setQuality(this.value)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:#c9d1d9;padding:3px 8px;font-size:11px;cursor:pointer;">
+          <option value="high">高 (8 Mbps)</option>
+          <option value="medium" selected>中 (4 Mbps)</option>
+          <option value="low">低 (1 Mbps)</option>
+        </select>
+      </div>
+      <p class="gif-note" id="gifNote" style="display:none;font-size:10px;color:#6e7681;">GIF 导出会截取前 15 秒</p>
+      <!-- Controls -->
+      <div style="display:flex;gap:6px;margin-top:2px;">
+        <button onclick="ElecSim.Recorder.start()" style="flex:1;padding:7px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">&#9679; 开始录制</button>
+        <button class="btn-export" id="recExportBtn" onclick="ElecSim.Recorder.exportCurrent()" disabled style="flex:1;padding:7px;background:#238636;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;opacity:.4;">&#11015; 导出</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Preview Modal (shown after stop) ==================== -->
+<div class="modal-mask" id="previewModal">
+  <div class="modal" style="width:680px;">
+    <div class="modal-head"><h3>&#128249; 录制预览</h3><button class="modal-close" onclick="ElecSim.Recorder.closePreview()">&times;</button></div>
     <div class="modal-body">
-      <div class="rec-studio">
-        <!-- Preview area -->
-        <div class="rec-preview" id="recPreview">
-          <span id="recPreviewHint">点击「开始录制」后将实时预览画布</span>
-          <video id="recPreviewVideo" controls style="display:none;"></video>
-        </div>
-
-        <!-- Recording status -->
-        <div class="rec-status" id="recStudioStatus">
-          <div class="rec-dot" id="recStudioDot"></div>
-          <span id="recStudioStatusText">准备就绪</span>
-        </div>
-
-        <!-- Format selection -->
-        <div class="form-row">
-          <span class="label">导出格式</span>
-          <div class="fmt-btns">
-            <button class="fmt-btn active" id="fmtWebm" onclick="ElecSim.Recorder.setFormat('webm')">WebM</button>
-            <button class="fmt-btn" id="fmtMp4" onclick="ElecSim.Recorder.setFormat('mp4')">MP4</button>
-            <button class="fmt-btn" id="fmtGif" onclick="ElecSim.Recorder.setFormat('gif')">GIF</button>
-          </div>
-        </div>
-
-        <!-- FPS selection -->
-        <div class="form-row">
-          <span class="label">帧率 (fps)</span>
-          <select id="recFps" onchange="ElecSim.Recorder.setFps(this.value)">
-            <option value="30">30 fps（推荐）</option>
-            <option value="60">60 fps（高流畅）</option>
-            <option value="15">15 fps（文件更小）</option>
-          </select>
-        </div>
-
-        <!-- Quality selection -->
-        <div class="form-row">
-          <span class="label">画质</span>
-          <select id="recQuality" onchange="ElecSim.Recorder.setQuality(this.value)">
-            <option value="high">高 (8 Mbps)</option>
-            <option value="medium" selected>中 (4 Mbps)</option>
-            <option value="low">低 (1 Mbps)</option>
-          </select>
-        </div>
-
-        <!-- GIF note -->
-        <p class="gif-note" id="gifNote" style="display:none;">GIF 导出会截取录制的前 15 秒，文件较大请耐心等待</p>
-
-        <!-- Controls -->
-        <div class="rec-controls">
-          <button class="btn-record" id="btnRecordStart" onclick="ElecSim.Recorder.start()">&#9679; 开始录制</button>
-          <button class="btn-stop" id="btnRecordStop" onclick="ElecSim.Recorder.stop()" style="display:none;">&#9632; 停止录制</button>
-          <div style="flex:1;"></div>
-          <button class="btn-export" id="btnExport" onclick="ElecSim.Recorder.exportCurrent()" disabled>&#11015; 导出视频</button>
-        </div>
+      <div class="preview-video-wrap">
+        <video id="prevVideo" controls style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></video>
+      </div>
+      <div class="preview-info">
+        <span>时长: <span class="duration" id="prevDur">00:00</span></span>
+        <span>大小: <span class="duration" id="prevSize">--</span></span>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn-secondary" onclick="ElecSim.Recorder.closePreview()">取消</button>
+        <button class="btn-primary" onclick="ElecSim.Recorder.exportCurrent();ElecSim.Recorder.closePreview();">&#11015; 导出到本地</button>
       </div>
     </div>
   </div>
@@ -2451,17 +2464,22 @@ const Templates = {
 // ==================== Section 11: Recording System ====================
 const Recorder = {
   isRecording: false,
+  isPaused: false,
   mediaRecorder: null,
   stream: null,
   chunks: [],
-  gifFrames: [],        // For GIF capture
+  gifFrames: [],
   rafId: null,
   startTime: 0,
   elapsedTime: 0,
+  pauseTime: 0,        // accumulated time before last pause
   timerInterval: null,
 
+  // Panel visibility
+  panelVisible: false,
+
   // Settings
-  format: 'webm',       // 'webm' | 'mp4' | 'gif'
+  format: 'webm',
   fps: 30,
   qualityMap: { high: 8000000, medium: 4000000, low: 1000000 },
   quality: 4000000,
@@ -2470,6 +2488,59 @@ const Recorder = {
   currentBlob: null,
   currentUrl: null,
 
+  // Toggle the floating settings panel
+  togglePanel() {
+    const panel = document.getElementById('recPanel');
+    const collapsed = document.getElementById('recPanelCollapsed');
+    const expanded = document.getElementById('recPanelExpanded');
+
+    if (!this.panelVisible) {
+      // Panel was hidden — show it
+      this.panelVisible = true;
+      panel.style.display = 'flex';
+      if (this.isRecording) {
+        // During recording: start in collapsed (minimal) view
+        collapsed.style.display = 'flex';
+        expanded.style.display = 'none';
+      } else {
+        // Not recording: show full settings
+        collapsed.style.display = 'none';
+        expanded.style.display = 'flex';
+      }
+    } else {
+      // Panel was visible — toggle between collapsed/expanded (if recording), or hide (if not)
+      if (this.isRecording) {
+        if (collapsed.style.display === 'flex') {
+          // Currently collapsed → expand
+          collapsed.style.display = 'none';
+          expanded.style.display = 'flex';
+        } else {
+          // Currently expanded → collapse
+          collapsed.style.display = 'flex';
+          expanded.style.display = 'none';
+        }
+      } else {
+        // Not recording → hide panel
+        this.panelVisible = false;
+        panel.style.display = 'none';
+      }
+    }
+  },
+
+  showPanel() {
+    this.panelVisible = true;
+    const panel = document.getElementById('recPanel');
+    panel.style.display = 'flex';
+    document.getElementById('recPanelCollapsed').style.display = 'none';
+    document.getElementById('recPanelExpanded').style.display = 'flex';
+    if (!this.isRecording) this._setStatus('准备就绪', '');
+  },
+
+  hidePanel() {
+    this.panelVisible = false;
+    document.getElementById('recPanel').style.display = 'none';
+  },
+
   setFormat(fmt) {
     this.format = fmt;
     ['fmtWebm', 'fmtMp4', 'fmtGif'].forEach(id => {
@@ -2477,7 +2548,6 @@ const Recorder = {
     });
     document.getElementById('fmt' + fmt.charAt(0).toUpperCase() + fmt.slice(1)).classList.add('active');
     document.getElementById('gifNote').style.display = fmt === 'gif' ? 'block' : 'none';
-    this._updateStatus(fmt === 'gif' ? 'GIF 格式：录制前15秒将被导出' : '准备就绪');
   },
 
   setFps(val) { this.fps = parseInt(val); },
@@ -2523,35 +2593,87 @@ const Recorder = {
     this.stream = stream;
     this.startTime = Date.now();
     this.elapsedTime = 0;
+    this.pauseTime = 0;
+    this.isPaused = false;
 
     // For GIF: capture frames manually
     if (this.format === 'gif') {
       this._captureGifFrames(fps);
     } else {
-      // Video recording via MediaRecorder
       const bitrate = this.quality;
       try {
         this.mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
       } catch(e) {
-        // Fallback without bitrate hint
         this.mediaRecorder = new MediaRecorder(stream, { mimeType });
       }
       this.mediaRecorder.ondataavailable = e => {
         if (e.data && e.data.size > 0) this.chunks.push(e.data);
       };
       this.mediaRecorder.onstop = () => this._onVideoStop();
-      this.mediaRecorder.start(100); // collect data every 100ms
+      this.mediaRecorder.start(100);
     }
 
     this.isRecording = true;
+
+    // Auto-collapse panel so it doesn't block the canvas
+    this._collapsePanel();
+
+    // Show floating recording indicator in toolbar
     this._updateUI(true);
     this._startTimer();
-    UI.toast('开始录制画布操作', 'success');
+
+    // Show pause button in toolbar
+    document.getElementById('recPauseBtn').style.display = 'inline-flex';
+    document.getElementById('recStopBtn').style.display = 'inline-flex';
+    document.getElementById('recStartBtn').style.display = 'none';
+
+    UI.toast('后台录制已开始，可正常操作画布', 'success');
+  },
+
+  pause() {
+    if (!this.isRecording || this.isPaused) return;
+    this.isPaused = true;
+    this.pauseTime = Date.now();
+    if (this.format === 'gif') {
+      cancelAnimationFrame(this.rafId);
+    } else {
+      if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+        this.mediaRecorder.pause();
+      }
+    }
+    clearInterval(this.timerInterval);
+    document.getElementById('recPauseBtn').innerHTML = '&#9654; 继续';
+    document.getElementById('recIndicator').classList.remove('recording');
+    document.getElementById('recIndicator').classList.add('paused');
+    // Switch to collapsed (minimal) view so paused status is visible
+    document.getElementById('recPanelCollapsed').style.display = 'flex';
+    document.getElementById('recPanelExpanded').style.display = 'none';
+    this._setStatus('已暂停 ' + this._fmtTime(this.elapsedTime), '#d29922');
+  },
+
+  resume() {
+    if (!this.isRecording || !this.isPaused) return;
+    this.isPaused = false;
+    // Adjust startTime to account for pause duration
+    this.startTime += (Date.now() - this.pauseTime);
+    if (this.format === 'gif') {
+      this._captureGifFrames(this.fps);
+    } else {
+      if (this.mediaRecorder && this.mediaRecorder.state === 'paused') {
+        this.mediaRecorder.resume();
+      }
+    }
+    this._startTimer();
+    document.getElementById('recPauseBtn').innerHTML = '&#10074;&#10074; 暂停';
+    document.getElementById('recIndicator').classList.add('recording');
+    document.getElementById('recIndicator').classList.remove('paused');
+    this._setStatus('录制中', '#f85149');
   },
 
   stop() {
     if (!this.isRecording) return;
     this.isRecording = false;
+    this.isPaused = false;
 
     if (this.format === 'gif') {
       cancelAnimationFrame(this.rafId);
@@ -2559,18 +2681,35 @@ const Recorder = {
       this._onGifStop();
     } else {
       if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        if (this.mediaRecorder.state === 'paused') this.mediaRecorder.resume();
         this.mediaRecorder.stop();
       }
       clearInterval(this.timerInterval);
     }
 
+    // Restore toolbar buttons
+    document.getElementById('recStartBtn').style.display = 'inline-flex';
+    document.getElementById('recPauseBtn').style.display = 'none';
+    document.getElementById('recPauseBtn').innerHTML = '&#10074;&#10074; 暂停';
+    document.getElementById('recStopBtn').style.display = 'none';
+
     this._updateUI(false);
-    document.getElementById('recStudioStatusText').textContent = '录制完成，点击「导出视频」保存';
+    document.getElementById('recIndicator').classList.remove('paused');
+
+    // Auto-show panel on stop (for preview/export)
+    this.showPanel();
+    document.getElementById('recPanelCollapsed').style.display = 'none';
+    document.getElementById('recPanelExpanded').style.display = 'flex';
+    this._setStatus('录制完成，点击导出', '#3fb950');
   },
 
   toggle() {
     if (this.isRecording) {
-      this.stop();
+      if (this.isPaused) {
+        this.resume();
+      } else {
+        this.pause();
+      }
     } else {
       this.start();
     }
@@ -2579,16 +2718,14 @@ const Recorder = {
   _captureGifFrames(fps) {
     const interval = 1000 / fps;
     let lastTime = 0;
-
     const capture = (timestamp) => {
-      if (!this.isRecording) return;
-      if (this.elapsedTime >= 15000) { // 15s max for GIF
+      if (!this.isRecording || this.isPaused) return;
+      if (this.elapsedTime >= 15000) {
         this.stop();
         return;
       }
       if (timestamp - lastTime >= interval) {
         lastTime = timestamp;
-        // Capture current canvas frame
         try {
           const tmpCanvas = document.createElement('canvas');
           tmpCanvas.width = canvas.width;
@@ -2634,9 +2771,8 @@ const Recorder = {
       selectedFrames.push(frames[Math.min(i * skip, frames.length - 1)]);
     }
 
-    document.getElementById('recStudioStatusText').textContent = '正在生成 GIF...';
+    this._setStatus('正在生成 GIF...', '');
 
-    // Load gif.js dynamically
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js';
     script.onload = () => {
@@ -2655,19 +2791,19 @@ const Recorder = {
       gif.on('finished', blob => {
         this.currentBlob = blob;
         this._showPreview();
-        document.getElementById('recStudioStatusText').textContent = 'GIF 生成完成';
+        this._setStatus('GIF 生成完成', '#3fb950');
       });
 
       gif.on('error', err => {
         UI.toast('GIF 生成失败: ' + err, 'error');
-        document.getElementById('recStudioStatusText').textContent = 'GIF 生成失败';
+        this._setStatus('GIF 生成失败', '#f85149');
       });
 
       gif.render();
     };
     script.onerror = () => {
       UI.toast('GIF 库加载失败，请检查网络连接', 'error');
-      document.getElementById('recStudioStatusText').textContent = 'GIF 生成失败';
+      this._setStatus('GIF 生成失败', '#f85149');
     };
     document.head.appendChild(script);
   },
@@ -2682,10 +2818,18 @@ const Recorder = {
     video.style.display = 'block';
     video.src = this.currentUrl;
 
-    document.getElementById('btnExport').disabled = false;
+    document.getElementById('recExportBtn').disabled = false;
     const sizeKB = Math.round(this.currentBlob.size / 1024);
-    document.getElementById('recStudioStatusText').textContent =
-      '录制完成 (' + this._fmtTime(this.elapsedTime) + ', ' + sizeKB + ' KB)';
+    const sizeStr = sizeKB > 1024 ? (sizeKB / 1024).toFixed(1) + ' MB' : sizeKB + ' KB';
+    this._setStatus('录制完成 (' + this._fmtTime(this.elapsedTime) + ', ' + sizeStr + ')', '#3fb950');
+
+    // Show the preview modal
+    document.getElementById('previewModal').classList.add('show');
+    document.getElementById('prevVideo').src = this.currentUrl;
+    const prevSize = document.getElementById('prevSize');
+    if (prevSize) prevSize.textContent = sizeStr;
+    const prevDur = document.getElementById('prevDur');
+    if (prevDur) prevDur.textContent = this._fmtTime(this.elapsedTime);
   },
 
   exportCurrent() {
@@ -2697,28 +2841,52 @@ const Recorder = {
     a.href = this.currentUrl || URL.createObjectURL(this.currentBlob);
     a.download = 'ElecSim_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.' + ext;
     a.click();
-    UI.toast('视频已导出: ' + a.download, 'success');
+    UI.toast('已导出: ' + a.download, 'success');
+  },
+
+  closePreview() {
+    document.getElementById('previewModal').classList.remove('show');
+    document.getElementById('prevVideo').src = '';
+    this._revokeUrl();
   },
 
   close() {
     if (this.isRecording) this.stop();
-    this._revokeUrl();
+    this.closePreview();
+    this.hidePanel();
     document.getElementById('recPreviewHint').style.display = '';
-    document.getElementById('recPreviewHint').textContent = '点击「开始录制」后将实时预览画布';
+    document.getElementById('recPreviewHint').textContent = '点击「开始录制」后将实时预览';
     document.getElementById('recPreviewVideo').style.display = 'none';
     document.getElementById('recPreviewVideo').src = '';
-    document.getElementById('btnExport').disabled = true;
-    document.getElementById('recStudioStatusText').textContent = '准备就绪';
-    document.getElementById('recStudioDot').style.display = 'none';
-    UI.closeModal('recordingModal');
+    document.getElementById('recExportBtn').disabled = true;
+    this._setStatus('准备就绪', '');
+  },
+
+  _collapsePanel() {
+    // During recording: show only minimal collapsed view
+    document.getElementById('recPanelCollapsed').style.display = 'flex';
+    document.getElementById('recPanelExpanded').style.display = 'none';
   },
 
   _startTimer() {
+    clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
-      this.elapsedTime = Date.now() - this.startTime;
-      document.getElementById('recTime').textContent = this._fmtTime(this.elapsedTime);
-      document.getElementById('recStudioStatusText').textContent = '录制中 ' + this._fmtTime(this.elapsedTime);
+      if (!this.isPaused) {
+        this.elapsedTime = Date.now() - this.startTime;
+      }
+      const t = this._fmtTime(this.elapsedTime);
+      document.getElementById('recTime').textContent = t;
+      const t2 = document.getElementById('recTime2');
+      if (t2) t2.textContent = t;
+      this._setStatus('录制中 ' + t, '#f85149');
     }, 100);
+  },
+
+  _setStatus(text, color) {
+    const el = document.getElementById('recPanelStatus');
+    if (el) { el.textContent = text; if (color) el.style.color = color; }
+    const exp = document.getElementById('recPanelStatusExp');
+    if (exp) { exp.textContent = text; if (color) exp.style.color = color; }
   },
 
   _fmtTime(ms) {
@@ -2729,27 +2897,17 @@ const Recorder = {
 
   _updateUI(recording) {
     const ind = document.getElementById('recIndicator');
-    const btnStart = document.getElementById('btnRecordStart');
-    const btnStop = document.getElementById('btnRecordStop');
     const dot = document.getElementById('recStudioDot');
-
     if (recording) {
       ind.classList.add('recording');
-      btnStart.style.display = 'none';
-      btnStop.style.display = 'flex';
+      ind.style.display = 'inline-flex';
       dot.style.display = 'block';
-      document.getElementById('recStudioStatusText').textContent = '录制中 00:00';
-      document.getElementById('recPreviewHint').textContent = '录制中... 画布操作将被完整记录';
+      this._setStatus('录制中 00:00', '#f85149');
     } else {
       ind.classList.remove('recording');
-      btnStart.style.display = 'flex';
-      btnStop.style.display = 'none';
+      ind.style.display = 'none';
       dot.style.display = 'none';
     }
-  },
-
-  _updateStatus(msg) {
-    document.getElementById('recStudioStatusText').textContent = msg;
   },
 
   _revokeUrl() {
