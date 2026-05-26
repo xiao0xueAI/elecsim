@@ -1055,11 +1055,93 @@ const Renderer = {
       ctx.save();
       ctx.translate(c.x, c.y);
 
+      const bw = c.w || 100, bh = c.h || 56;
+
+      // === IMAGE-BASED COMPONENTS (frameless realist style) ===
+      if (c.image) {
+        // Selection glow
+        if (sel) { ctx.shadowColor = catColor; ctx.shadowBlur = 14; }
+
+        // Draw image full-bleed (no dark box, no padding)
+        try {
+          const img = c.image instanceof HTMLImageElement ? c.image : (() => { const i = new Image(); i.src = c.image; return i; })();
+          if (img.complete && img.naturalWidth > 0) {
+            ctx.globalAlpha = isXray ? 0.3 : 1.0;
+            ctx.drawImage(img, -bw / 2, -bh / 2, bw, bh);
+            ctx.globalAlpha = 1;
+          }
+        } catch(e) {}
+
+        // Glow effects on top of image
+        if (c.type === 'lamp' && S.simRunning && c.simCurrent > 0) {
+          const intensity = Math.min(c.simCurrent / 50, 1);
+          const glowR = 16 + intensity * 14 + Math.sin(Date.now() / 200) * 2;
+          const grd = ctx.createRadialGradient(0, -2, 1, 0, -2, glowR);
+          grd.addColorStop(0, 'rgba(255,240,150,0.9)');
+          grd.addColorStop(0.3, 'rgba(255,200,50,0.5)');
+          grd.addColorStop(0.7, 'rgba(255,170,0,0.15)');
+          grd.addColorStop(1, 'transparent');
+          ctx.fillStyle = grd;
+          ctx.beginPath();
+          ctx.arc(0, -2, glowR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        if (c.type === 'led' && S.simRunning && c.simCurrent > 0) {
+          const color = c.props.color || '#ff4444';
+          const intensity = Math.min(c.simCurrent / 10, 1);
+          const glowR = 18 + intensity * 12 + Math.sin(Date.now() / 300) * 3;
+          const grd = ctx.createRadialGradient(0, 0, 2, 0, 0, glowR);
+          grd.addColorStop(0, color);
+          grd.addColorStop(0.5, color + '66');
+          grd.addColorStop(1, 'transparent');
+          ctx.fillStyle = grd;
+          ctx.beginPath();
+          ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        if ((c.type === 'motor_dc') && S.simRunning && c.simCurrent > 0) {
+          const speed = Math.min(c.simCurrent / 5, 1);
+          const angle = Date.now() / (200 - speed * 150);
+          ctx.strokeStyle = 'rgba(240,136,62,0.6)';
+          ctx.lineWidth = 2;
+          for (let i = 0; i < 3; i++) {
+            const a = angle + i * Math.PI * 2 / 3;
+            ctx.beginPath();
+            ctx.arc(0, -2, 14, a, a + 0.8);
+            ctx.stroke();
+          }
+        }
+
+        if (c.type === 'buzzer' && S.simRunning && c.simCurrent > 0) {
+          ctx.translate(Math.sin(Date.now() / 50) * 1.5, Math.sin(Date.now() / 50) * 1.5);
+          const ripplePhase = (Date.now() / 300) % 1;
+          const rippleR = 15 + ripplePhase * 15;
+          ctx.strokeStyle = `rgba(88,166,255,${0.4 * (1 - ripplePhase)})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(0, 0, rippleR, -0.5, 0.5);
+          ctx.stroke();
+          const ripplePhase2 = ((Date.now() / 300) + 0.5) % 1;
+          const rippleR2 = 15 + ripplePhase2 * 15;
+          ctx.strokeStyle = `rgba(88,166,255,${0.3 * (1 - ripplePhase2)})`;
+          ctx.beginPath();
+          ctx.arc(0, 0, rippleR2, -0.5, 0.5);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Draw pins for image-based components
+        this._drawPinsForComponent(c);
+        return;
+      }
+
+      // === ICON-BASED COMPONENTS (original dark-box style) ===
       // Selection glow
       if (sel) { ctx.shadowColor = catColor; ctx.shadowBlur = 14; }
 
-      // Body
-      const bw = c.w || 100, bh = c.h || 56;
       const grad = ctx.createLinearGradient(-bw / 2, -bh / 2, bw / 2, bh / 2);
       if (isXray) {
         grad.addColorStop(0, hexToRGBA(catColor, 0.06));
@@ -1075,192 +1157,111 @@ const Renderer = {
       ctx.fill(); ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Image overlay
-      if (c.image) {
-        try {
-          const img = c.image instanceof HTMLImageElement ? c.image : (() => { const i = new Image(); i.src = c.image; return i; })();
-          if (img.complete && img.naturalWidth > 0) {
-            ctx.globalAlpha = isXray ? 0.3 : 0.85;
-            ctx.drawImage(img, -bw / 2 + 4, -bh / 2 + 4, bw - 8, bh - 8);
-            ctx.globalAlpha = 1;
-          }
-        } catch(e) {}
-      }
-
-      // LED glow effect
-      if (c.type === 'led' && S.simRunning && c.simCurrent > 0) {
-        const color = c.props.color || '#ff4444';
-        const intensity = Math.min(c.simCurrent / 10, 1);
-        const glowR = 18 + intensity * 12 + Math.sin(Date.now() / 300) * 3;
-        const grd = ctx.createRadialGradient(0, 0, 2, 0, 0, glowR);
-        grd.addColorStop(0, color);
-        grd.addColorStop(0.5, color + '66');
-        grd.addColorStop(1, 'transparent');
-        ctx.fillStyle = grd;
-        ctx.beginPath();
-        ctx.arc(0, 0, glowR, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Lamp glow
-      if (c.type === 'lamp' && S.simRunning && c.simCurrent > 0) {
-        const intensity = Math.min(c.simCurrent / 50, 1);
-        const glowR = 16 + intensity * 14 + Math.sin(Date.now() / 200) * 2;
-        const grd = ctx.createRadialGradient(0, -2, 1, 0, -2, glowR);
-        grd.addColorStop(0, 'rgba(255,240,150,0.9)');
-        grd.addColorStop(0.3, 'rgba(255,200,50,0.5)');
-        grd.addColorStop(0.7, 'rgba(255,170,0,0.15)');
-        grd.addColorStop(1, 'transparent');
-        ctx.fillStyle = grd;
-        ctx.beginPath();
-        ctx.arc(0, -2, glowR, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Motor spin
-      if ((c.type === 'motor_dc') && S.simRunning && c.simCurrent > 0) {
-        const speed = Math.min(c.simCurrent / 5, 1);
-        const angle = Date.now() / (200 - speed * 150);
-        ctx.strokeStyle = 'rgba(240,136,62,0.6)';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 3; i++) {
-          const a = angle + i * Math.PI * 2 / 3;
-          ctx.beginPath();
-          ctx.arc(0, -2, 14, a, a + 0.8);
-          ctx.stroke();
-        }
-      }
-
-      // Buzzer vibration + ripple
-      if (c.type === 'buzzer' && S.simRunning && c.simCurrent > 0) {
-        ctx.translate(Math.sin(Date.now() / 50) * 1.5, Math.sin(Date.now() / 50) * 1.5);
-        // Sound wave ripple
-        const ripplePhase = (Date.now() / 300) % 1;
-        const rippleR = 15 + ripplePhase * 15;
-        ctx.strokeStyle = `rgba(88,166,255,${0.4 * (1 - ripplePhase)})`;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(0, 0, rippleR, -0.5, 0.5);
-        ctx.stroke();
-        const ripplePhase2 = ((Date.now() / 300) + 0.5) % 1;
-        const rippleR2 = 15 + ripplePhase2 * 15;
-        ctx.strokeStyle = `rgba(88,166,255,${0.3 * (1 - ripplePhase2)})`;
-        ctx.beginPath();
-        ctx.arc(0, 0, rippleR2, -0.5, 0.5);
-        ctx.stroke();
-      }
-
       // Internal structure
       if (S.showInternal || isXray) this.drawInternal(c, isXray, catColor);
 
-      // Icon + Name
-      if (!c.image) {
-        ctx.fillStyle = isXray ? hexToRGBA(catColor, 0.9) : '#e6edf3';
-        ctx.font = '18px system-ui';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(c.icon, 0, -4);
-      }
+      // Icon
+      ctx.fillStyle = isXray ? hexToRGBA(catColor, 0.9) : '#e6edf3';
+      ctx.font = '18px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(c.icon, 0, -4);
 
+      // Name
       ctx.font = '9px system-ui';
       ctx.fillStyle = isXray ? hexToRGBA(catColor, 0.6) : '#8b949e';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const nameY = c.image ? 0 : 14;
-      ctx.fillText(c.name, 0, nameY);
+      ctx.fillText(c.name, 0, 14);
 
       // Value label
       let valStr = this.getValueLabel(c);
       if (valStr) {
         ctx.font = '8px monospace';
         ctx.fillStyle = isXray ? hexToRGBA(catColor, 0.4) : '#484f58';
-        ctx.fillText(valStr, 0, nameY + 12);
+        ctx.fillText(valStr, 0, 26);
       }
 
       ctx.restore();
 
       // Draw pins
-      c.pins.forEach(pin => {
-        const px = c.x + pin.dx, py = c.y + pin.dy;
-        const connected = WireRouter.isPinConnected(c.id, pin.id);
-        const pinWireType = connected ? WireRouter.getPinWireType(c.id, pin.id) : null;
-        const wireColor = pinWireType ? WireRouter.WireColors[pinWireType] : null;
-        const pinR = 5; // pin radius - half embedded in component edge
-
-        if (connected && wireColor && !isXray) {
-          // Connected pin: 3D crimp connector (slightly larger, vivid)
-          drawCrimp3D(px, py, wireColor, 4.5);
-        } else {
-          // Unconnected: subtle embedded circle
-          ctx.beginPath();
-          ctx.arc(px, py, pinR, 0, Math.PI * 2);
-          if (isXray) {
-            ctx.fillStyle = connected ? '#39d2c0' : 'rgba(57,210,192,0.4)';
-          } else {
-            // Dark fill with slight gradient for 3D feel
-            const grd = ctx.createRadialGradient(px - 1, py - 1, 0, px, py, pinR);
-            grd.addColorStop(0, '#484f58');
-            grd.addColorStop(1, '#2d333b');
-            ctx.fillStyle = grd;
-          }
-          ctx.fill();
-          ctx.strokeStyle = isXray ? 'rgba(57,210,192,0.7)' : '#6e7681';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-        }
-
-        // Pin label - positioned based on pin direction to avoid overlap
-        if (pin.label) {
-          ctx.font = 'bold 11px Arial';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          // Color rule: L/+ = red(hot/live), N/- = blue(neutral/negative), others = default
-          const lbl = pin.label.toUpperCase();
-          const isLive = lbl === 'L' || lbl === '+';
-          const isNeutral = lbl === 'N' || lbl === '-';
-          if (isLive) {
-            ctx.fillStyle = '#f85149'; // RED for L (相线) and + (正极)
-          } else if (isNeutral) {
-            ctx.fillStyle = '#58a6ff'; // BLUE for N (中性线) and - (负极)
-          } else if (wireColor && !isXray) {
-            ctx.fillStyle = wireColor;
-          } else if (isXray) {
-            ctx.fillStyle = 'rgba(57,210,192,0.9)';
-          } else {
-            ctx.fillStyle = '#c9d1d9';
-          }
-          // Smart label positioning based on pin dx/dy
-          let lx = px, ly = py;
-          const adx = Math.abs(pin.dx), ady = Math.abs(pin.dy);
-          if (adx > ady) {
-            // Horizontal pin: label above or below (increase offset for larger font)
-            ly = py + (pin.dy >= 0 ? 14 : -14);
-            if (ady > 0) ly = py + (pin.dy > 0 ? 14 : -14);
-            else ly = py - 12; // center pins: label above
-          } else {
-            // Vertical pin or corner: label to side
-            lx = px + (pin.dx > 0 ? 16 : (pin.dx < 0 ? -16 : 0));
-            ly = py + (ady > 0 ? (pin.dy > 0 ? 14 : -14) : 0);
-          }
-          ctx.fillText(pin.label, lx, ly);
-        }
-      });
-
-      // Fault indicator
-      if (c._fault) {
-        const flash = Math.sin(Date.now() / 200) > 0;
-        if (flash) {
-          ctx.strokeStyle = '#f85149';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([4, 4]);
-          roundRect(ctx, c.x - (c.w || 100) / 2 - 3, c.y - (c.h || 56) / 2 - 3, (c.w || 100) + 6, (c.h || 56) + 6, 10);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
+      this._drawPinsForComponent(c);
     });
   },
 
+
+  _drawPinsForComponent(c) {
+    const isXray = S.viewMode === 'xray';
+    c.pins.forEach(pin => {
+      const px = c.x + pin.dx, py = c.y + pin.dy;
+      const connected = WireRouter.isPinConnected(c.id, pin.id);
+      const pinWireType = connected ? WireRouter.getPinWireType(c.id, pin.id) : null;
+      const wireColor = pinWireType ? WireRouter.WireColors[pinWireType] : null;
+      const pinR = 5;
+
+      if (connected && wireColor && !isXray) {
+        drawCrimp3D(px, py, wireColor, 4.5);
+      } else {
+        ctx.beginPath();
+        ctx.arc(px, py, pinR, 0, Math.PI * 2);
+        if (isXray) {
+          ctx.fillStyle = connected ? '#39d2c0' : 'rgba(57,210,192,0.4)';
+        } else {
+          const grd = ctx.createRadialGradient(px - 1, py - 1, 0, px, py, pinR);
+          grd.addColorStop(0, '#484f58');
+          grd.addColorStop(1, '#2d333b');
+          ctx.fillStyle = grd;
+        }
+        ctx.fill();
+        ctx.strokeStyle = isXray ? 'rgba(57,210,192,0.7)' : '#6e7681';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      if (pin.label) {
+        ctx.font = 'bold 11px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const lbl = pin.label.toUpperCase();
+        const isLive = lbl === 'L' || lbl === '+';
+        const isNeutral = lbl === 'N' || lbl === '-';
+        if (isLive) {
+          ctx.fillStyle = '#f85149';
+        } else if (isNeutral) {
+          ctx.fillStyle = '#58a6ff';
+        } else if (wireColor && !isXray) {
+          ctx.fillStyle = wireColor;
+        } else if (isXray) {
+          ctx.fillStyle = 'rgba(57,210,192,0.9)';
+        } else {
+          ctx.fillStyle = '#c9d1d9';
+        }
+        let lx = px, ly = py;
+        const adx = Math.abs(pin.dx), ady = Math.abs(pin.dy);
+        if (adx > ady) {
+          ly = py + (pin.dy >= 0 ? 14 : -14);
+          if (ady > 0) ly = py + (pin.dy > 0 ? 14 : -14);
+          else ly = py - 12;
+        } else {
+          lx = px + (pin.dx > 0 ? 16 : (pin.dx < 0 ? -16 : 0));
+          ly = py + (ady > 0 ? (pin.dy > 0 ? 14 : -14) : 0);
+        }
+        ctx.fillText(pin.label, lx, ly);
+      }
+    });
+
+    if (c._fault) {
+      const flash = Math.sin(Date.now() / 200) > 0;
+      if (flash) {
+        ctx.strokeStyle = '#f85149';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        roundRect(ctx, c.x - (c.w || 100) / 2 - 3, c.y - (c.h || 56) / 2 - 3, (c.w || 100) + 6, (c.h || 56) + 6, 10);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  },
   getValueLabel(c) {
     if (c.type === 'resistor') return formatR(c.props.resistance);
     if (c.type === 'capacitor') return c.props.capacitance + 'μF';
