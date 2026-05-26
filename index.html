@@ -2754,6 +2754,13 @@ const Recorder = {
       if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
         if (this.mediaRecorder.state === 'paused') this.mediaRecorder.resume();
         this.mediaRecorder.stop();
+        // Wait for final ondataavailable chunk before assembling blob
+        // Without this delay, the last chunk may not be collected → MOOV atom missing → can't seek
+        clearInterval(this.timerInterval);
+        const recorder = this.mediaRecorder;
+        const self = this;
+        setTimeout(() => { self._onVideoStop(); }, 200);
+        return;
       }
       clearInterval(this.timerInterval);
     }
