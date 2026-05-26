@@ -2564,11 +2564,49 @@ const Recorder = {
 
     const fps = this.fps;
 
-    // Build capture stream from main canvas
+    // Create a hidden video element that we'll continuously render to
+    let vidEl = document.getElementById('recCanvasVid');
+    if (!vidEl) {
+      vidEl = document.createElement('video');
+      vidEl.id = 'recCanvasVid';
+      vidEl.style.display = 'none';
+      vidEl.muted = true;
+      vidEl.playsInline = true;
+      vidEl.autoplay = true;
+      document.body.appendChild(vidEl);
+    }
+
+    // Set video dimensions to match canvas
+    vidEl.width = canvas.width;
+    vidEl.height = canvas.height;
+
+    // Get 2D context of video element to draw to
+    const vidCtx = vidEl.getContext('2d');
+
+    // Continuous render RAF loop — runs at 60fps to continuously:
+    // 1. Force-render the circuit canvas (bypassing dirty flag so canvas pixels always update)
+    // 2. Copy the freshly rendered canvas to the video element
+    // 3. captureStream() on the video element then captures each new frame
+    let lastRenderTime = 0;
+    const doRender = (timestamp) => {
+      if (!this.isRecording) return;
+      if (timestamp - lastRenderTime >= 16) { // ~60fps
+        lastRenderTime = timestamp;
+        // Force render the circuit canvas so it always has fresh content
+        Renderer.render();
+        // Copy freshly rendered canvas to video element
+        vidCtx.drawImage(canvas, 0, 0);
+      }
+      this._renderRafId = requestAnimationFrame(doRender);
+    };
+    this._renderRafId = requestAnimationFrame(doRender);
+
+    // Build capture stream from the video element (not the canvas directly)
     let stream;
     try {
-      stream = canvas.captureStream(fps);
+      stream = vidEl.captureStream(fps);
     } catch(e) {
+      cancelAnimationFrame(this._renderRafId);
       UI.toast('当前浏览器不支持录屏', 'error');
       return;
     }
@@ -2674,6 +2712,12 @@ const Recorder = {
     if (!this.isRecording) return;
     this.isRecording = false;
     this.isPaused = false;
+
+    // Stop continuous render loop
+    if (this._renderRafId) {
+      cancelAnimationFrame(this._renderRafId);
+      this._renderRafId = null;
+    }
 
     if (this.format === 'gif') {
       cancelAnimationFrame(this.rafId);
@@ -2914,6 +2958,13 @@ const Recorder = {
     if (this.currentUrl) {
       URL.revokeObjectURL(this.currentUrl);
       this.currentUrl = null;
+    }
+  },
+
+  // Called by the render RAF loop to force a render during recording
+  _forceRender() {
+    if (this.isRecording && !this.isPaused) {
+      Renderer.render();
     }
   }
 };
