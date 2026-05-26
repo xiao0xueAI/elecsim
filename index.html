@@ -514,6 +514,7 @@ const S = {
   grid: Config.grid,
   mouse: { x: 0, y: 0 },
   dirty: false,
+  recording: false,
   exportOpts: { res: '1080p', dur: '10秒' }
 };
 
@@ -994,6 +995,21 @@ function screenToCanvas(sx, sy) {
 const Renderer = {
   render() {
     ctx.clearRect(0, 0, W, H);
+    // Recording mode: pure white background, no grid
+    if (S.recording) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(S.pan.x, S.pan.y);
+      ctx.scale(S.zoom, S.zoom);
+      // Draw wires and components only — no grid during recording
+      WireRouter.drawWires();
+      this.drawComponents();
+      if (WireRouter.isActive()) WireRouter.drawTempWire();
+      ctx.restore();
+      this.updateCounts();
+      return;
+    }
     ctx.save();
     ctx.translate(S.pan.x, S.pan.y);
     ctx.scale(S.zoom, S.zoom);
@@ -2594,7 +2610,8 @@ const Recorder = {
           // Force render the circuit canvas so it always has fresh content
           Renderer.render();
           // Copy freshly rendered canvas to recording canvas
-          recCtx.drawImage(canvas, 0, 0);
+          // Use explicit W/H to ensure 1:1 pixel copy (no interpolation artifacts)
+          recCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
         }
       } catch(e) { /* silent — canvas may not be ready yet */ }
       this._renderRafId = requestAnimationFrame(doRender);
@@ -2641,6 +2658,9 @@ const Recorder = {
     this.pauseTime = 0;
     this.isPaused = false;
 
+    this.isRecording = true;
+    S.recording = true; // Enable pure-white/no-grid recording mode
+
     // For GIF: capture frames manually
     if (this.format === 'gif') {
       this._captureGifFrames(fps);
@@ -2657,8 +2677,6 @@ const Recorder = {
       this.mediaRecorder.onstop = () => this._onVideoStop();
       this.mediaRecorder.start(100);
     }
-
-    this.isRecording = true;
 
     // Auto-collapse panel so it doesn't block the canvas
     this._collapsePanel();
@@ -2718,6 +2736,7 @@ const Recorder = {
   stop() {
     if (!this.isRecording) return;
     this.isRecording = false;
+    S.recording = false; // Restore normal render mode
     this.isPaused = false;
 
     // Stop continuous render loop
@@ -2778,11 +2797,13 @@ const Recorder = {
       if (timestamp - lastTime >= interval) {
         lastTime = timestamp;
         try {
+          // Force render to get latest frame (respects S.recording for white bg)
+          Renderer.render();
           const tmpCanvas = document.createElement('canvas');
           tmpCanvas.width = canvas.width;
           tmpCanvas.height = canvas.height;
           const tmpCtx = tmpCanvas.getContext('2d');
-          tmpCtx.drawImage(canvas, 0, 0);
+          tmpCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
           this.gifFrames.push(tmpCanvas);
         } catch(e) {}
       }
