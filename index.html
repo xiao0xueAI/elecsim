@@ -2564,47 +2564,54 @@ const Recorder = {
 
     const fps = this.fps;
 
-    // Create a hidden video element that we'll continuously render to
-    let vidEl = document.getElementById('recCanvasVid');
-    if (!vidEl) {
-      vidEl = document.createElement('video');
-      vidEl.id = 'recCanvasVid';
-      vidEl.style.display = 'none';
-      vidEl.muted = true;
-      vidEl.playsInline = true;
-      vidEl.autoplay = true;
-      document.body.appendChild(vidEl);
+    // Create a hidden canvas that we render the circuit into, then capture from it.
+    // (video elements don't have getContext('2d') — only canvas elements do)
+    let recCanvas = document.getElementById('recCanvas');
+    if (!recCanvas) {
+      recCanvas = document.createElement('canvas');
+      recCanvas.id = 'recCanvas';
+      recCanvas.style.display = 'none';
+      document.body.appendChild(recCanvas);
     }
 
-    // Set video dimensions to match canvas
-    vidEl.width = canvas.width;
-    vidEl.height = canvas.height;
+    // Size the recording canvas to match the main canvas
+    recCanvas.width = canvas.width;
+    recCanvas.height = canvas.height;
 
-    // Get 2D context of video element to draw to
-    const vidCtx = vidEl.getContext('2d');
+    // Get 2D context for the recording canvas (canvas, not video!)
+    const recCtx = recCanvas.getContext('2d');
 
-    // Continuous render RAF loop — runs at 60fps to continuously:
+    // Continuous render RAF loop — runs at ~60fps to continuously:
     // 1. Force-render the circuit canvas (bypassing dirty flag so canvas pixels always update)
-    // 2. Copy the freshly rendered canvas to the video element
-    // 3. captureStream() on the video element then captures each new frame
+    // 2. Copy the freshly rendered canvas to our recording canvas
+    // 3. captureStream() on the recording canvas then emits each new frame
     let lastRenderTime = 0;
     const doRender = (timestamp) => {
       if (!this.isRecording) return;
-      if (timestamp - lastRenderTime >= 16) { // ~60fps
-        lastRenderTime = timestamp;
-        // Force render the circuit canvas so it always has fresh content
-        Renderer.render();
-        // Copy freshly rendered canvas to video element
-        vidCtx.drawImage(canvas, 0, 0);
-      }
+      try {
+        if (timestamp - lastRenderTime >= 16) { // ~60fps
+          lastRenderTime = timestamp;
+          // Force render the circuit canvas so it always has fresh content
+          Renderer.render();
+          // Copy freshly rendered canvas to recording canvas
+          recCtx.drawImage(canvas, 0, 0);
+        }
+      } catch(e) { /* silent — canvas may not be ready yet */ }
       this._renderRafId = requestAnimationFrame(doRender);
     };
     this._renderRafId = requestAnimationFrame(doRender);
 
-    // Build capture stream from the video element (not the canvas directly)
+    // Draw one frame synchronously BEFORE starting captureStream
+    // so the stream has an initial frame to emit
+    try {
+      Renderer.render();
+      recCtx.drawImage(canvas, 0, 0);
+    } catch(e) {}
+
+    // Build capture stream from the recording canvas (not the video element)
     let stream;
     try {
-      stream = vidEl.captureStream(fps);
+      stream = recCanvas.captureStream(fps);
     } catch(e) {
       cancelAnimationFrame(this._renderRafId);
       UI.toast('当前浏览器不支持录屏', 'error');
