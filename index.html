@@ -2820,8 +2820,60 @@ const Recorder = {
     const mimeType = this.stream && this.stream.getVideoTracks().length > 0
       ? (this.mediaRecorder ? this.mediaRecorder.mimeType : 'video/webm')
       : 'video/webm';
-    this.currentBlob = new Blob(this.chunks, { type: mimeType });
-    this._showPreview();
+    const webmBlob = new Blob(this.chunks, { type: mimeType });
+
+    // MP4 需要转码：先用 WebM 录，再转成 MP4
+    if (this.format === 'mp4') {
+      this._convertToMp4(webmBlob);
+    } else {
+      this.currentBlob = webmBlob;
+      this._showPreview();
+    }
+  },
+
+  async _convertToMp4(webmBlob) {
+    this._setStatus('正在加载转码器...', '');
+    try {
+      // 动态加载 FFmpeg.wasm
+      if (!window.FFmpeg) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js';
+        await new Promise((res, rej) => { script.onload = res; script.onerror = rej; document.head.appendChild(script); });
+      }
+      const { FFmpeg } = window.FFmpeg;
+      if (!this._ffmpeg) {
+        this._ffmpeg = new FFmpeg();
+        this._ffmpeg.on('log', ({ message }) => { /* silent */ });
+        this._ffmpeg.on('progress', ({ progress }) => {
+          this._setStatus('正在转码: ' + Math.round(progress * 100) + '%', '');
+        });
+        await this._ffmpeg.load({
+          coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js'
+        });
+      }
+      this._setStatus('正在转码为 MP4...', '');
+      const webmData = await webmBlob.arrayBuffer();
+      await this._ffmpeg.writeFile('input.webm', new Uint8Array(webmData));
+      await this._ffmpeg.exec([
+        '-i', 'input.webm',
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-movflags', '+faststart',
+        '-preset', 'ultrafast',
+        'output.mp4'
+      ]);
+      const mp4Data = await this._ffmpeg.readFile('output.mp4');
+      await this._ffmpeg.deleteFile('input.webm');
+      await this._ffmpeg.deleteFile('output.mp4');
+      this.currentBlob = new Blob([mp4Data.buffer], { type: 'video/mp4' });
+      this._showPreview();
+      this._setStatus('MP4 转码完成', '#3fb950');
+    } catch(e) {
+      console.error('MP4 转码失败:', e);
+      UI.toast('MP4 转码失败，将导出 WebM 格式', 'error');
+      this.currentBlob = webmBlob;
+      this._showPreview();
+    }
   },
 
   _onGifStop() {
