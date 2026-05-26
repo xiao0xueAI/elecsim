@@ -2948,16 +2948,13 @@ const Recorder = {
 
   _updateUI(recording) {
     const ind = document.getElementById('recIndicator');
-    const dot = document.getElementById('recStudioDot');
     if (recording) {
       ind.classList.add('recording');
       ind.style.display = 'inline-flex';
-      dot.style.display = 'block';
       this._setStatus('录制中 00:00', '#f85149');
     } else {
       ind.classList.remove('recording');
       ind.style.display = 'none';
-      dot.style.display = 'none';
     }
   },
 
