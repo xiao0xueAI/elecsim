@@ -246,7 +246,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
       </div>
     </div>
     <button class="tbtn export-btn" onclick="ElecSim.UI.showModal('recordingModal')">&#128249; 录屏</button>
-    <div id="recIndicator" onclick="Recorder.toggle()">
+    <div id="recIndicator" onclick="ElecSim.Recorder.toggle()">
       <div class="rec-dot"></div>
       <span class="rec-time" id="recTime">00:00</span>
       <span>录制中</span>
@@ -372,16 +372,16 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
         <div class="form-row">
           <span class="label">导出格式</span>
           <div class="fmt-btns">
-            <button class="fmt-btn active" id="fmtWebm" onclick="Recorder.setFormat('webm')">WebM</button>
-            <button class="fmt-btn" id="fmtMp4" onclick="Recorder.setFormat('mp4')">MP4</button>
-            <button class="fmt-btn" id="fmtGif" onclick="Recorder.setFormat('gif')">GIF</button>
+            <button class="fmt-btn active" id="fmtWebm" onclick="ElecSim.Recorder.setFormat('webm')">WebM</button>
+            <button class="fmt-btn" id="fmtMp4" onclick="ElecSim.Recorder.setFormat('mp4')">MP4</button>
+            <button class="fmt-btn" id="fmtGif" onclick="ElecSim.Recorder.setFormat('gif')">GIF</button>
           </div>
         </div>
 
         <!-- FPS selection -->
         <div class="form-row">
           <span class="label">帧率 (fps)</span>
-          <select id="recFps" onchange="Recorder.setFps(this.value)">
+          <select id="recFps" onchange="ElecSim.Recorder.setFps(this.value)">
             <option value="30">30 fps（推荐）</option>
             <option value="60">60 fps（高流畅）</option>
             <option value="15">15 fps（文件更小）</option>
@@ -391,7 +391,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
         <!-- Quality selection -->
         <div class="form-row">
           <span class="label">画质</span>
-          <select id="recQuality" onchange="Recorder.setQuality(this.value)">
+          <select id="recQuality" onchange="ElecSim.Recorder.setQuality(this.value)">
             <option value="high">高 (8 Mbps)</option>
             <option value="medium" selected>中 (4 Mbps)</option>
             <option value="low">低 (1 Mbps)</option>
@@ -403,10 +403,10 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 
         <!-- Controls -->
         <div class="rec-controls">
-          <button class="btn-record" id="btnRecordStart" onclick="Recorder.start()">&#9679; 开始录制</button>
-          <button class="btn-stop" id="btnRecordStop" onclick="Recorder.stop()" style="display:none;">&#9632; 停止录制</button>
+          <button class="btn-record" id="btnRecordStart" onclick="ElecSim.Recorder.start()">&#9679; 开始录制</button>
+          <button class="btn-stop" id="btnRecordStop" onclick="ElecSim.Recorder.stop()" style="display:none;">&#9632; 停止录制</button>
           <div style="flex:1;"></div>
-          <button class="btn-export" id="btnExport" onclick="Recorder.exportCurrent()" disabled>&#11015; 导出视频</button>
+          <button class="btn-export" id="btnExport" onclick="ElecSim.Recorder.exportCurrent()" disabled>&#11015; 导出视频</button>
         </div>
       </div>
     </div>
