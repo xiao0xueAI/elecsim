@@ -183,6 +183,45 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 /* ==================== X-ray mode ==================== */
 .xray-mode .comp-body{opacity:.4 !important;}
 .xray-mode .wire-line{opacity:.3 !important;}
+
+/* ==================== Recording Indicator ==================== */
+#recIndicator{display:none;align-items:center;gap:6px;padding:4px 10px;background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);border-radius:20px;font-size:11px;color:#f85149;font-weight:600;cursor:pointer;user-select:none;}
+#recIndicator.recording{display:flex;}
+.rec-dot{width:8px;height:8px;background:#f85149;border-radius:50%;animation:recPulse 1s ease-in-out infinite;}
+@keyframes recPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+.rec-time{font-variant-numeric:tabular-nums;letter-spacing:.5px;}
+
+/* ==================== Recording Studio Modal ==================== */
+.rec-studio{display:flex;flex-direction:column;gap:14px;}
+.rec-studio .rec-preview{width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#666;font-size:12px;overflow:hidden;position:relative;}
+.rec-studio .rec-preview video{width:100%;height:100%;object-fit:contain;border-radius:8px;}
+.rec-studio .rec-preview canvas{display:none;}
+.rec-studio .rec-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#c9d1d9;}
+.rec-studio .rec-status.rec-on{color:#f85149;}
+.rec-studio .form-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;}
+.rec-studio .form-row .label{font-size:11px;color:#8b949e;}
+.rec-studio select{background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:#c9d1d9;padding:4px 8px;font-size:12px;cursor:pointer;}
+.rec-studio .fmt-btns{display:flex;gap:6px;}
+.rec-studio .fmt-btn{padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:#8b949e;font-size:12px;cursor:pointer;transition:all .15s;}
+.rec-studio .fmt-btn:hover{border-color:#58a6ff;color:#58a6ff;}
+.rec-studio .fmt-btn.active{background:rgba(88,166,255,.15);border-color:#58a6ff;color:#58a6ff;}
+.rec-studio .rec-controls{display:flex;gap:8px;align-items:center;}
+.rec-studio .btn-record{padding:8px 20px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;}
+.rec-studio .btn-record:hover{background:#da3633;}
+.rec-studio .btn-record.recording{background:#484f58;}
+.rec-studio .btn-stop{padding:8px 20px;background:#484f58;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;}
+.rec-studio .btn-stop:hover{background:#6e7681;}
+.rec-studio .btn-export{padding:8px 20px;background:#238636;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;}
+.rec-studio .btn-export:hover{background:#2ea043;}
+.rec-studio .btn-export:disabled{opacity:.4;cursor:not-allowed;}
+.rec-studio .gif-note{font-size:10px;color:#6e7681;text-align:center;}
+
+/* ==================== Record Preview Modal ==================== */
+.preview-modal .modal{width:720px;}
+.preview-video-wrap{width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;}
+.preview-video-wrap video{width:100%;height:100%;object-fit:contain;}
+.preview-info{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#8b949e;margin-bottom:12px;}
+.preview-info .duration{font-weight:600;color:#c9d1d9;font-variant-numeric:tabular-nums;}
 </style>
 </head>
 <body>
@@ -206,7 +245,12 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
         <div class="dropdown-item" style="color:var(--fg-muted);cursor:default;">暂无模板，后续更新</div>
       </div>
     </div>
-    <button class="tbtn export-btn" onclick="ElecSim.UI.showModal('exportModal')">&#128249; 导出视频</button>
+    <button class="tbtn export-btn" onclick="ElecSim.UI.showModal('recordingModal')">&#128249; 录屏</button>
+    <div id="recIndicator" onclick="Recorder.toggle()">
+      <div class="rec-dot"></div>
+      <span class="rec-time" id="recTime">00:00</span>
+      <span>录制中</span>
+    </div>
     <button class="tbtn product-btn" onclick="ElecSim.UI.showModal('productModal')">&#128268; 上传产品</button>
     <div style="flex:1"></div>
     <div class="dropdown">
@@ -306,43 +350,65 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
   </div>
 </div>
 
-<!-- Export Modal -->
-<div class="modal-mask" id="exportModal">
-  <div class="modal">
-    <div class="modal-head"><h3>&#128249; 导出工作原理动画</h3><button class="modal-close" onclick="ElecSim.UI.closeModal('exportModal')">&times;</button></div>
+<!-- Recording Studio Modal -->
+<div class="modal-mask" id="recordingModal">
+  <div class="modal" style="width:520px;">
+    <div class="modal-head"><h3>&#128249; 录屏工作室</h3><button class="modal-close" onclick="ElecSim.Recorder.close()">&times;</button></div>
     <div class="modal-body">
-      <div class="form-group"><label class="form-label">分辨率</label>
-        <div style="display:flex;gap:4px;">
-          <button class="opt-btn" onclick="ElecSim.UI.setOpt(this,'res')">720p</button>
-          <button class="opt-btn active" onclick="ElecSim.UI.setOpt(this,'res')">1080p</button>
-          <button class="opt-btn" onclick="ElecSim.UI.setOpt(this,'res')">4K</button>
+      <div class="rec-studio">
+        <!-- Preview area -->
+        <div class="rec-preview" id="recPreview">
+          <span id="recPreviewHint">点击「开始录制」后将实时预览画布</span>
+          <video id="recPreviewVideo" controls style="display:none;"></video>
         </div>
-      </div>
-      <div class="form-group"><label class="form-label">动画时长</label>
-        <div style="display:flex;gap:4px;">
-          <button class="opt-btn" onclick="ElecSim.UI.setOpt(this,'dur')">5 秒</button>
-          <button class="opt-btn active" onclick="ElecSim.UI.setOpt(this,'dur')">10 秒</button>
-          <button class="opt-btn" onclick="ElecSim.UI.setOpt(this,'dur')">15 秒</button>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="ElecSim.UI.closeModal('exportModal')">取消</button>
-      <button class="btn-primary" onclick="ElecSim.Export.start()">&#127909; 导出 WebM 视频</button>
-    </div>
-  </div>
-</div>
 
-<!-- Export Progress Modal -->
-<div class="modal-mask" id="progressModal">
-  <div class="modal" style="width:340px;">
-    <div class="modal-head"><h3>&#9881; 正在导出...</h3></div>
-    <div class="modal-body" style="text-align:center;">
-      <p style="font-size:12px;margin-bottom:8px;">正在录制画布动画...</p>
-      <div style="width:100%;height:6px;background:var(--bg-dark);border-radius:3px;overflow:hidden;margin:12px 0;">
-        <div id="exportProgress" style="height:100%;background:linear-gradient(90deg,var(--purple),var(--accent));border-radius:3px;transition:width .3s;width:0%;"></div>
+        <!-- Recording status -->
+        <div class="rec-status" id="recStudioStatus">
+          <div class="rec-dot" id="recStudioDot"></div>
+          <span id="recStudioStatusText">准备就绪</span>
+        </div>
+
+        <!-- Format selection -->
+        <div class="form-row">
+          <span class="label">导出格式</span>
+          <div class="fmt-btns">
+            <button class="fmt-btn active" id="fmtWebm" onclick="Recorder.setFormat('webm')">WebM</button>
+            <button class="fmt-btn" id="fmtMp4" onclick="Recorder.setFormat('mp4')">MP4</button>
+            <button class="fmt-btn" id="fmtGif" onclick="Recorder.setFormat('gif')">GIF</button>
+          </div>
+        </div>
+
+        <!-- FPS selection -->
+        <div class="form-row">
+          <span class="label">帧率 (fps)</span>
+          <select id="recFps" onchange="Recorder.setFps(this.value)">
+            <option value="30">30 fps（推荐）</option>
+            <option value="60">60 fps（高流畅）</option>
+            <option value="15">15 fps（文件更小）</option>
+          </select>
+        </div>
+
+        <!-- Quality selection -->
+        <div class="form-row">
+          <span class="label">画质</span>
+          <select id="recQuality" onchange="Recorder.setQuality(this.value)">
+            <option value="high">高 (8 Mbps)</option>
+            <option value="medium" selected>中 (4 Mbps)</option>
+            <option value="low">低 (1 Mbps)</option>
+          </select>
+        </div>
+
+        <!-- GIF note -->
+        <p class="gif-note" id="gifNote" style="display:none;">GIF 导出会截取录制的前 15 秒，文件较大请耐心等待</p>
+
+        <!-- Controls -->
+        <div class="rec-controls">
+          <button class="btn-record" id="btnRecordStart" onclick="Recorder.start()">&#9679; 开始录制</button>
+          <button class="btn-stop" id="btnRecordStop" onclick="Recorder.stop()" style="display:none;">&#9632; 停止录制</button>
+          <div style="flex:1;"></div>
+          <button class="btn-export" id="btnExport" onclick="Recorder.exportCurrent()" disabled>&#11015; 导出视频</button>
+        </div>
       </div>
-      <div id="exportPercent" style="font-size:12px;color:var(--text-dim);">0%</div>
     </div>
   </div>
 </div>
@@ -2382,84 +2448,315 @@ const Templates = {
   }
 };
 
-// ==================== Section 11: Export System ====================
-const Export = {
+// ==================== Section 11: Recording System ====================
+const Recorder = {
+  isRecording: false,
+  mediaRecorder: null,
+  stream: null,
+  chunks: [],
+  gifFrames: [],        // For GIF capture
+  rafId: null,
+  startTime: 0,
+  elapsedTime: 0,
+  timerInterval: null,
+
+  // Settings
+  format: 'webm',       // 'webm' | 'mp4' | 'gif'
+  fps: 30,
+  qualityMap: { high: 8000000, medium: 4000000, low: 1000000 },
+  quality: 4000000,
+
+  // Preview blob
+  currentBlob: null,
+  currentUrl: null,
+
+  setFormat(fmt) {
+    this.format = fmt;
+    ['fmtWebm', 'fmtMp4', 'fmtGif'].forEach(id => {
+      document.getElementById(id).classList.remove('active');
+    });
+    document.getElementById('fmt' + fmt.charAt(0).toUpperCase() + fmt.slice(1)).classList.add('active');
+    document.getElementById('gifNote').style.display = fmt === 'gif' ? 'block' : 'none';
+    this._updateStatus(fmt === 'gif' ? 'GIF 格式：录制前15秒将被导出' : '准备就绪');
+  },
+
+  setFps(val) { this.fps = parseInt(val); },
+
+  setQuality(val) {
+    this.quality = this.qualityMap[val] || 4000000;
+  },
+
   start() {
-    UI.closeModal('exportModal');
-    const resMap = { '720p': { w: 1280, h: 720 }, '1080p': { w: 1920, h: 1080 }, '4K': { w: 3840, h: 2160 } };
-    const durMap = { '5 秒': 5, '10 秒': 10, '15 秒': 15 };
-    const res = resMap[S.exportOpts.res] || resMap['1080p'];
-    const dur = durMap[S.exportOpts.dur] || 10;
+    if (this.isRecording) return;
 
-    document.getElementById('progressModal').classList.add('show');
-    document.getElementById('exportPercent').textContent = '准备录制...';
-    document.getElementById('exportProgress').style.width = '0%';
+    // Stop any previous preview
+    this._revokeUrl();
 
-    const wasRunning = Engine.running;
-    if (!Engine.running) Engine.toggle();
+    const fps = this.fps;
 
-    const origW = W, origH = H;
-    const origCW = canvas.width, origCH = canvas.height;
-    const origSW = canvas.style.width, origSH = canvas.style.height;
-    const origPan = { ...S.pan }, origZoom = S.zoom;
-
-    canvas.width = res.w; canvas.height = res.h;
-    canvas.style.width = res.w + 'px'; canvas.style.height = res.h + 'px';
-    W = res.w; H = res.h;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-    const bounds = getCircuitBounds();
-    if (bounds) {
-      const scaleX = (res.w - 100) / (bounds.maxX - bounds.minX + 200);
-      const scaleY = (res.h - 100) / (bounds.maxY - bounds.minY + 200);
-      S.zoom = Math.min(scaleX, scaleY, 2);
-      S.pan.x = res.w / 2 - (bounds.minX + bounds.maxX) / 2 * S.zoom;
-      S.pan.y = res.h / 2 - (bounds.minY + bounds.maxY) / 2 * S.zoom;
+    // Build capture stream from main canvas
+    let stream;
+    try {
+      stream = canvas.captureStream(fps);
+    } catch(e) {
+      UI.toast('当前浏览器不支持录屏', 'error');
+      return;
     }
 
-    const stream = canvas.captureStream(30);
+    // Determine mime type
     let mimeType = 'video/webm;codecs=vp9';
-    if (!MediaRecorder.isTypeSupported(mimeType)) { mimeType = 'video/webm;codecs=vp8'; }
-    if (!MediaRecorder.isTypeSupported(mimeType)) { mimeType = 'video/webm'; }
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: res.w >= 3840 ? 20000000 : 8000000 });
-    const chunks = [];
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-
-    recorder.onstop = () => {
-      W = origW; H = origH;
-      canvas.width = origCW; canvas.height = origCH;
-      canvas.style.width = origSW; canvas.style.height = origSH;
-      S.pan = origPan; S.zoom = origZoom;
-      const dpr = window.devicePixelRatio || 1;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (!wasRunning) Engine.toggle();
-
-      const blob = new Blob(chunks, { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'ElecSim_v2_' + S.exportOpts.res + '.webm';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      UI.closeModal('progressModal');
-      UI.toast('视频导出完成！', 'success');
-      render();
-    };
-
-    recorder.start();
-    const startTime = Date.now();
-    const totalMs = dur * 1000;
-
-    function exportFrame() {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / totalMs, 1);
-      document.getElementById('exportPercent').textContent = Math.round(progress * 100) + '%';
-      document.getElementById('exportProgress').style.width = (progress * 100) + '%';
-      render();
-      if (progress >= 1) { recorder.stop(); return; }
-      requestAnimationFrame(exportFrame);
+    if (this.format === 'mp4') {
+      mimeType = 'video/mp4';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
     }
-    setTimeout(exportFrame, 100);
+    if (!mimeType || !MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+      if (this.format === 'mp4') {
+        UI.toast('当前浏览器不支持 MP4，将导出 WebM 格式', 'warning');
+      }
+    }
+
+    this.chunks = [];
+    this.gifFrames = [];
+    this.stream = stream;
+    this.startTime = Date.now();
+    this.elapsedTime = 0;
+
+    // For GIF: capture frames manually
+    if (this.format === 'gif') {
+      this._captureGifFrames(fps);
+    } else {
+      // Video recording via MediaRecorder
+      const bitrate = this.quality;
+      try {
+        this.mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
+      } catch(e) {
+        // Fallback without bitrate hint
+        this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+      }
+      this.mediaRecorder.ondataavailable = e => {
+        if (e.data && e.data.size > 0) this.chunks.push(e.data);
+      };
+      this.mediaRecorder.onstop = () => this._onVideoStop();
+      this.mediaRecorder.start(100); // collect data every 100ms
+    }
+
+    this.isRecording = true;
+    this._updateUI(true);
+    this._startTimer();
+    UI.toast('开始录制画布操作', 'success');
+  },
+
+  stop() {
+    if (!this.isRecording) return;
+    this.isRecording = false;
+
+    if (this.format === 'gif') {
+      cancelAnimationFrame(this.rafId);
+      clearInterval(this.timerInterval);
+      this._onGifStop();
+    } else {
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        this.mediaRecorder.stop();
+      }
+      clearInterval(this.timerInterval);
+    }
+
+    this._updateUI(false);
+    document.getElementById('recStudioStatusText').textContent = '录制完成，点击「导出视频」保存';
+  },
+
+  toggle() {
+    if (this.isRecording) {
+      this.stop();
+    } else {
+      this.start();
+    }
+  },
+
+  _captureGifFrames(fps) {
+    const interval = 1000 / fps;
+    let lastTime = 0;
+
+    const capture = (timestamp) => {
+      if (!this.isRecording) return;
+      if (this.elapsedTime >= 15000) { // 15s max for GIF
+        this.stop();
+        return;
+      }
+      if (timestamp - lastTime >= interval) {
+        lastTime = timestamp;
+        // Capture current canvas frame
+        try {
+          const tmpCanvas = document.createElement('canvas');
+          tmpCanvas.width = canvas.width;
+          tmpCanvas.height = canvas.height;
+          const tmpCtx = tmpCanvas.getContext('2d');
+          tmpCtx.drawImage(canvas, 0, 0);
+          this.gifFrames.push(tmpCanvas);
+        } catch(e) {}
+      }
+      this.rafId = requestAnimationFrame(capture);
+    };
+    this.rafId = requestAnimationFrame(capture);
+  },
+
+  _onVideoStop() {
+    if (this.chunks.length === 0) {
+      UI.toast('录制失败，请重试', 'error');
+      return;
+    }
+    const mimeType = this.stream && this.stream.getVideoTracks().length > 0
+      ? (this.mediaRecorder ? this.mediaRecorder.mimeType : 'video/webm')
+      : 'video/webm';
+    this.currentBlob = new Blob(this.chunks, { type: mimeType });
+    this._showPreview();
+  },
+
+  _onGifStop() {
+    if (this.gifFrames.length === 0) {
+      UI.toast('GIF 录制失败', 'error');
+      return;
+    }
+    this._generateGif();
+  },
+
+  _generateGif() {
+    const frames = this.gifFrames;
+    const duration = Math.min(this.elapsedTime, 15000);
+    const fps = this.fps;
+    const totalFrames = Math.min(frames.length, Math.floor(duration / 1000 * fps));
+    const skip = Math.max(1, Math.floor(frames.length / totalFrames));
+    const selectedFrames = [];
+    for (let i = 0; i < totalFrames; i++) {
+      selectedFrames.push(frames[Math.min(i * skip, frames.length - 1)]);
+    }
+
+    document.getElementById('recStudioStatusText').textContent = '正在生成 GIF...';
+
+    // Load gif.js dynamically
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js';
+    script.onload = () => {
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: canvas.width,
+        height: canvas.height,
+        workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+      });
+
+      selectedFrames.forEach(frame => {
+        gif.addFrame(frame, { delay: Math.round(1000 / fps), copy: true });
+      });
+
+      gif.on('finished', blob => {
+        this.currentBlob = blob;
+        this._showPreview();
+        document.getElementById('recStudioStatusText').textContent = 'GIF 生成完成';
+      });
+
+      gif.on('error', err => {
+        UI.toast('GIF 生成失败: ' + err, 'error');
+        document.getElementById('recStudioStatusText').textContent = 'GIF 生成失败';
+      });
+
+      gif.render();
+    };
+    script.onerror = () => {
+      UI.toast('GIF 库加载失败，请检查网络连接', 'error');
+      document.getElementById('recStudioStatusText').textContent = 'GIF 生成失败';
+    };
+    document.head.appendChild(script);
+  },
+
+  _showPreview() {
+    this._revokeUrl();
+    this.currentUrl = URL.createObjectURL(this.currentBlob);
+
+    const hint = document.getElementById('recPreviewHint');
+    const video = document.getElementById('recPreviewVideo');
+    hint.style.display = 'none';
+    video.style.display = 'block';
+    video.src = this.currentUrl;
+
+    document.getElementById('btnExport').disabled = false;
+    const sizeKB = Math.round(this.currentBlob.size / 1024);
+    document.getElementById('recStudioStatusText').textContent =
+      '录制完成 (' + this._fmtTime(this.elapsedTime) + ', ' + sizeKB + ' KB)';
+  },
+
+  exportCurrent() {
+    if (!this.currentBlob) return;
+    const fmt = this.format;
+    const ext = fmt === 'gif' ? 'gif' : (fmt === 'mp4' ? 'mp4' : 'webm');
+    const mime = fmt === 'gif' ? 'image/gif' : (fmt === 'mp4' ? 'video/mp4' : 'video/webm');
+    const a = document.createElement('a');
+    a.href = this.currentUrl || URL.createObjectURL(this.currentBlob);
+    a.download = 'ElecSim_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.' + ext;
+    a.click();
+    UI.toast('视频已导出: ' + a.download, 'success');
+  },
+
+  close() {
+    if (this.isRecording) this.stop();
+    this._revokeUrl();
+    document.getElementById('recPreviewHint').style.display = '';
+    document.getElementById('recPreviewHint').textContent = '点击「开始录制」后将实时预览画布';
+    document.getElementById('recPreviewVideo').style.display = 'none';
+    document.getElementById('recPreviewVideo').src = '';
+    document.getElementById('btnExport').disabled = true;
+    document.getElementById('recStudioStatusText').textContent = '准备就绪';
+    document.getElementById('recStudioDot').style.display = 'none';
+    UI.closeModal('recordingModal');
+  },
+
+  _startTimer() {
+    this.timerInterval = setInterval(() => {
+      this.elapsedTime = Date.now() - this.startTime;
+      document.getElementById('recTime').textContent = this._fmtTime(this.elapsedTime);
+      document.getElementById('recStudioStatusText').textContent = '录制中 ' + this._fmtTime(this.elapsedTime);
+    }, 100);
+  },
+
+  _fmtTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    return String(m).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  },
+
+  _updateUI(recording) {
+    const ind = document.getElementById('recIndicator');
+    const btnStart = document.getElementById('btnRecordStart');
+    const btnStop = document.getElementById('btnRecordStop');
+    const dot = document.getElementById('recStudioDot');
+
+    if (recording) {
+      ind.classList.add('recording');
+      btnStart.style.display = 'none';
+      btnStop.style.display = 'flex';
+      dot.style.display = 'block';
+      document.getElementById('recStudioStatusText').textContent = '录制中 00:00';
+      document.getElementById('recPreviewHint').textContent = '录制中... 画布操作将被完整记录';
+    } else {
+      ind.classList.remove('recording');
+      btnStart.style.display = 'flex';
+      btnStop.style.display = 'none';
+      dot.style.display = 'none';
+    }
+  },
+
+  _updateStatus(msg) {
+    document.getElementById('recStudioStatusText').textContent = msg;
+  },
+
+  _revokeUrl() {
+    if (this.currentUrl) {
+      URL.revokeObjectURL(this.currentUrl);
+      this.currentUrl = null;
+    }
   }
 };
 
@@ -3130,7 +3427,7 @@ function buildLibrary() {
 
 // ==================== Public API ====================
 return {
-  Config, S, Registry, QIACHIP, Renderer, WireRouter, Engine, History, Persistence, Templates, Export, UI,
+  Config, S, Registry, QIACHIP, Renderer, WireRouter, Engine, History, Persistence, Templates, Recorder, UI,
   init, render, resize, zoomToFit
 };
 
