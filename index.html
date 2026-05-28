@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>ElecSim Studio Pro v2.0 - QIACHIP 电工电路仿真平台</title>
+<title>ElecSim Studio Pro v2.0 - QIACHIP 鐢靛伐鐢佃矾浠跨湡骞冲彴</title>
 <style>
 /* ==================== CSS Variables ==================== */
 :root{
@@ -216,41 +216,41 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
   <div class="toolbar">
     <div class="brand">ElecSim Studio Pro<span>v2.0</span></div>
     <div class="sep"></div>
-    <button class="tbtn" id="btnUndo" onclick="ElecSim.History.undo()" disabled title="撤销 (Ctrl+Z)">&#8630; 撤销</button>
-    <button class="tbtn" id="btnRedo" onclick="ElecSim.History.redo()" disabled title="重做 (Ctrl+Y)">&#8631; 重做</button>
+    <button class="tbtn" id="btnUndo" onclick="ElecSim.History.undo()" disabled title="鎾ら攢 (Ctrl+Z)">&#8630; 鎾ら攢</button>
+    <button class="tbtn" id="btnRedo" onclick="ElecSim.History.redo()" disabled title="閲嶅仛 (Ctrl+Y)">&#8631; 閲嶅仛</button>
     <div class="sep"></div>
-    <button class="tbtn active" id="btnStandard" onclick="ElecSim.UI.setView('standard')">&#9673; 标准</button>
-    <button class="tbtn" id="btnXray" onclick="ElecSim.UI.setView('xray')">&#9881; X光</button>
-    <button class="tbtn" id="btnDeleteWire" onclick="ElecSim.WireRouter.toggleDeleteMode()">&#128465; 删除布线</button>
+    <button class="tbtn active" id="btnStandard" onclick="ElecSim.UI.setView('standard')">&#9673; 鏍囧噯</button>
+    <button class="tbtn" id="btnXray" onclick="ElecSim.UI.setView('xray')">&#9881; X鍏?/button>
+    <button class="tbtn" id="btnDeleteWire" onclick="ElecSim.WireRouter.toggleDeleteMode()">&#128465; 鍒犻櫎甯冪嚎</button>
     <div class="sep"></div>
-    <button class="tbtn run" id="btnRun" onclick="ElecSim.Engine.toggle()">&#9654; 运行仿真</button>
+    <button class="tbtn run" id="btnRun" onclick="ElecSim.Engine.toggle()">&#9654; 杩愯浠跨湡</button>
     <div class="sep"></div>
     <div class="dropdown">
-      <button class="tbtn" onclick="ElecSim.UI.toggleDropdown('templateMenu')">&#128193; 电路模板</button>
+      <button class="tbtn" onclick="ElecSim.UI.toggleDropdown('templateMenu')">&#128193; 鐢佃矾妯℃澘</button>
       <div class="dropdown-menu" id="templateMenu">
-        <div class="dropdown-item" style="color:var(--fg-muted);cursor:default;">暂无模板，后续更新</div>
+        <div class="dropdown-item" style="color:var(--fg-muted);cursor:default;">鏆傛棤妯℃澘锛屽悗缁洿鏂?/div>
       </div>
     </div>
-    <button class="tbtn export-btn" id="recStartBtn" onclick="ElecSim.Recorder.start()">&#128249; 开始录制</button>
-    <button class="tbtn" id="recPauseBtn" onclick="ElecSim.Recorder.toggle()" style="display:none;color:#d29922;">&#10074;&#10074; 暂停</button>
-    <button class="tbtn" id="recStopBtn" onclick="ElecSim.Recorder.stop()" style="display:none;color:#f85149;">&#9632; 停止</button>
+    <button class="tbtn export-btn" id="recStartBtn" onclick="ElecSim.Recorder.start()">&#128249; 寮€濮嬪綍鍒?/button>
+    <button class="tbtn" id="recPauseBtn" onclick="ElecSim.Recorder.toggle()" style="display:none;color:#d29922;">&#10074;&#10074; 鏆傚仠</button>
+    <button class="tbtn" id="recStopBtn" onclick="ElecSim.Recorder.stop()" style="display:none;color:#f85149;">&#9632; 鍋滄</button>
     <div id="recIndicator" onclick="ElecSim.Recorder.togglePanel()" style="display:none;cursor:pointer;">
       <div class="rec-dot"></div>
       <span class="rec-time" id="recTime">00:00</span>
     </div>
-    <button class="tbtn product-btn" onclick="ElecSim.UI.showModal('productModal')">&#128268; 上传产品</button>
+    <button class="tbtn product-btn" onclick="ElecSim.UI.showModal('productModal')">&#128268; 涓婁紶浜у搧</button>
     <div style="flex:1"></div>
     <div class="dropdown">
-      <button class="tbtn" onclick="ElecSim.UI.toggleDropdown('fileMenu')">&#128190; 文件</button>
+      <button class="tbtn" onclick="ElecSim.UI.toggleDropdown('fileMenu')">&#128190; 鏂囦欢</button>
       <div class="dropdown-menu" id="fileMenu" style="right:0;left:auto;">
-        <div class="dropdown-item" onclick="ElecSim.Persistence.save()">&#128190; 保存到浏览器</div>
-        <div class="dropdown-item" onclick="ElecSim.Persistence.load()">&#128194; 从浏览器加载</div>
-        <div class="dropdown-item" onclick="ElecSim.Persistence.exportJSON()">&#128230; 导出JSON</div>
-        <div class="dropdown-item" onclick="document.getElementById('importInput').click()">&#128229; 导入JSON</div>
+        <div class="dropdown-item" onclick="ElecSim.Persistence.save()">&#128190; 淇濆瓨鍒版祻瑙堝櫒</div>
+        <div class="dropdown-item" onclick="ElecSim.Persistence.load()">&#128194; 浠庢祻瑙堝櫒鍔犺浇</div>
+        <div class="dropdown-item" onclick="ElecSim.Persistence.exportJSON()">&#128230; 瀵煎嚭JSON</div>
+        <div class="dropdown-item" onclick="document.getElementById('importInput').click()">&#128229; 瀵煎叆JSON</div>
       </div>
     </div>
     <input type="file" id="importInput" accept=".json" style="display:none" onchange="ElecSim.Persistence.importJSON(this.files[0])">
-    <span style="font-size:10px;color:var(--text-muted)">元件:<span id="compCount">0</span> | 连线:<span id="wireCount">0</span></span>
+    <span style="font-size:10px;color:var(--text-muted)">鍏冧欢:<span id="compCount">0</span> | 杩炵嚎:<span id="wireCount">0</span></span>
   </div>
 
   <!-- Main -->
@@ -258,26 +258,26 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
     <!-- Left Sidebar -->
     <div class="sidebar-left">
       <div class="sidebar-tabs">
-        <div class="sidebar-tab active" data-tab="components" onclick="ElecSim.UI.switchTab(this,'components')">元件库</div>
-        <div class="sidebar-tab" data-tab="products" onclick="ElecSim.UI.switchTab(this,'products')">产品</div>
-        <div class="sidebar-tab" data-tab="templates" onclick="ElecSim.UI.switchTab(this,'templates')">模板</div>
+        <div class="sidebar-tab active" data-tab="components" onclick="ElecSim.UI.switchTab(this,'components')">鍏冧欢搴?/div>
+        <div class="sidebar-tab" data-tab="products" onclick="ElecSim.UI.switchTab(this,'products')">浜у搧</div>
+        <div class="sidebar-tab" data-tab="templates" onclick="ElecSim.UI.switchTab(this,'templates')">妯℃澘</div>
       </div>
 
       <!-- Tab: Components -->
       <div class="tab-content active" id="tabComponents">
-        <div class="comp-header">拖放元件到画布</div>
+        <div class="comp-header">鎷栨斁鍏冧欢鍒扮敾甯?/div>
         <div class="comp-list" id="compList"></div>
       </div>
 
       <!-- Tab: Products -->
       <div class="tab-content" id="tabProducts">
-        <div class="comp-header">QIACHIP 产品库</div>
+        <div class="comp-header">QIACHIP 浜у搧搴?/div>
         <div style="padding:6px;overflow-y:auto;flex:1;" id="productList"></div>
       </div>
 
       <!-- Tab: Templates -->
       <div class="tab-content" id="tabTemplates">
-        <div class="comp-header">电路模板</div>
+        <div class="comp-header">鐢佃矾妯℃澘</div>
         <div style="padding:6px;overflow-y:auto;flex:1;" id="templateList"></div>
       </div>
     </div>
@@ -287,43 +287,43 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
       <canvas id="canvas"></canvas>
       <div class="canvas-overlay" id="wireHint" style="display:none;">
         <div style="display:flex;gap:3px;margin-right:8px;" id="wireTypeBar">
-          <button class="wire-type-btn active" data-wtype="live" onclick="ElecSim.WireRouter.setWireType('live')" style="color:#e53935;border-color:#e53935">火线 L</button>
-          <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#1e88e5;border-color:#1e88e5">零线 N</button>
-          <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#43a047;border-color:#43a047">地线 PE</button>
+          <button class="wire-type-btn active" data-wtype="live" onclick="ElecSim.WireRouter.setWireType('live')" style="color:#e53935;border-color:#e53935">鐏嚎 L</button>
+          <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#1e88e5;border-color:#1e88e5">闆剁嚎 N</button>
+          <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#43a047;border-color:#43a047">鍦扮嚎 PE</button>
         </div>
-        <span id="wireHintText" style="color:var(--yellow);">点击画布布线，点击端子完成连接</span>
-        <button onclick="ElecSim.WireRouter.undoSegment()" style="color:var(--yellow);font-size:11px;">撤销段</button>
-        <button onclick="ElecSim.WireRouter.cancel()" style="color:var(--red);">取消</button>
+        <span id="wireHintText" style="color:var(--yellow);">鐐瑰嚮鐢诲竷甯冪嚎锛岀偣鍑荤瀛愬畬鎴愯繛鎺?/span>
+        <button onclick="ElecSim.WireRouter.undoSegment()" style="color:var(--yellow);font-size:11px;">鎾ら攢娈?/button>
+        <button onclick="ElecSim.WireRouter.cancel()" style="color:var(--red);">鍙栨秷</button>
       </div>
-      <div class="zoom-info">缩放: <span id="zoomLevel">100</span>% | 网格: 20px</div>
+      <div class="zoom-info">缂╂斁: <span id="zoomLevel">100</span>% | 缃戞牸: 20px</div>
     </div>
 
     <!-- Right Sidebar -->
     <div class="sidebar-right">
       <div class="panel-section">
-        <div class="panel-title"><div class="dot" id="simDot"></div>仿真状态</div>
-        <div class="sim-value"><span class="label">状态</span><span class="val" id="simStatus">等待仿真</span></div>
-        <div id="simHint" style="font-size:10px;color:var(--text-muted);margin-top:3px;">添加元件并连接电路后，点击"运行仿真"</div>
+        <div class="panel-title"><div class="dot" id="simDot"></div>浠跨湡鐘舵€?/div>
+        <div class="sim-value"><span class="label">鐘舵€?/span><span class="val" id="simStatus">绛夊緟浠跨湡</span></div>
+        <div id="simHint" style="font-size:10px;color:var(--text-muted);margin-top:3px;">娣诲姞鍏冧欢骞惰繛鎺ョ數璺悗锛岀偣鍑?杩愯浠跨湡"</div>
       </div>
       <div class="panel-section">
-        <div class="panel-title"><div class="dot blue"></div>仿真参数</div>
-        <div class="sim-value"><span class="label">仿真时间</span><span class="val" id="simTime">0.00 s</span></div>
-        <div class="sim-value"><span class="label">电流</span><span class="val green" id="simCurrent">0.00 mA</span></div>
-        <div class="sim-value"><span class="label">电压</span><span class="val yellow" id="simVoltage">0.00 V</span></div>
-        <div class="sim-value"><span class="label">功率</span><span class="val orange" id="simPower">0.00 mW</span></div>
+        <div class="panel-title"><div class="dot blue"></div>浠跨湡鍙傛暟</div>
+        <div class="sim-value"><span class="label">浠跨湡鏃堕棿</span><span class="val" id="simTime">0.00 s</span></div>
+        <div class="sim-value"><span class="label">鐢垫祦</span><span class="val green" id="simCurrent">0.00 mA</span></div>
+        <div class="sim-value"><span class="label">鐢靛帇</span><span class="val yellow" id="simVoltage">0.00 V</span></div>
+        <div class="sim-value"><span class="label">鍔熺巼</span><span class="val orange" id="simPower">0.00 mW</span></div>
       </div>
       <div class="panel-section" id="faultPanel" style="display:none;">
-        <div class="panel-title"><div class="dot red"></div>故障检测</div>
+        <div class="panel-title"><div class="dot red"></div>鏁呴殰妫€娴?/div>
         <div id="faultContent"></div>
       </div>
       <div class="panel-section">
-        <div class="panel-title"><div class="dot blue"></div>视图选项</div>
-        <div class="toggle-row"><span>显示内部结构</span><div class="toggle" id="togInternal" onclick="ElecSim.UI.toggleOpt(this,'internal')"></div></div>
-        <div class="toggle-row"><span>显示电流方向</span><div class="toggle on" id="togCurrent" onclick="ElecSim.UI.toggleOpt(this,'currentDir')"></div></div>
-        <div class="toggle-row"><span>显示引脚标签</span><div class="toggle on" id="togPinLabels" onclick="ElecSim.UI.toggleOpt(this,'pinLabels')"></div></div>
+        <div class="panel-title"><div class="dot blue"></div>瑙嗗浘閫夐」</div>
+        <div class="toggle-row"><span>鏄剧ず鍐呴儴缁撴瀯</span><div class="toggle" id="togInternal" onclick="ElecSim.UI.toggleOpt(this,'internal')"></div></div>
+        <div class="toggle-row"><span>鏄剧ず鐢垫祦鏂瑰悜</span><div class="toggle on" id="togCurrent" onclick="ElecSim.UI.toggleOpt(this,'currentDir')"></div></div>
+        <div class="toggle-row"><span>鏄剧ず寮曡剼鏍囩</span><div class="toggle on" id="togPinLabels" onclick="ElecSim.UI.toggleOpt(this,'pinLabels')"></div></div>
       </div>
       <div class="panel-section" id="propPanel" style="display:none;">
-        <div class="panel-title"><div class="dot yellow"></div>元件属性</div>
+        <div class="panel-title"><div class="dot yellow"></div>鍏冧欢灞炴€?/div>
         <div id="propContent"></div>
       </div>
     </div>
@@ -331,9 +331,9 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 
   <!-- Status Bar -->
   <div class="status-bar">
-    <span><span class="status-dot"></span>就绪</span>
+    <span><span class="status-dot"></span>灏辩华</span>
     <span>ElecSim Studio Pro v2.0</span>
-    <span style="margin-left:auto;">QIACHIP 电工电路仿真平台</span>
+    <span style="margin-left:auto;">QIACHIP 鐢靛伐鐢佃矾浠跨湡骞冲彴</span>
   </div>
 </div>
 
@@ -344,34 +344,34 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
   <div id="recPanelCollapsed" style="display:none;flex-direction:column;padding:12px 14px;gap:8px;">
     <div style="display:flex;align-items:center;gap:8px;">
       <div class="rec-dot"></div>
-      <span id="recPanelStatus" style="font-size:12px;color:#f85149;font-weight:600;">录制中 00:00</span>
+      <span id="recPanelStatus" style="font-size:12px;color:#f85149;font-weight:600;">褰曞埗涓?00:00</span>
       <div style="flex:1;"></div>
       <span class="rec-time" id="recTime2" style="font-variant-numeric:tabular-nums;color:#c9d1d9;font-size:13px;">00:00</span>
     </div>
     <div style="display:flex;gap:6px;">
-      <button onclick="ElecSim.Recorder.toggle()" style="flex:1;padding:5px;background:#d29922;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">&#10074;&#10074; 暂停</button>
-      <button onclick="ElecSim.Recorder.stop()" style="flex:1;padding:5px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">&#9632; 停止</button>
-      <button onclick="ElecSim.Recorder.togglePanel()" style="padding:5px 8px;background:var(--bg-card);color:#8b949e;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;">&#9660; 详情</button>
+      <button onclick="ElecSim.Recorder.toggle()" style="flex:1;padding:5px;background:#d29922;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">&#10074;&#10074; 鏆傚仠</button>
+      <button onclick="ElecSim.Recorder.stop()" style="flex:1;padding:5px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">&#9632; 鍋滄</button>
+      <button onclick="ElecSim.Recorder.togglePanel()" style="padding:5px 8px;background:var(--bg-card);color:#8b949e;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;">&#9660; 璇︽儏</button>
     </div>
   </div>
 
   <!-- Expanded view (settings / preview) -->
   <div id="recPanelExpanded" style="display:none;flex-direction:column;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);">
-      <span style="font-size:12px;font-weight:600;color:#c9d1d9;">&#128249; 录屏设置</span>
+      <span style="font-size:12px;font-weight:600;color:#c9d1d9;">&#128249; 褰曞睆璁剧疆</span>
       <button onclick="ElecSim.Recorder.hidePanel()" style="background:none;border:none;color:#8b949e;font-size:14px;cursor:pointer;padding:2px 4px;">&#9650;</button>
     </div>
     <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px;">
       <!-- Preview area -->
       <div class="rec-preview" id="recPreview">
-        <span id="recPreviewHint">点击「开始录制」后将实时预览</span>
+        <span id="recPreviewHint">鐐瑰嚮銆屽紑濮嬪綍鍒躲€嶅悗灏嗗疄鏃堕瑙?/span>
         <video id="recPreviewVideo" controls style="display:none;width:100%;height:100%;object-fit:contain;border-radius:4px;"></video>
       </div>
       <!-- Status -->
-      <div style="font-size:11px;color:#8b949e;text-align:center;" id="recPanelStatusExp">准备就绪</div>
+      <div style="font-size:11px;color:#8b949e;text-align:center;" id="recPanelStatusExp">鍑嗗灏辩华</div>
       <!-- Format -->
       <div style="display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:11px;color:#8b949e;">格式</span>
+        <span style="font-size:11px;color:#8b949e;">鏍煎紡</span>
         <div style="display:flex;gap:4px;">
           <button class="fmt-btn active" id="fmtWebm" onclick="ElecSim.Recorder.setFormat('webm')">WebM</button>
           <button class="fmt-btn" id="fmtMp4" onclick="ElecSim.Recorder.setFormat('mp4')">MP4</button>
@@ -380,7 +380,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
       </div>
       <!-- FPS -->
       <div style="display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:11px;color:#8b949e;">帧率</span>
+        <span style="font-size:11px;color:#8b949e;">甯х巼</span>
         <select id="recFps" onchange="ElecSim.Recorder.setFps(this.value)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:#c9d1d9;padding:3px 8px;font-size:11px;cursor:pointer;">
           <option value="30" selected>30 fps</option>
           <option value="60">60 fps</option>
@@ -389,18 +389,18 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
       </div>
       <!-- Quality -->
       <div style="display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:11px;color:#8b949e;">画质</span>
+        <span style="font-size:11px;color:#8b949e;">鐢昏川</span>
         <select id="recQuality" onchange="ElecSim.Recorder.setQuality(this.value)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:#c9d1d9;padding:3px 8px;font-size:11px;cursor:pointer;">
-          <option value="high">高 (8 Mbps)</option>
-          <option value="medium" selected>中 (4 Mbps)</option>
-          <option value="low">低 (1 Mbps)</option>
+          <option value="high">楂?(8 Mbps)</option>
+          <option value="medium" selected>涓?(4 Mbps)</option>
+          <option value="low">浣?(1 Mbps)</option>
         </select>
       </div>
-      <p class="gif-note" id="gifNote" style="display:none;font-size:10px;color:#6e7681;">GIF 导出会截取前 15 秒</p>
+      <p class="gif-note" id="gifNote" style="display:none;font-size:10px;color:#6e7681;">GIF 瀵煎嚭浼氭埅鍙栧墠 15 绉?/p>
       <!-- Controls -->
       <div style="display:flex;gap:6px;margin-top:2px;">
-        <button onclick="ElecSim.Recorder.start()" style="flex:1;padding:7px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">&#9679; 开始录制</button>
-        <button class="btn-export" id="recExportBtn" onclick="ElecSim.Recorder.exportCurrent()" disabled style="flex:1;padding:7px;background:#238636;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;opacity:.4;">&#11015; 导出</button>
+        <button onclick="ElecSim.Recorder.start()" style="flex:1;padding:7px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">&#9679; 寮€濮嬪綍鍒?/button>
+        <button class="btn-export" id="recExportBtn" onclick="ElecSim.Recorder.exportCurrent()" disabled style="flex:1;padding:7px;background:#238636;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;opacity:.4;">&#11015; 瀵煎嚭</button>
       </div>
     </div>
   </div>
@@ -409,18 +409,18 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 <!-- ==================== Preview Modal (shown after stop) ==================== -->
 <div class="modal-mask" id="previewModal">
   <div class="modal" style="width:680px;">
-    <div class="modal-head"><h3>&#128249; 录制预览</h3><button class="modal-close" onclick="ElecSim.Recorder.closePreview()">&times;</button></div>
+    <div class="modal-head"><h3>&#128249; 褰曞埗棰勮</h3><button class="modal-close" onclick="ElecSim.Recorder.closePreview()">&times;</button></div>
     <div class="modal-body">
       <div class="preview-video-wrap">
         <video id="prevVideo" controls style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></video>
       </div>
       <div class="preview-info">
-        <span>时长: <span class="duration" id="prevDur">00:00</span></span>
-        <span>大小: <span class="duration" id="prevSize">--</span></span>
+        <span>鏃堕暱: <span class="duration" id="prevDur">00:00</span></span>
+        <span>澶у皬: <span class="duration" id="prevSize">--</span></span>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button class="btn-secondary" onclick="ElecSim.Recorder.closePreview()">取消</button>
-        <button class="btn-primary" onclick="ElecSim.Recorder.exportCurrent();ElecSim.Recorder.closePreview();">&#11015; 导出到本地</button>
+        <button class="btn-secondary" onclick="ElecSim.Recorder.closePreview()">鍙栨秷</button>
+        <button class="btn-primary" onclick="ElecSim.Recorder.exportCurrent();ElecSim.Recorder.closePreview();">&#11015; 瀵煎嚭鍒版湰鍦?/button>
       </div>
     </div>
   </div>
@@ -429,30 +429,30 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 <!-- Product Upload Modal -->
 <div class="modal-mask" id="productModal">
   <div class="modal" style="width:520px;">
-    <div class="modal-head"><h3>&#128268; 上传产品元件</h3><button class="modal-close" onclick="ElecSim.UI.closeModal('productModal')">&times;</button></div>
+    <div class="modal-head"><h3>&#128268; 涓婁紶浜у搧鍏冧欢</h3><button class="modal-close" onclick="ElecSim.UI.closeModal('productModal')">&times;</button></div>
     <div class="modal-body">
-      <div class="form-group"><label class="form-label">产品名称 <span class="req">*</span></label><input class="form-input" id="prodName" placeholder="如：QIACHIP 1路无线继电器模块"></div>
-      <div class="form-group"><label class="form-label">型号</label><input class="form-input" id="prodModel" placeholder="如：QCA-1CH-RF"></div>
-      <div class="form-group"><label class="form-label">描述</label><input class="form-input" id="prodDesc" placeholder="433MHz无线遥控, 1路继电器输出"></div>
-      <div class="form-group"><label class="form-label">产品图片</label><input type="file" id="prodImage" accept="image/*" style="font-size:11px;color:var(--text-dim);"></div>
-      <div class="form-group"><label class="form-label">引脚编辑 <span style="font-size:9px;color:var(--text-muted)">（点击画布添加引脚）</span></label>
+      <div class="form-group"><label class="form-label">浜у搧鍚嶇О <span class="req">*</span></label><input class="form-input" id="prodName" placeholder="濡傦細QIACHIP 1璺棤绾跨户鐢靛櫒妯″潡"></div>
+      <div class="form-group"><label class="form-label">鍨嬪彿</label><input class="form-input" id="prodModel" placeholder="濡傦細QCA-1CH-RF"></div>
+      <div class="form-group"><label class="form-label">鎻忚堪</label><input class="form-input" id="prodDesc" placeholder="433MHz鏃犵嚎閬ユ帶, 1璺户鐢靛櫒杈撳嚭"></div>
+      <div class="form-group"><label class="form-label">浜у搧鍥剧墖</label><input type="file" id="prodImage" accept="image/*" style="font-size:11px;color:var(--text-dim);"></div>
+      <div class="form-group"><label class="form-label">寮曡剼缂栬緫 <span style="font-size:9px;color:var(--text-muted)">锛堢偣鍑荤敾甯冩坊鍔犲紩鑴氾級</span></label>
         <canvas class="pin-editor-canvas" id="pinEditorCanvas" width="460" height="250"></canvas>
-        <div id="pinEditorPins" style="margin-top:6px;font-size:10px;color:var(--text-dim);">暂无引脚，点击画布添加</div>
+        <div id="pinEditorPins" style="margin-top:6px;font-size:10px;color:var(--text-dim);">鏆傛棤寮曡剼锛岀偣鍑荤敾甯冩坊鍔?/div>
       </div>
-      <div class="form-group"><label class="form-label">行为类型</label>
+      <div class="form-group"><label class="form-label">琛屼负绫诲瀷</label>
         <select class="form-input" id="prodBehavior">
-          <option value="relay">继电器（信号触发触点切换）</option>
-          <option value="switch">开关（手动通断）</option>
-          <option value="sensor">传感器（输出信号）</option>
-          <option value="passive">无源元件（电阻性负载）</option>
-          <option value="blackbox">黑盒（自定义内部行为）</option>
+          <option value="relay">缁х數鍣紙淇″彿瑙﹀彂瑙︾偣鍒囨崲锛?/option>
+          <option value="switch">寮€鍏筹紙鎵嬪姩閫氭柇锛?/option>
+          <option value="sensor">浼犳劅鍣紙杈撳嚭淇″彿锛?/option>
+          <option value="passive">鏃犳簮鍏冧欢锛堢數闃绘€ц礋杞斤級</option>
+          <option value="blackbox">榛戠洅锛堣嚜瀹氫箟鍐呴儴琛屼负锛?/option>
         </select>
       </div>
-      <div class="form-group"><label class="form-label">电气参数 (JSON)</label><textarea class="form-input" id="prodSpecs" rows="3">{"voltage":"5-12V DC","maxCurrent":"10A"}</textarea></div>
+      <div class="form-group"><label class="form-label">鐢垫皵鍙傛暟 (JSON)</label><textarea class="form-input" id="prodSpecs" rows="3">{"voltage":"5-12V DC","maxCurrent":"10A"}</textarea></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="ElecSim.QIACHIP.clearEditor()">清空</button>
-      <button class="btn-primary" onclick="ElecSim.QIACHIP.addProduct()">&#10003; 添加到产品库</button>
+      <button class="btn-secondary" onclick="ElecSim.QIACHIP.clearEditor()">娓呯┖</button>
+      <button class="btn-primary" onclick="ElecSim.QIACHIP.addProduct()">&#10003; 娣诲姞鍒颁骇鍝佸簱</button>
     </div>
   </div>
 </div>
@@ -466,7 +466,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 <script>
 // =====================================================================
 // ElecSim Studio Pro v2.0 - Complete Circuit Simulation Platform
-// QIACHIP 电工电路仿真平台
+// QIACHIP 鐢靛伐鐢佃矾浠跨湡骞冲彴
 // =====================================================================
 
 const ElecSim = (() => {
@@ -486,9 +486,9 @@ const Config = {
   pinHitRadius: 12,
   particleSpeed: 0.3,
   categoryColors: {
-    '电源': '#f0883e', '开关/按钮': '#58a6ff', '保护器件': '#f85149',
-    '继电器/接触器': '#bc8cff', '传感器': '#39d2c0', '输出器件': '#3fb950',
-    '测量仪表': '#d29922', '无源元件': '#8b949e', 'QIACHIP产品': '#ff7eb3'
+    '鐢垫簮': '#f0883e', '寮€鍏?鎸夐挳': '#58a6ff', '淇濇姢鍣ㄤ欢': '#f85149',
+    '缁х數鍣?鎺ヨЕ鍣?: '#bc8cff', '浼犳劅鍣?: '#39d2c0', '杈撳嚭鍣ㄤ欢': '#3fb950',
+    '娴嬮噺浠〃': '#d29922', '鏃犳簮鍏冧欢': '#8b949e', 'QIACHIP浜у搧': '#ff7eb3'
   }
 };
 
@@ -516,173 +516,173 @@ const S = {
   mouse: { x: 0, y: 0 },
   dirty: false,
   recording: false,
-  exportOpts: { res: '1080p', dur: '10秒' }
+  exportOpts: { res: '1080p', dur: '10绉? }
 };
 
 // ==================== Section 3: Component Registry ====================
 const Registry = {
   categories: [
-    '电源', '开关/按钮', '保护器件', '继电器/接触器',
-    '传感器', '输出器件', '测量仪表', '无源元件'
+    '鐢垫簮', '寮€鍏?鎸夐挳', '淇濇姢鍣ㄤ欢', '缁х數鍣?鎺ヨЕ鍣?,
+    '浼犳劅鍣?, '杈撳嚭鍣ㄤ欢', '娴嬮噺浠〃', '鏃犳簮鍏冧欢'
   ],
 
   // Component definitions
   defs: [
-    // --- 电源 ---
+    // --- 鐢垫簮 ---
     // Rule: w/2 and h/2 must be multiples of grid(20), so w,h are multiples of 40
-    // Pin dx = ±w/2, pin dy multiples of 20 → pins always on grid intersections
-    { type:'battery', name:'直流电源', cat:'电源', icon:'🔋', desc:'DC 电源',
+    // Pin dx = 卤w/2, pin dy multiples of 20 鈫?pins always on grid intersections
+    { type:'battery', name:'鐩存祦鐢垫簮', cat:'鐢垫簮', icon:'馃攱', desc:'DC 鐢垫簮',
       w:120, h:60,
       pins:[{id:'p',label:'+',dx:60,dy:0},{id:'n',label:'-',dx:-60,dy:0}],
       props:{voltage:9} },
-    { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V',
+    { type:'ac_source', name:'浜ゆ祦鐢垫簮', cat:'鐢垫簮', icon:'鈿?, desc:'AC 220V',
       w:120, h:60,
       pins:[{id:'p',label:'L',dx:60,dy:0},{id:'n',label:'N',dx:-60,dy:0}],
       props:{voltage:220,freq:50} },
-    { type:'dc_dc', name:'DC-DC模块', cat:'电源', icon:'🔌', desc:'降压/升压',
+    { type:'dc_dc', name:'DC-DC妯″潡', cat:'鐢垫簮', icon:'馃攲', desc:'闄嶅帇/鍗囧帇',
       w:120, h:80,
       pins:[{id:'vin',label:'VIN',dx:-60,dy:-20},{id:'gnd_in',label:'GND',dx:-60,dy:20},
             {id:'vout',label:'VOUT',dx:60,dy:-20},{id:'gnd_out',label:'GND',dx:60,dy:20}],
       props:{inputV:12,outputV:5,maxI:3} },
 
-    // --- 开关/按钮 ---
-    // SPST (单开单控): 最简单的开关，L1=相线入，L2=相线出，闭合导通断开截止
-    { type:'spst', name:'单开单控', cat:'开关/按钮', icon:'🔌', desc:'单刀单掷/单开单控',
+    // --- 寮€鍏?鎸夐挳 ---
+    // SPST (鍗曞紑鍗曟帶): 鏈€绠€鍗曠殑寮€鍏筹紝L1=鐩哥嚎鍏ワ紝L2=鐩哥嚎鍑猴紝闂悎瀵奸€氭柇寮€鎴
+    { type:'spst', name:'鍗曞紑鍗曟帶', cat:'寮€鍏?鎸夐挳', icon:'馃攲', desc:'鍗曞垁鍗曟幏/鍗曞紑鍗曟帶',
       w:120, h:40,
       pins:[{id:'l1',label:'L1',dx:-60,dy:0},{id:'l2',label:'L2',dx:60,dy:0}],
       props:{closed:true} },
-    // 普通通断开关（通用）
-    { type:'switch', name:'开关', cat:'开关/按钮', icon:'🔘', desc:'通断控制',
+    // 鏅€氶€氭柇寮€鍏筹紙閫氱敤锛?
+    { type:'switch', name:'寮€鍏?, cat:'寮€鍏?鎸夐挳', icon:'馃敇', desc:'閫氭柇鎺у埗',
       w:120, h:40,
       pins:[{id:'a',label:'A',dx:-60,dy:0},{id:'b',label:'B',dx:60,dy:0}],
       props:{closed:true} },
-    { type:'spdt', name:'单刀双掷', cat:'开关/按钮', icon:'🔀', desc:'双控开关(单刀双掷)',
+    { type:'spdt', name:'鍗曞垁鍙屾幏', cat:'寮€鍏?鎸夐挳', icon:'馃攢', desc:'鍙屾帶寮€鍏?鍗曞垁鍙屾幏)',
       w:120, h:80,
       pins:[{id:'c',label:'COM',dx:-60,dy:0},{id:'t1',label:'T1',dx:60,dy:-20},{id:'t2',label:'T2',dx:60,dy:20}],
       props:{position:1} },
-    { type:'push_no', name:'点动按钮(NO)', cat:'开关/按钮', icon:'⏺', desc:'按下接通',
+    { type:'push_no', name:'鐐瑰姩鎸夐挳(NO)', cat:'寮€鍏?鎸夐挳', icon:'鈴?, desc:'鎸変笅鎺ラ€?,
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'B',dx:40,dy:0}],
       props:{pressed:false} },
-    { type:'push_nc', name:'急停按钮(NC)', cat:'开关/按钮', icon:'🛑', desc:'按下断开',
+    { type:'push_nc', name:'鎬ュ仠鎸夐挳(NC)', cat:'寮€鍏?鎸夐挳', icon:'馃洃', desc:'鎸変笅鏂紑',
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'B',dx:40,dy:0}],
       props:{pressed:false} },
-    { type:'rotary', name:'选择开关', cat:'开关/按钮', icon:'🔄', desc:'2档切换',
+    { type:'rotary', name:'閫夋嫨寮€鍏?, cat:'寮€鍏?鎸夐挳', icon:'馃攧', desc:'2妗ｅ垏鎹?,
       w:120, h:60,
       pins:[{id:'com',label:'COM',dx:-60,dy:0},{id:'pos1',label:'1',dx:60,dy:-20},{id:'pos2',label:'2',dx:60,dy:20}],
       props:{position:1} },
 
-    // --- 保护器件 ---
-    { type:'fuse', name:'保险丝', cat:'保护器件', icon:'🔥', desc:'过流保护',
+    // --- 淇濇姢鍣ㄤ欢 ---
+    { type:'fuse', name:'淇濋櫓涓?, cat:'淇濇姢鍣ㄤ欢', icon:'馃敟', desc:'杩囨祦淇濇姢',
       w:120, h:40,
       pins:[{id:'a',label:'A',dx:-60,dy:0},{id:'b',label:'B',dx:60,dy:0}],
       props:{rating:5, blown:false} },
-    { type:'breaker', name:'断路器', cat:'保护器件', icon:'🛡️', desc:'空气开关',
+    { type:'breaker', name:'鏂矾鍣?, cat:'淇濇姢鍣ㄤ欢', icon:'馃洝锔?, desc:'绌烘皵寮€鍏?,
       w:120, h:40,
       pins:[{id:'a',label:'A',dx:-60,dy:0},{id:'b',label:'B',dx:60,dy:0}],
       props:{closed:true, rating:10} },
 
-    // --- 继电器/接触器 ---
-    { type:'relay5', name:'5针继电器', cat:'继电器/接触器', icon:'📦', desc:'1组触点',
+    // --- 缁х數鍣?鎺ヨЕ鍣?---
+    { type:'relay5', name:'5閽堢户鐢靛櫒', cat:'缁х數鍣?鎺ヨЕ鍣?, icon:'馃摝', desc:'1缁勮Е鐐?,
       w:140, h:80,
-      pins:[{id:'coil_a',label:'线圈+',dx:-70,dy:-20,type:'coil'},{id:'coil_b',label:'线圈-',dx:-70,dy:20,type:'coil'},
+      pins:[{id:'coil_a',label:'绾垮湀+',dx:-70,dy:-20,type:'coil'},{id:'coil_b',label:'绾垮湀-',dx:-70,dy:20,type:'coil'},
             {id:'com',label:'COM',dx:70,dy:-20,type:'contact'},{id:'no',label:'NO',dx:70,dy:0,type:'contact'},
             {id:'nc',label:'NC',dx:70,dy:20,type:'contact'}],
       props:{coilVoltage:5,coilResistance:100,contactR:0.05,maxCurrent:10,energized:false} },
-    { type:'relay8', name:'8针继电器', cat:'继电器/接触器', icon:'📦', desc:'2组触点',
+    { type:'relay8', name:'8閽堢户鐢靛櫒', cat:'缁х數鍣?鎺ヨЕ鍣?, icon:'馃摝', desc:'2缁勮Е鐐?,
       w:160, h:100,
-      pins:[{id:'coil_a',label:'线圈+',dx:-80,dy:-40,type:'coil'},{id:'coil_b',label:'线圈-',dx:-80,dy:40,type:'coil'},
+      pins:[{id:'coil_a',label:'绾垮湀+',dx:-80,dy:-40,type:'coil'},{id:'coil_b',label:'绾垮湀-',dx:-80,dy:40,type:'coil'},
             {id:'com1',label:'COM1',dx:80,dy:-40,type:'contact'},{id:'no1',label:'NO1',dx:80,dy:-20,type:'contact'},
             {id:'nc1',label:'NC1',dx:80,dy:0,type:'contact'},
             {id:'com2',label:'COM2',dx:80,dy:20,type:'contact'}],
       props:{coilVoltage:12,coilResistance:200,contactR:0.05,maxCurrent:10,energized:false} },
-    { type:'contactor', name:'交流接触器', cat:'继电器/接触器', icon:'⚡', desc:'大功率开关',
+    { type:'contactor', name:'浜ゆ祦鎺ヨЕ鍣?, cat:'缁х數鍣?鎺ヨЕ鍣?, icon:'鈿?, desc:'澶у姛鐜囧紑鍏?,
       w:160, h:80,
       pins:[{id:'a1',label:'A1',dx:-80,dy:-20,type:'coil'},{id:'a2',label:'A2',dx:-80,dy:20,type:'coil'},
             {id:'l1',label:'L1',dx:80,dy:-20,type:'contact'},{id:'t1',label:'T1',dx:80,dy:0,type:'contact'},
             {id:'l2',label:'L2',dx:80,dy:20,type:'contact'}],
       props:{coilVoltage:220,contactR:0.02,maxCurrent:25,energized:false} },
 
-    // --- 传感器 ---
-    { type:'thermistor', name:'温度传感器', cat:'传感器', icon:'🌡️', desc:'NTC热敏',
+    // --- 浼犳劅鍣?---
+    { type:'thermistor', name:'娓╁害浼犳劅鍣?, cat:'浼犳劅鍣?, icon:'馃尅锔?, desc:'NTC鐑晱',
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'B',dx:40,dy:0}],
       props:{resistance:10000,temp:25} },
-    { type:'photoresistor', name:'光敏电阻', cat:'传感器', icon:'☀️', desc:'光照检测',
+    { type:'photoresistor', name:'鍏夋晱鐢甸樆', cat:'浼犳劅鍣?, icon:'鈽€锔?, desc:'鍏夌収妫€娴?,
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'B',dx:40,dy:0}],
       props:{resistance:5000,lightLevel:50} },
-    { type:'reed', name:'干簧管', cat:'传感器', icon:'🧲', desc:'磁控开关',
+    { type:'reed', name:'骞茬哀绠?, cat:'浼犳劅鍣?, icon:'馃Р', desc:'纾佹帶寮€鍏?,
       w:120, h:40,
       pins:[{id:'a',label:'A',dx:-60,dy:0},{id:'b',label:'B',dx:60,dy:0}],
       props:{closed:false} },
-    { type:'limit_sw', name:'限位开关', cat:'传感器', icon:'📍', desc:'位置检测',
+    { type:'limit_sw', name:'闄愪綅寮€鍏?, cat:'浼犳劅鍣?, icon:'馃搷', desc:'浣嶇疆妫€娴?,
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'B',dx:40,dy:0}],
       props:{triggered:false} },
-    { type:'hall', name:'霍尔传感器', cat:'传感器', icon:'🧲', desc:'磁场检测',
+    { type:'hall', name:'闇嶅皵浼犳劅鍣?, cat:'浼犳劅鍣?, icon:'馃Р', desc:'纾佸満妫€娴?,
       w:80, h:60,
       pins:[{id:'vcc',label:'VCC',dx:-40,dy:-20},{id:'out',label:'OUT',dx:40,dy:0},{id:'gnd',label:'GND',dx:-40,dy:20}],
       props:{output:0} },
 
-    // --- 输出器件 ---
-    { type:'led', name:'LED', cat:'输出器件', icon:'💡', desc:'发光二极管',
+    // --- 杈撳嚭鍣ㄤ欢 ---
+    { type:'led', name:'LED', cat:'杈撳嚭鍣ㄤ欢', icon:'馃挕', desc:'鍙戝厜浜屾瀬绠?,
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'K',dx:40,dy:0}],
       props:{forwardV:2,color:'#ff4444'} },
-    { type:'motor_dc', name:'直流电机', cat:'输出器件', icon:'⚙️', desc:'直流转动负载',
+    { type:'motor_dc', name:'鐩存祦鐢垫満', cat:'杈撳嚭鍣ㄤ欢', icon:'鈿欙笍', desc:'鐩存祦杞姩璐熻浇',
       w:120, h:80,
       pins:[{id:'p',label:'+',dx:-60,dy:0},{id:'n',label:'-',dx:60,dy:0}],
-      props:{voltage:9,rpm:3000,resistance:50} },  // voltage=额定电压(V,参考值), resistance=绕组电阻(Ω,决定电流)
-    { type:'buzzer', name:'蜂鸣器', cat:'输出器件', icon:'📢', desc:'无源蜂鸣器（交直流）',
+      props:{voltage:9,rpm:3000,resistance:50} },  // voltage=棰濆畾鐢靛帇(V,鍙傝€冨€?, resistance=缁曠粍鐢甸樆(惟,鍐冲畾鐢垫祦)
+    { type:'buzzer', name:'铚傞福鍣?, cat:'杈撳嚭鍣ㄤ欢', icon:'馃摙', desc:'鏃犳簮铚傞福鍣紙浜ょ洿娴侊級',
       w:80, h:40,
       pins:[{id:'p',label:'+',dx:-40,dy:0},{id:'n',label:'-',dx:40,dy:0}],
-      props:{voltage:5,freq:2000} },  // voltage=额定电压(V,参考值), freq=驱动频率(Hz), simulation用R=80Ω
-    { type:'solenoid', name:'电磁阀', cat:'输出器件', icon:'🔧', desc:'电磁驱动阀',
+      props:{voltage:5,freq:2000} },  // voltage=棰濆畾鐢靛帇(V,鍙傝€冨€?, freq=椹卞姩棰戠巼(Hz), simulation鐢≧=80惟
+    { type:'solenoid', name:'鐢电闃€', cat:'杈撳嚭鍣ㄤ欢', icon:'馃敡', desc:'鐢电椹卞姩闃€',
       w:120, h:60,
       pins:[{id:'p',label:'+',dx:-60,dy:0},{id:'n',label:'-',dx:60,dy:0}],
-      props:{voltage:12,resistance:200} },  // voltage=额定电压(V,参考值), resistance=线圈电阻(Ω,决定电流)
-    { type:'indicator', name:'指示灯', cat:'输出器件', icon:'🔴', desc:'信号指示灯',
+      props:{voltage:12,resistance:200} },  // voltage=棰濆畾鐢靛帇(V,鍙傝€冨€?, resistance=绾垮湀鐢甸樆(惟,鍐冲畾鐢垫祦)
+    { type:'indicator', name:'鎸囩ず鐏?, cat:'杈撳嚭鍣ㄤ欢', icon:'馃敶', desc:'淇″彿鎸囩ず鐏?,
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'K',dx:40,dy:0}],
-      props:{forwardV:2.2,color:'#3fb950'} },  // forwardV=正向压降(V), 与LED同为二极管模型
-    { type:'lamp', name:'灯泡', cat:'输出器件', icon:'💡', desc:'白炽灯/卤素灯（交直流均可）',
+      props:{forwardV:2.2,color:'#3fb950'} },  // forwardV=姝ｅ悜鍘嬮檷(V), 涓嶭ED鍚屼负浜屾瀬绠℃ā鍨?
+    { type:'lamp', name:'鐏场', cat:'杈撳嚭鍣ㄤ欢', icon:'馃挕', desc:'鐧界偨鐏?鍗ょ礌鐏紙浜ょ洿娴佸潎鍙級',
       w:200, h:200,
       pins:[{id:'l',label:'L',dx:0,dy:100},{id:'n',label:'N',dx:0,dy:-100}],
       props:{voltage:220,wattage:60},
-      image:'data:image/png;base64,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' },  // voltage=额定电压(V), wattage=额定功率(W), R热态=V²/P
+      image:'data:image/png;base64,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' },  // voltage=棰濆畾鐢靛帇(V), wattage=棰濆畾鍔熺巼(W), R鐑€?V虏/P
 
-    // --- 测量仪表 ---
-    // 电压表：内阻极大（≥1MΩ），并联在电路中测量电压，几乎不分流
-    { type:'voltmeter', name:'电压表', cat:'测量仪表', icon:'📊', desc:'测量电压（并联）',
+    // --- 娴嬮噺浠〃 ---
+    // 鐢靛帇琛細鍐呴樆鏋佸ぇ锛堚墺1M惟锛夛紝骞惰仈鍦ㄧ數璺腑娴嬮噺鐢靛帇锛屽嚑涔庝笉鍒嗘祦
+    { type:'voltmeter', name:'鐢靛帇琛?, cat:'娴嬮噺浠〃', icon:'馃搳', desc:'娴嬮噺鐢靛帇锛堝苟鑱旓級',
       w:80, h:40,
       pins:[{id:'p',label:'+',dx:-40,dy:0},{id:'n',label:'-',dx:40,dy:0}],
-      props:{range:50,resistance:1000000} },  // resistance=内阻(Ω)，默认1MΩ（数字万用表10MΩ）
-    // 电流表：内阻极小（≤0.01Ω），串联在电路中测量电流，几乎不产生压降
-    { type:'ammeter', name:'电流表', cat:'测量仪表', icon:'📊', desc:'测量电流（串联）',
+      props:{range:50,resistance:1000000} },  // resistance=鍐呴樆(惟)锛岄粯璁?M惟锛堟暟瀛椾竾鐢ㄨ〃10M惟锛?
+    // 鐢垫祦琛細鍐呴樆鏋佸皬锛堚墹0.01惟锛夛紝涓茶仈鍦ㄧ數璺腑娴嬮噺鐢垫祦锛屽嚑涔庝笉浜х敓鍘嬮檷
+    { type:'ammeter', name:'鐢垫祦琛?, cat:'娴嬮噺浠〃', icon:'馃搳', desc:'娴嬮噺鐢垫祦锛堜覆鑱旓級',
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'B',dx:40,dy:0}],
-      props:{range:500,resistance:0.01} },  // resistance=内阻(Ω)，默认0.01Ω（模拟表头0.001Ω）
+      props:{range:500,resistance:0.01} },  // resistance=鍐呴樆(惟)锛岄粯璁?.01惟锛堟ā鎷熻〃澶?.001惟锛?
 
-    // --- 无源元件 ---
-    { type:'resistor', name:'电阻', cat:'无源元件', icon:'〰️', desc:'限流/分压',
+    // --- 鏃犳簮鍏冧欢 ---
+    { type:'resistor', name:'鐢甸樆', cat:'鏃犳簮鍏冧欢', icon:'銆帮笍', desc:'闄愭祦/鍒嗗帇',
       w:120, h:40,
       pins:[{id:'a',label:'A',dx:-60,dy:0},{id:'b',label:'B',dx:60,dy:0}],
       props:{resistance:1000} },
-    { type:'capacitor', name:'电容', cat:'无源元件', icon:'⚖️', desc:'储能/滤波',
+    { type:'capacitor', name:'鐢靛', cat:'鏃犳簮鍏冧欢', icon:'鈿栵笍', desc:'鍌ㄨ兘/婊ゆ尝',
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'B',dx:40,dy:0}],
       props:{capacitance:100} },
-    { type:'inductor', name:'电感', cat:'无源元件', icon:'🌀', desc:'储能/滤波',
+    { type:'inductor', name:'鐢垫劅', cat:'鏃犳簮鍏冧欢', icon:'馃寑', desc:'鍌ㄨ兘/婊ゆ尝',
       w:120, h:40,
       pins:[{id:'a',label:'A',dx:-60,dy:0},{id:'b',label:'B',dx:60,dy:0}],
       props:{inductance:10} },
-    { type:'diode', name:'二极管', cat:'无源元件', icon:'▶️', desc:'单向导电',
+    { type:'diode', name:'浜屾瀬绠?, cat:'鏃犳簮鍏冧欢', icon:'鈻讹笍', desc:'鍗曞悜瀵肩數',
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'K',dx:40,dy:0}],
       props:{forwardV:0.7} },
-    { type:'npn', name:'NPN三极管', cat:'无源元件', icon:'📐', desc:'电流放大',
+    { type:'npn', name:'NPN涓夋瀬绠?, cat:'鏃犳簮鍏冧欢', icon:'馃搻', desc:'鐢垫祦鏀惧ぇ',
       w:120, h:80,
       pins:[{id:'b',label:'B',dx:-60,dy:-20},{id:'c',label:'C',dx:60,dy:-20},{id:'e',label:'E',dx:60,dy:20}],
       props:{beta:100} },
@@ -727,8 +727,8 @@ const QIACHIP = {
   editorImage: null,
 
   templates: [
-    { id:'qca_1ch', name:'QIACHIP 1路无线继电器', model:'QCA-1CH-RF',
-      desc:'433MHz无线遥控, 1路继电器输出, 5-12V供电',
+    { id:'qca_1ch', name:'QIACHIP 1璺棤绾跨户鐢靛櫒', model:'QCA-1CH-RF',
+      desc:'433MHz鏃犵嚎閬ユ帶, 1璺户鐢靛櫒杈撳嚭, 5-12V渚涚數',
       w:140, h:100,
       pins:[
         {id:'vcc',label:'VCC',dx:-70,dy:-20},{id:'gnd',label:'GND',dx:-70,dy:20},
@@ -736,9 +736,9 @@ const QIACHIP = {
         {id:'no',label:'NO',dx:70,dy:-20,type:'contact'},{id:'com',label:'COM',dx:70,dy:0,type:'contact'},{id:'nc',label:'NC',dx:70,dy:20,type:'contact'}
       ],
       specs:{voltage:'5-12V DC',frequency:'433MHz',channels:1,relayRating:'10A 250VAC'},
-      behavior:'relay', icon:'📡' },
-    { id:'qca_2ch', name:'QIACHIP 2路无线继电器', model:'QCA-2CH-RF',
-      desc:'433MHz无线遥控, 2路继电器输出, 5-12V供电',
+      behavior:'relay', icon:'馃摗' },
+    { id:'qca_2ch', name:'QIACHIP 2璺棤绾跨户鐢靛櫒', model:'QCA-2CH-RF',
+      desc:'433MHz鏃犵嚎閬ユ帶, 2璺户鐢靛櫒杈撳嚭, 5-12V渚涚數',
       w:160, h:100,
       pins:[
         {id:'vcc',label:'VCC',dx:-80,dy:-40},{id:'gnd',label:'GND',dx:-80,dy:40},
@@ -747,9 +747,9 @@ const QIACHIP = {
         {id:'no2',label:'NO2',dx:80,dy:20,type:'contact'}
       ],
       specs:{voltage:'5-12V DC',frequency:'433MHz',channels:2,relayRating:'10A 250VAC'},
-      behavior:'relay', icon:'📡' },
-    { id:'qca_4ch', name:'QIACHIP 4路无线继电器', model:'QCA-4CH-RF',
-      desc:'433MHz无线遥控, 4路继电器输出, 5-12V供电',
+      behavior:'relay', icon:'馃摗' },
+    { id:'qca_4ch', name:'QIACHIP 4璺棤绾跨户鐢靛櫒', model:'QCA-4CH-RF',
+      desc:'433MHz鏃犵嚎閬ユ帶, 4璺户鐢靛櫒杈撳嚭, 5-12V渚涚數',
       w:200, h:120,
       pins:[
         {id:'vcc',label:'VCC',dx:-100,dy:-40},{id:'gnd',label:'GND',dx:-100,dy:40},
@@ -759,9 +759,9 @@ const QIACHIP = {
         {id:'no2',label:'NO2',dx:100,dy:0,type:'contact'},{id:'com2',label:'COM2',dx:100,dy:20,type:'contact'}
       ],
       specs:{voltage:'5-12V DC',frequency:'433MHz',channels:4,relayRating:'10A 250VAC'},
-      behavior:'relay', icon:'📡' },
-    { id:'qca_wifi', name:'QIACHIP WiFi继电器', model:'QCA-WIFI-1',
-      desc:'WiFi无线控制, 1路继电器, Tuya/Smart Life',
+      behavior:'relay', icon:'馃摗' },
+    { id:'qca_wifi', name:'QIACHIP WiFi缁х數鍣?, model:'QCA-WIFI-1',
+      desc:'WiFi鏃犵嚎鎺у埗, 1璺户鐢靛櫒, Tuya/Smart Life',
       w:160, h:100,
       pins:[
         {id:'vcc',label:'VCC',dx:-80,dy:-40},{id:'gnd',label:'GND',dx:-80,dy:40},
@@ -769,7 +769,7 @@ const QIACHIP = {
         {id:'nc',label:'NC',dx:80,dy:20,type:'contact'}
       ],
       specs:{voltage:'5V DC',protocol:'WiFi 2.4GHz',channels:1,relayRating:'10A 250VAC'},
-      behavior:'relay', icon:'📶' },
+      behavior:'relay', icon:'馃摱' },
   ],
 
   init() {
@@ -799,7 +799,7 @@ const QIACHIP = {
   getAsDefs() {
     return this.products.map(p => ({
       type: 'product_' + (p.id || p.model),
-      name: p.name, cat: 'QIACHIP产品', icon: p.icon || '📡',
+      name: p.name, cat: 'QIACHIP浜у搧', icon: p.icon || '馃摗',
       desc: p.model || '', w: p.w || 140, h: p.h || 90,
       pins: p.pins || [],
       props: { ...(p.specs || {}), behavior: p.behavior || 'blackbox', energized: false },
@@ -817,14 +817,14 @@ const QIACHIP = {
       card.className = 'product-card';
       card.draggable = true;
       card.innerHTML = `
-        <div class="prod-img">${p.image ? `<img src="${p.image}" alt="">` : (p.icon || '📡')}</div>
+        <div class="prod-img">${p.image ? `<img src="${p.image}" alt="">` : (p.icon || '馃摗')}</div>
         <div class="prod-info">
           <div class="prod-name">${p.name}</div>
           <div class="prod-model">${p.model || ''} | ${(p.specs || {}).frequency || ''}</div>
         </div>`;
       const def = {
         type: 'product_' + (p.id || p.model),
-        name: p.name, cat: 'QIACHIP产品', icon: p.icon || '📡',
+        name: p.name, cat: 'QIACHIP浜у搧', icon: p.icon || '馃摗',
         desc: p.model || '', w: p.w || 140, h: p.h || 90,
         pins: p.pins || [],
         props: { ...(p.specs || {}), behavior: p.behavior || 'blackbox', energized: false },
@@ -887,7 +887,7 @@ const QIACHIP = {
       ctx.fillStyle = '#484f58';
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('上传产品图片后在此添加引脚', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('涓婁紶浜у搧鍥剧墖鍚庡湪姝ゆ坊鍔犲紩鑴?, canvas.width / 2, canvas.height / 2);
     }
 
     // Draw pins
@@ -910,7 +910,7 @@ const QIACHIP = {
     const el = document.getElementById('pinEditorPins');
     if (!el) return;
     if (this.editorPins.length === 0) {
-      el.textContent = '暂无引脚，点击画布添加';
+      el.textContent = '鏆傛棤寮曡剼锛岀偣鍑荤敾甯冩坊鍔?;
       return;
     }
     el.innerHTML = this.editorPins.map((p, i) =>
@@ -937,12 +937,12 @@ const QIACHIP = {
 
   addProduct() {
     const name = document.getElementById('prodName').value.trim();
-    if (!name) { UI.toast('请输入产品名称', 'error'); return; }
+    if (!name) { UI.toast('璇疯緭鍏ヤ骇鍝佸悕绉?, 'error'); return; }
     const model = document.getElementById('prodModel').value.trim();
     const desc = document.getElementById('prodDesc').value.trim();
     const behavior = document.getElementById('prodBehavior').value;
     let specs = {};
-    try { specs = JSON.parse(document.getElementById('prodSpecs').value || '{}'); } catch(e) { UI.toast('JSON格式错误', 'error'); return; }
+    try { specs = JSON.parse(document.getElementById('prodSpecs').value || '{}'); } catch(e) { UI.toast('JSON鏍煎紡閿欒', 'error'); return; }
 
     const canvas = document.getElementById('pinEditorCanvas');
     const scaleX = this.editorImage ? this.editorImage.width / canvas.width : 1;
@@ -958,7 +958,7 @@ const QIACHIP = {
     const product = {
       id: 'custom_' + Date.now(),
       name, model, desc,
-      icon: '📡', w: 140, h: 90,
+      icon: '馃摗', w: 140, h: 90,
       pins, specs, behavior,
       image: this.editorImage ? this.editorImage.src : null
     };
@@ -967,7 +967,7 @@ const QIACHIP = {
     this.save();
     this.buildProductList();
     UI.closeModal('productModal');
-    UI.toast('已添加产品: ' + name, 'success');
+    UI.toast('宸叉坊鍔犱骇鍝? ' + name, 'success');
     this.clearEditor();
   }
 };
@@ -1280,23 +1280,23 @@ const Renderer = {
   },
   getValueLabel(c) {
     if (c.type === 'resistor') return formatR(c.props.resistance);
-    if (c.type === 'capacitor') return c.props.capacitance + 'μF';
+    if (c.type === 'capacitor') return c.props.capacitance + '渭F';
     if (c.type === 'inductor') return c.props.inductance + 'mH';
     if (c.type === 'battery' || c.type === 'ac_source') return c.props.voltage + 'V';
-    if (c.type === 'dc_dc') return c.props.inputV + '→' + c.props.outputV + 'V';
+    if (c.type === 'dc_dc') return c.props.inputV + '鈫? + c.props.outputV + 'V';
     if (c.type === 'led') return c.props.forwardV + 'V';
     if (c.type === 'switch' || c.type === 'breaker') return c.props.closed ? 'ON' : 'OFF';
-    if (c.type === 'spdt') return '→' + c.props.position;
-    if (c.type === 'rotary') return '→' + c.props.position;
-    if (c.type === 'push_no' || c.type === 'push_nc') return c.props.pressed ? '按下' : '释放';
-    if (c.type === 'fuse') return c.props.blown ? '熔断!' : c.props.rating + 'A';
-    if (c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor') return c.props.energized ? '吸合' : '释放';
+    if (c.type === 'spdt') return '鈫? + c.props.position;
+    if (c.type === 'rotary') return '鈫? + c.props.position;
+    if (c.type === 'push_no' || c.type === 'push_nc') return c.props.pressed ? '鎸変笅' : '閲婃斁';
+    if (c.type === 'fuse') return c.props.blown ? '鐔旀柇!' : c.props.rating + 'A';
+    if (c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor') return c.props.energized ? '鍚稿悎' : '閲婃斁';
     if (c.type === 'motor_dc') return c.props.voltage + 'V';
     if (c.type === 'buzzer') return c.props.voltage + 'V';
     if (c.type === 'solenoid') return c.props.voltage + 'V';
     if (c.type === 'lamp') return c.props.wattage + 'W';
     if (c.type === 'diode') return c.props.forwardV + 'V';
-    if (c.type === 'npn') return 'β=' + c.props.beta;
+    if (c.type === 'npn') return '尾=' + c.props.beta;
     if (c.props.behavior === 'relay') return c.props.energized ? 'ON' : 'OFF';
     return '';
   },
@@ -1333,13 +1333,13 @@ const Renderer = {
       ctx.font = '7px monospace'; ctx.textAlign = 'center';
       ctx.fillText('+', 12, -4); ctx.fillText('-', -14, -4);
     } else if (c.type === 'switch' || c.type === 'spst') {
-      // SPST / 普通开关: 水平线进，闭合=直线，断开=斜线
+      // SPST / 鏅€氬紑鍏? 姘村钩绾胯繘锛岄棴鍚?鐩寸嚎锛屾柇寮€=鏂滅嚎
       ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(0, 0);
       if (c.props.closed) ctx.lineTo(18, 0); else ctx.lineTo(14, -12);
       ctx.stroke();
-      // 右端触点圆点
+      // 鍙崇瑙︾偣鍦嗙偣
       ctx.beginPath(); ctx.arc(18, 0, 2.5, 0, Math.PI * 2); ctx.fill();
-      // 左端触点圆点
+      // 宸︾瑙︾偣鍦嗙偣
       ctx.beginPath(); ctx.arc(-18, 0, 2.5, 0, Math.PI * 2); ctx.fill();
     } else if (c.type === 'spdt' || c.type === 'rotary') {
       ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(0, 0);
@@ -1390,14 +1390,14 @@ const Renderer = {
   },
 
   addComponent(def, x, y) {
-    if (S.components.length >= Config.maxComponents) { UI.toast('元件数量已达上限', 'warning'); return; }
+    if (S.components.length >= Config.maxComponents) { UI.toast('鍏冧欢鏁伴噺宸茶揪涓婇檺', 'warning'); return; }
     const comp = Registry.createInstance(def, x, y);
     S.components.push(comp);
     S.selected = comp.id;
     S.dirty = true;
     History.push({ type: 'add', comp: { ...comp } });
     UI.showProps(comp);
-    UI.toast('已添加: ' + comp.name, 'success');
+    UI.toast('宸叉坊鍔? ' + comp.name, 'success');
     render();
   },
 
@@ -1519,14 +1519,14 @@ const WireRouter = {
     if (!head) return;
 
     if (pin) {
-      // Clicked on a pin → complete the wire
+      // Clicked on a pin 鈫?complete the wire
       // But don't complete if it's the start pin itself
       if (pin.comp === this.startPin.comp && pin.pin === this.startPin.pin) return;
       this.complete({ comp: pin.comp, pin: pin.pin });
       return;
     }
 
-    // Clicked on blank space → add a waypoint
+    // Clicked on blank space 鈫?add a waypoint
     const constrained = this._constrainOrtho(head, canvasPos);
     // Only add waypoint if it actually moves from head
     if (Math.abs(constrained.x - head.x) > 1 || Math.abs(constrained.y - head.y) > 1) {
@@ -1575,7 +1575,7 @@ const WireRouter = {
       (w.from.comp === sp.comp && w.from.pin === sp.pin && w.to.comp === endPin.comp && w.to.pin === endPin.pin) ||
       (w.to.comp === sp.comp && w.to.pin === sp.pin && w.from.comp === endPin.comp && w.from.pin === endPin.pin)
     );
-    if (exists) { UI.toast('连线已存在', 'warning'); this.cancel(); return; }
+    if (exists) { UI.toast('杩炵嚎宸插瓨鍦?, 'warning'); this.cancel(); return; }
 
     const c1 = getComp(sp.comp), c2 = getComp(endPin.comp);
     const p1 = getPinPos(c1, sp.pin), p2 = getPinPos(c2, endPin.pin);
@@ -1596,7 +1596,7 @@ const WireRouter = {
     S.wires.push(wire);
     S.dirty = true;
     History.push({ type: 'wire', wire });
-    UI.toast('连线成功', 'success');
+    UI.toast('杩炵嚎鎴愬姛', 'success');
     this.cancel();
   },
 
@@ -1629,7 +1629,7 @@ const WireRouter = {
         hint = document.createElement('div');
         hint.id = 'deleteHint';
         hint.style.cssText = 'position:absolute;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(229,57,53,0.9);color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;pointer-events:none;z-index:10;';
-        hint.textContent = '点击附近的线即可删除，右键或按 Esc 取消';
+        hint.textContent = '鐐瑰嚮闄勮繎鐨勭嚎鍗冲彲鍒犻櫎锛屽彸閿垨鎸?Esc 鍙栨秷';
         document.getElementById('canvasArea').appendChild(hint);
       }
       hint.style.display = 'block';
@@ -1683,7 +1683,7 @@ const WireRouter = {
       S.wires.splice(idx, 1);
       S.dirty = true;
       History.push({ type: 'deleteWire', wire });
-      UI.toast('布线已删除', 'success');
+      UI.toast('甯冪嚎宸插垹闄?, 'success');
       render();
     }
   },
@@ -1802,7 +1802,7 @@ const WireRouter = {
     if (isXray) {
       flowColor = '#39d2c0'; glowColor = 'rgba(57,210,192,0.5)';
     } else {
-      // Yellow dashed flow — visible on both red and blue wires
+      // Yellow dashed flow 鈥?visible on both red and blue wires
       flowColor = '#FFD700'; glowColor = 'rgba(255,215,0,0.4)';
     }
 
@@ -1861,21 +1861,21 @@ const Engine = {
     const hint = document.getElementById('simHint');
 
     if (this.running) {
-      btn.innerHTML = '&#9632; 停止仿真';
+      btn.innerHTML = '&#9632; 鍋滄浠跨湡';
       btn.classList.add('running');
       dot.className = 'dot green';
-      status.textContent = '仿真运行中';
+      status.textContent = '浠跨湡杩愯涓?;
       status.style.color = 'var(--green)';
-      hint.textContent = '电路仿真已启动...';
+      hint.textContent = '鐢佃矾浠跨湡宸插惎鍔?..';
       S.simTime = 0;
       this.simLoop = requestAnimationFrame(() => this.loop());
     } else {
-      btn.innerHTML = '&#9654; 运行仿真';
+      btn.innerHTML = '&#9654; 杩愯浠跨湡';
       btn.classList.remove('running');
       dot.className = 'dot yellow';
-      status.textContent = '仿真已停止';
+      status.textContent = '浠跨湡宸插仠姝?;
       status.style.color = 'var(--yellow)';
-      hint.textContent = '点击"运行仿真"重新启动';
+      hint.textContent = '鐐瑰嚮"杩愯浠跨湡"閲嶆柊鍚姩';
       cancelAnimationFrame(this.simLoop);
       S.components.forEach(c => { c.simCurrent = 0; c.simVoltage = 0; c._fault = null; });
       S.wires.forEach(w => { w.current = 0; w._fault = false; });
@@ -1989,10 +1989,10 @@ const Engine = {
     // ==================== Component resistance & behavior ====================
     const getR = (comp) => {
       const t = comp.type;
-      if (t === 'battery' || t === 'ac_source' || t === 'dc_dc') return 0.1; // realistic internal R (~100mΩ)
+      if (t === 'battery' || t === 'ac_source' || t === 'dc_dc') return 0.1; // realistic internal R (~100m惟)
       if (t === 'resistor') return Math.max(0.1, comp.props.resistance || 1000);
-      if (t === 'led') return 1; // LED dynamic R ~1Ω when conducting (approximates If=20mA at Vf=2V)
-      if (t === 'diode') return 0.1; // diode ~0.1Ω forward resistance
+      if (t === 'led') return 1; // LED dynamic R ~1惟 when conducting (approximates If=20mA at Vf=2V)
+      if (t === 'diode') return 0.1; // diode ~0.1惟 forward resistance
       if (t === 'motor_dc') return Math.max(0.5, comp.props.resistance || 50);
       if (t === 'buzzer') return 80;
       if (t === 'solenoid') return Math.max(1, comp.props.resistance || 200);
@@ -2003,7 +2003,7 @@ const Engine = {
       if (t === 'capacitor') return 1e9; // DC steady state: open circuit (does NOT conduct)
       if (t === 'npn') return 500;
       if (t === 'relay5' || t === 'relay8' || t === 'contactor') return comp.props.coilResistance || 10;
-      if (t === 'switch' || t === 'spst' || t === 'breaker') return 0.05; // realistic contact resistance (~50mΩ)
+      if (t === 'switch' || t === 'spst' || t === 'breaker') return 0.05; // realistic contact resistance (~50m惟)
       if (t === 'push_no' || t === 'push_nc') return 0.05;
       if (t === 'spdt' || t === 'rotary') return 0.05;
       if (t === 'voltmeter') return comp.props.resistance || 1e6; // very high R, almost no current draw
@@ -2081,7 +2081,7 @@ const Engine = {
               newPathComps.push(compId);
             }
             // Only mark the entry pin as visited (not all pins of this component)
-            // This allows traversing internal edges within the same component (e.g., Lamp L→N)
+            // This allows traversing internal edges within the same component (e.g., Lamp L鈫扤)
             newVisitedPins.add(to);
           }
 
@@ -2146,7 +2146,7 @@ const Engine = {
       const paths = findAllPaths(posKey, negKey);
 
       if (paths.length === 0) {
-        document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
+        document.getElementById('simCurrent').textContent = '0.00 mA (鏂矾)';
         document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
         document.getElementById('simPower').textContent = '0.00 mW';
         return;
@@ -2167,7 +2167,7 @@ const Engine = {
       }).filter(p => p.R > 0 && p.R < 1e6);
 
       if (pathData.length === 0) {
-        document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
+        document.getElementById('simCurrent').textContent = '0.00 mA (鏂矾)';
         document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
         document.getElementById('simPower').textContent = '0.00 mW';
         return;
@@ -2196,17 +2196,17 @@ const Engine = {
       pathData.forEach(p => {
         const loadComps = p.comps.filter(id => id !== bat.id && isLoadComp(id));
         if (loadComps.length === 0 && p.R < 0.5) {
-          // Path has no load components and very low resistance → direct short
+          // Path has no load components and very low resistance 鈫?direct short
           hasDirectShort = true;
           shortPathCount++;
         }
       });
 
       if (hasDirectShort) {
-        faults.push({ type: 'short', msg: '检测到短路！电池正负极直接相连（无负载）', comp: '' });
-        document.getElementById('simCurrent').textContent = '∞ (短路)';
+        faults.push({ type: 'short', msg: '妫€娴嬪埌鐭矾锛佺數姹犳璐熸瀬鐩存帴鐩歌繛锛堟棤璐熻浇锛?, comp: '' });
+        document.getElementById('simCurrent').textContent = '鈭?(鐭矾)';
         document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
-        document.getElementById('simPower').textContent = '∞ mW';
+        document.getElementById('simPower').textContent = '鈭?mW';
         return;
       }
 
@@ -2285,7 +2285,7 @@ const Engine = {
           // 150% of rating trips the fuse
           comp.props.blown = true;
           comp._fault = 'blown';
-          faults.push({ type: 'warn', msg: `${comp.name} 熔断！电流 ${(comp.simCurrent).toFixed(1)}mA 超过 ${rating}A 额定值`, comp: comp.name });
+          faults.push({ type: 'warn', msg: `${comp.name} 鐔旀柇锛佺數娴?${(comp.simCurrent).toFixed(1)}mA 瓒呰繃 ${rating}A 棰濆畾鍊糮, comp: comp.name });
         }
       });
 
@@ -2295,7 +2295,7 @@ const Engine = {
         const maxI = comp.props.maxCurrent || Infinity;
         if (comp.simCurrent / 1000 > maxI) {
           comp._fault = 'overcurrent';
-          faults.push({ type: 'warn', msg: `${comp.name} 过流: ${(comp.simCurrent).toFixed(1)}mA > ${maxI}A`, comp: comp.name });
+          faults.push({ type: 'warn', msg: `${comp.name} 杩囨祦: ${(comp.simCurrent).toFixed(1)}mA > ${maxI}A`, comp: comp.name });
         }
       });
 
@@ -2314,7 +2314,7 @@ const Engine = {
     if (faults.length === 0) { panel.style.display = 'none'; return; }
     panel.style.display = 'block';
     content.innerHTML = faults.map(f =>
-      `<div class="fault-item ${f.type}"><span>${f.type === 'short' ? '⚠️' : '⚡'} ${f.msg}</span></div>`
+      `<div class="fault-item ${f.type}"><span>${f.type === 'short' ? '鈿狅笍' : '鈿?} ${f.msg}</span></div>`
     ).join('');
   }
 };
@@ -2400,18 +2400,18 @@ const Persistence = {
         nextWireId: S.nextWireId
       };
       localStorage.setItem('elecsim_v2_save', JSON.stringify(data));
-      UI.toast('已保存到浏览器', 'success');
+      UI.toast('宸蹭繚瀛樺埌娴忚鍣?, 'success');
       S.dirty = false;
-    } catch(e) { UI.toast('保存失败: ' + e.message, 'error'); }
+    } catch(e) { UI.toast('淇濆瓨澶辫触: ' + e.message, 'error'); }
   },
 
   load() {
     try {
       const raw = localStorage.getItem('elecsim_v2_save');
-      if (!raw) { UI.toast('没有找到保存的电路', 'warning'); return; }
+      if (!raw) { UI.toast('娌℃湁鎵惧埌淇濆瓨鐨勭數璺?, 'warning'); return; }
       this.loadCircuit(JSON.parse(raw));
-      UI.toast('已加载保存的电路', 'success');
-    } catch(e) { UI.toast('加载失败: ' + e.message, 'error'); }
+      UI.toast('宸插姞杞戒繚瀛樼殑鐢佃矾', 'success');
+    } catch(e) { UI.toast('鍔犺浇澶辫触: ' + e.message, 'error'); }
   },
 
   exportJSON() {
@@ -2428,7 +2428,7 @@ const Persistence = {
     a.href = url; a.download = 'elecsim_circuit.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    UI.toast('JSON已导出', 'success');
+    UI.toast('JSON宸插鍑?, 'success');
   },
 
   importJSON(file) {
@@ -2437,15 +2437,15 @@ const Persistence = {
     reader.onload = (e) => {
       try {
         this.loadCircuit(JSON.parse(e.target.result));
-        UI.toast('电路已导入', 'success');
-      } catch(err) { UI.toast('导入失败: 无效的JSON文件', 'error'); }
+        UI.toast('鐢佃矾宸插鍏?, 'success');
+      } catch(err) { UI.toast('瀵煎叆澶辫触: 鏃犳晥鐨凧SON鏂囦欢', 'error'); }
     };
     reader.readAsText(file);
     document.getElementById('importInput').value = '';
   },
 
   loadCircuit(data) {
-    if (data.version !== '2.0') { UI.toast('不兼容的版本', 'error'); return; }
+    if (data.version !== '2.0') { UI.toast('涓嶅吋瀹圭殑鐗堟湰', 'error'); return; }
     S.components = data.components || [];
     S.wires = data.wires || [];
     S.nextId = data.nextId || (S.components.length + 1);
@@ -2482,11 +2482,11 @@ const Templates = {
   buildTemplateList() {
     const list = document.getElementById('templateList');
     if (!list) return;
-    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--fg-muted);font-size:12px;">暂无模板<br><span style="font-size:11px;">后续可在此添加电路模板</span></div>';
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--fg-muted);font-size:12px;">鏆傛棤妯℃澘<br><span style="font-size:11px;">鍚庣画鍙湪姝ゆ坊鍔犵數璺ā鏉?/span></div>';
   },
 
   load(id) {
-    UI.toast('模板暂未配置，请等待后续更新', 'warning');
+    UI.toast('妯℃澘鏆傛湭閰嶇疆锛岃绛夊緟鍚庣画鏇存柊', 'warning');
   }
 };
 
@@ -2524,7 +2524,7 @@ const Recorder = {
     const expanded = document.getElementById('recPanelExpanded');
 
     if (!this.panelVisible) {
-      // Panel was hidden — show it
+      // Panel was hidden 鈥?show it
       this.panelVisible = true;
       panel.style.display = 'flex';
       if (this.isRecording) {
@@ -2537,19 +2537,19 @@ const Recorder = {
         expanded.style.display = 'flex';
       }
     } else {
-      // Panel was visible — toggle between collapsed/expanded (if recording), or hide (if not)
+      // Panel was visible 鈥?toggle between collapsed/expanded (if recording), or hide (if not)
       if (this.isRecording) {
         if (collapsed.style.display === 'flex') {
-          // Currently collapsed → expand
+          // Currently collapsed 鈫?expand
           collapsed.style.display = 'none';
           expanded.style.display = 'flex';
         } else {
-          // Currently expanded → collapse
+          // Currently expanded 鈫?collapse
           collapsed.style.display = 'flex';
           expanded.style.display = 'none';
         }
       } else {
-        // Not recording → hide panel
+        // Not recording 鈫?hide panel
         this.panelVisible = false;
         panel.style.display = 'none';
       }
@@ -2562,7 +2562,7 @@ const Recorder = {
     panel.style.display = 'flex';
     document.getElementById('recPanelCollapsed').style.display = 'none';
     document.getElementById('recPanelExpanded').style.display = 'flex';
-    if (!this.isRecording) this._setStatus('准备就绪', '');
+    if (!this.isRecording) this._setStatus('鍑嗗灏辩华', '');
   },
 
   hidePanel() {
@@ -2594,7 +2594,7 @@ const Recorder = {
     const fps = this.fps;
 
     // Create a hidden canvas that we render the circuit into, then capture from it.
-    // (video elements don't have getContext('2d') — only canvas elements do)
+    // (video elements don't have getContext('2d') 鈥?only canvas elements do)
     let recCanvas = document.getElementById('recCanvas');
     if (!recCanvas) {
       recCanvas = document.createElement('canvas');
@@ -2610,7 +2610,7 @@ const Recorder = {
     // Get 2D context for the recording canvas (canvas, not video!)
     const recCtx = recCanvas.getContext('2d');
 
-    // Continuous render RAF loop — runs at ~60fps to continuously:
+    // Continuous render RAF loop 鈥?runs at ~60fps to continuously:
     // 1. Force-render the circuit canvas (bypassing dirty flag so canvas pixels always update)
     // 2. Copy the freshly rendered canvas to our recording canvas
     // 3. captureStream() on the recording canvas then emits each new frame
@@ -2626,7 +2626,7 @@ const Recorder = {
           // Use explicit W/H to ensure 1:1 pixel copy (no interpolation artifacts)
           recCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
         }
-      } catch(e) { /* silent — canvas may not be ready yet */ }
+      } catch(e) { /* silent 鈥?canvas may not be ready yet */ }
       this._renderRafId = requestAnimationFrame(doRender);
     };
     this._renderRafId = requestAnimationFrame(doRender);
@@ -2644,7 +2644,7 @@ const Recorder = {
       stream = recCanvas.captureStream(fps);
     } catch(e) {
       cancelAnimationFrame(this._renderRafId);
-      UI.toast('当前浏览器不支持录屏', 'error');
+      UI.toast('褰撳墠娴忚鍣ㄤ笉鏀寔褰曞睆', 'error');
       return;
     }
 
@@ -2659,7 +2659,7 @@ const Recorder = {
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
       if (this.format === 'mp4') {
-        UI.toast('当前浏览器不支持 MP4，将导出 WebM 格式', 'warning');
+        UI.toast('褰撳墠娴忚鍣ㄤ笉鏀寔 MP4锛屽皢瀵煎嚭 WebM 鏍煎紡', 'warning');
       }
     }
 
@@ -2704,7 +2704,7 @@ const Recorder = {
     document.getElementById('recStopBtn').style.display = 'inline-flex';
     document.getElementById('recStartBtn').style.display = 'none';
 
-    UI.toast('后台录制已开始，可正常操作画布', 'success');
+    UI.toast('鍚庡彴褰曞埗宸插紑濮嬶紝鍙甯告搷浣滅敾甯?, 'success');
   },
 
   pause() {
@@ -2719,13 +2719,13 @@ const Recorder = {
       }
     }
     clearInterval(this.timerInterval);
-    document.getElementById('recPauseBtn').innerHTML = '&#9654; 继续';
+    document.getElementById('recPauseBtn').innerHTML = '&#9654; 缁х画';
     document.getElementById('recIndicator').classList.remove('recording');
     document.getElementById('recIndicator').classList.add('paused');
     // Switch to collapsed (minimal) view so paused status is visible
     document.getElementById('recPanelCollapsed').style.display = 'flex';
     document.getElementById('recPanelExpanded').style.display = 'none';
-    this._setStatus('已暂停 ' + this._fmtTime(this.elapsedTime), '#d29922');
+    this._setStatus('宸叉殏鍋?' + this._fmtTime(this.elapsedTime), '#d29922');
   },
 
   resume() {
@@ -2741,10 +2741,10 @@ const Recorder = {
       }
     }
     this._startTimer();
-    document.getElementById('recPauseBtn').innerHTML = '&#10074;&#10074; 暂停';
+    document.getElementById('recPauseBtn').innerHTML = '&#10074;&#10074; 鏆傚仠';
     document.getElementById('recIndicator').classList.add('recording');
     document.getElementById('recIndicator').classList.remove('paused');
-    this._setStatus('录制中', '#f85149');
+    this._setStatus('褰曞埗涓?, '#f85149');
   },
 
   stop() {
@@ -2768,7 +2768,7 @@ const Recorder = {
         if (this.mediaRecorder.state === 'paused') this.mediaRecorder.resume();
         this.mediaRecorder.stop();
         // Wait for final ondataavailable chunk before assembling blob
-        // Without this delay, the last chunk may not be collected → MOOV atom missing → can't seek
+        // Without this delay, the last chunk may not be collected 鈫?MOOV atom missing 鈫?can't seek
         clearInterval(this.timerInterval);
         const recorder = this.mediaRecorder;
         const self = this;
@@ -2781,7 +2781,7 @@ const Recorder = {
     // Restore toolbar buttons
     document.getElementById('recStartBtn').style.display = 'inline-flex';
     document.getElementById('recPauseBtn').style.display = 'none';
-    document.getElementById('recPauseBtn').innerHTML = '&#10074;&#10074; 暂停';
+    document.getElementById('recPauseBtn').innerHTML = '&#10074;&#10074; 鏆傚仠';
     document.getElementById('recStopBtn').style.display = 'none';
 
     this._updateUI(false);
@@ -2791,7 +2791,7 @@ const Recorder = {
     this.showPanel();
     document.getElementById('recPanelCollapsed').style.display = 'none';
     document.getElementById('recPanelExpanded').style.display = 'flex';
-    this._setStatus('录制完成，点击导出', '#3fb950');
+    this._setStatus('褰曞埗瀹屾垚锛岀偣鍑诲鍑?, '#3fb950');
   },
 
   toggle() {
@@ -2833,7 +2833,7 @@ const Recorder = {
     this.rafId = requestAnimationFrame(capture);
   },
 
-  _onVideoStop() {
+  async _onVideoStop() {
     if (this.chunks.length === 0) {
       UI.toast('录制失败，请重试', 'error');
       return;
@@ -2843,19 +2843,20 @@ const Recorder = {
       : 'video/webm';
     const webmBlob = new Blob(this.chunks, { type: mimeType });
 
-    // MP4 需要转码：先用 WebM 录，再转成 MP4
     if (this.format === 'mp4') {
-      this._convertToMp4(webmBlob);
+      await this._convertToMp4(webmBlob);
     } else {
-      this.currentBlob = webmBlob;
+      this._setStatus('处理视频seekability...', '');
+      const isWebM = mimeType.includes('webm');
+      this.currentBlob = await this._ensureSeekable(webmBlob, isWebM);
       this._showPreview();
     }
   },
 
   async _convertToMp4(webmBlob) {
-    this._setStatus('正在加载转码器...', '');
+    this._setStatus('姝ｅ湪鍔犺浇杞爜鍣?..', '');
     try {
-      // 动态加载 FFmpeg.wasm
+      // 鍔ㄦ€佸姞杞?FFmpeg.wasm
       if (!window.FFmpeg) {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js';
@@ -2866,13 +2867,13 @@ const Recorder = {
         this._ffmpeg = new FFmpeg();
         this._ffmpeg.on('log', ({ message }) => { /* silent */ });
         this._ffmpeg.on('progress', ({ progress }) => {
-          this._setStatus('正在转码: ' + Math.round(progress * 100) + '%', '');
+          this._setStatus('姝ｅ湪杞爜: ' + Math.round(progress * 100) + '%', '');
         });
         await this._ffmpeg.load({
           coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js'
         });
       }
-      this._setStatus('正在转码为 MP4...', '');
+      this._setStatus('姝ｅ湪杞爜涓?MP4...', '');
       const webmData = await webmBlob.arrayBuffer();
       await this._ffmpeg.writeFile('input.webm', new Uint8Array(webmData));
       await this._ffmpeg.exec([
@@ -2888,10 +2889,10 @@ const Recorder = {
       await this._ffmpeg.deleteFile('output.mp4');
       this.currentBlob = new Blob([mp4Data.buffer], { type: 'video/mp4' });
       this._showPreview();
-      this._setStatus('MP4 转码完成', '#3fb950');
+      this._setStatus('MP4 杞爜瀹屾垚', '#3fb950');
     } catch(e) {
-      console.error('MP4 转码失败:', e);
-      UI.toast('MP4 转码失败，将导出 WebM 格式', 'error');
+      console.error('MP4 杞爜澶辫触:', e);
+      UI.toast('MP4 杞爜澶辫触锛屽皢瀵煎嚭 WebM 鏍煎紡', 'error');
       this.currentBlob = webmBlob;
       this._showPreview();
     }
@@ -2899,7 +2900,7 @@ const Recorder = {
 
   _onGifStop() {
     if (this.gifFrames.length === 0) {
-      UI.toast('GIF 录制失败', 'error');
+      UI.toast('GIF 褰曞埗澶辫触', 'error');
       return;
     }
     this._generateGif();
@@ -2916,7 +2917,7 @@ const Recorder = {
       selectedFrames.push(frames[Math.min(i * skip, frames.length - 1)]);
     }
 
-    this._setStatus('正在生成 GIF...', '');
+    this._setStatus('姝ｅ湪鐢熸垚 GIF...', '');
 
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js';
@@ -2936,19 +2937,19 @@ const Recorder = {
       gif.on('finished', blob => {
         this.currentBlob = blob;
         this._showPreview();
-        this._setStatus('GIF 生成完成', '#3fb950');
+        this._setStatus('GIF 鐢熸垚瀹屾垚', '#3fb950');
       });
 
       gif.on('error', err => {
-        UI.toast('GIF 生成失败: ' + err, 'error');
-        this._setStatus('GIF 生成失败', '#f85149');
+        UI.toast('GIF 鐢熸垚澶辫触: ' + err, 'error');
+        this._setStatus('GIF 鐢熸垚澶辫触', '#f85149');
       });
 
       gif.render();
     };
     script.onerror = () => {
-      UI.toast('GIF 库加载失败，请检查网络连接', 'error');
-      this._setStatus('GIF 生成失败', '#f85149');
+      UI.toast('GIF 搴撳姞杞藉け璐ワ紝璇锋鏌ョ綉缁滆繛鎺?, 'error');
+      this._setStatus('GIF 鐢熸垚澶辫触', '#f85149');
     };
     document.head.appendChild(script);
   },
@@ -2966,7 +2967,7 @@ const Recorder = {
     document.getElementById('recExportBtn').disabled = false;
     const sizeKB = Math.round(this.currentBlob.size / 1024);
     const sizeStr = sizeKB > 1024 ? (sizeKB / 1024).toFixed(1) + ' MB' : sizeKB + ' KB';
-    this._setStatus('录制完成 (' + this._fmtTime(this.elapsedTime) + ', ' + sizeStr + ')', '#3fb950');
+    this._setStatus('褰曞埗瀹屾垚 (' + this._fmtTime(this.elapsedTime) + ', ' + sizeStr + ')', '#3fb950');
 
     // Show the preview modal
     document.getElementById('previewModal').classList.add('show');
@@ -2986,7 +2987,7 @@ const Recorder = {
     a.href = this.currentUrl || URL.createObjectURL(this.currentBlob);
     a.download = 'ElecSim_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.' + ext;
     a.click();
-    UI.toast('已导出: ' + a.download, 'success');
+    UI.toast('宸插鍑? ' + a.download, 'success');
   },
 
   closePreview() {
@@ -3000,11 +3001,11 @@ const Recorder = {
     this.closePreview();
     this.hidePanel();
     document.getElementById('recPreviewHint').style.display = '';
-    document.getElementById('recPreviewHint').textContent = '点击「开始录制」后将实时预览';
+    document.getElementById('recPreviewHint').textContent = '鐐瑰嚮銆屽紑濮嬪綍鍒躲€嶅悗灏嗗疄鏃堕瑙?;
     document.getElementById('recPreviewVideo').style.display = 'none';
     document.getElementById('recPreviewVideo').src = '';
     document.getElementById('recExportBtn').disabled = true;
-    this._setStatus('准备就绪', '');
+    this._setStatus('鍑嗗灏辩华', '');
   },
 
   _collapsePanel() {
@@ -3023,7 +3024,7 @@ const Recorder = {
       document.getElementById('recTime').textContent = t;
       const t2 = document.getElementById('recTime2');
       if (t2) t2.textContent = t;
-      this._setStatus('录制中 ' + t, '#f85149');
+      this._setStatus('褰曞埗涓?' + t, '#f85149');
     }, 100);
   },
 
@@ -3045,7 +3046,7 @@ const Recorder = {
     if (recording) {
       ind.classList.add('recording');
       ind.style.display = 'inline-flex';
-      this._setStatus('录制中 00:00', '#f85149');
+      this._setStatus('褰曞埗涓?00:00', '#f85149');
     } else {
       ind.classList.remove('recording');
       ind.style.display = 'none';
@@ -3064,6 +3065,46 @@ const Recorder = {
     if (this.isRecording && !this.isPaused) {
       Renderer.render();
     }
+  },
+
+  // Remux WebM -> seekable MP4 via mp4muxer
+  async _remuxToSeekableMp4(webmBlob) {
+    try {
+      this._setStatus('loading remux libs...', '');
+      const { Mp4Demuxer, Mp4Muxer } = await import('https://cdn.jsdelivr.net/npm/mp4muxer@4.2.1/dist/esm/mp4_muxer.js');
+
+      this._setStatus('remuxing to seekable MP4...', '');
+      let muxer = null;
+      const demuxer = new Mp4Demuxer({
+        onConfig: (config) => {
+          muxer = new Mp4Muxer({
+            target: 'container',
+            videoCodec: config.codec.substring(0, 3) === 'avc' ? 'avc' : 'hevc',
+            width: config.width,
+            height: config.height,
+          });
+        },
+        onSamples: (samples) => {
+          if (muxer) muxer.addVideoChunk({ samples });
+        },
+      });
+
+      const buf = await webmBlob.arrayBuffer();
+      demuxer.appendBuffer(buf);
+      demuxer.flush();
+
+      const { buffer } = muxer.finalize();
+      return new Blob([buffer], { type: 'video/mp4' });
+    } catch(e) {
+      console.error('Remux failed:', e);
+      return webmBlob;
+    }
+  },
+
+  // Wrap blob: ensure seekable by remuxing WebM to MP4
+  async _ensureSeekable(blob, isWebM) {
+    if (!isWebM) return blob;
+    return this._remuxToSeekableMp4(blob);
   }
 };
 
@@ -3135,30 +3176,30 @@ const UI = {
       content.appendChild(row);
     };
 
-    makeRow('名称', 'name', comp.name, 'text');
+    makeRow('鍚嶇О', 'name', comp.name, 'text');
 
     // Type-specific properties
-    if (comp.type === 'resistor') makeRow('阻值 (Ω)', 'resistance', comp.props.resistance);
-    else if (comp.type === 'capacitor') makeRow('容值 (μF)', 'capacitance', comp.props.capacitance);
-    else if (comp.type === 'inductor') makeRow('电感 (mH)', 'inductance', comp.props.inductance);
-    else if (comp.type === 'battery' || comp.type === 'ac_source') makeRow('电压 (V)', 'voltage', comp.props.voltage);
-    else if (comp.type === 'dc_dc') { makeRow('输入 (V)', 'inputV', comp.props.inputV); makeRow('输出 (V)', 'outputV', comp.props.outputV); }
+    if (comp.type === 'resistor') makeRow('闃诲€?(惟)', 'resistance', comp.props.resistance);
+    else if (comp.type === 'capacitor') makeRow('瀹瑰€?(渭F)', 'capacitance', comp.props.capacitance);
+    else if (comp.type === 'inductor') makeRow('鐢垫劅 (mH)', 'inductance', comp.props.inductance);
+    else if (comp.type === 'battery' || comp.type === 'ac_source') makeRow('鐢靛帇 (V)', 'voltage', comp.props.voltage);
+    else if (comp.type === 'dc_dc') { makeRow('杈撳叆 (V)', 'inputV', comp.props.inputV); makeRow('杈撳嚭 (V)', 'outputV', comp.props.outputV); }
     else if (comp.type === 'led') {
-      makeRow('正向压降 (V)', 'forwardV', comp.props.forwardV);
+      makeRow('姝ｅ悜鍘嬮檷 (V)', 'forwardV', comp.props.forwardV);
       const row = document.createElement('div'); row.className = 'prop-row';
-      row.innerHTML = `<span class="label">颜色</span><input type="color" value="${comp.props.color || '#ff4444'}" style="width:40px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer;">`;
+      row.innerHTML = `<span class="label">棰滆壊</span><input type="color" value="${comp.props.color || '#ff4444'}" style="width:40px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer;">`;
       row.querySelector('input').addEventListener('input', e => { comp.props.color = e.target.value; render(); });
       content.appendChild(row);
     }
     else if (comp.type === 'switch' || comp.type === 'spst' || comp.type === 'breaker') {
       const row = document.createElement('div'); row.className = 'prop-row';
-      row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.closed ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.closed ? '闭合 ON' : '断开 OFF'}</button>`;
+      row.innerHTML = `<span class="label">鐘舵€?/span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.closed ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.closed ? '闂悎 ON' : '鏂紑 OFF'}</button>`;
       row.querySelector('button').addEventListener('click', () => { comp.props.closed = !comp.props.closed; S.dirty = true; this.showProps(comp); render(); });
       content.appendChild(row);
     }
     else if (comp.type === 'spdt' || comp.type === 'rotary') {
       const row = document.createElement('div'); row.className = 'prop-row';
-      row.innerHTML = `<span class="label">拨向</span><div style="display:flex;gap:4px;"><button class="tbtn" style="font-size:10px;padding:2px 10px;${comp.props.position === 1 ? 'border-color:var(--green);color:var(--green);background:rgba(63,185,80,0.1);' : ''}" data-pos="1">触点 1</button><button class="tbtn" style="font-size:10px;padding:2px 10px;${comp.props.position === 2 ? 'border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,0.1);' : ''}" data-pos="2">触点 2</button></div>`;
+      row.innerHTML = `<span class="label">鎷ㄥ悜</span><div style="display:flex;gap:4px;"><button class="tbtn" style="font-size:10px;padding:2px 10px;${comp.props.position === 1 ? 'border-color:var(--green);color:var(--green);background:rgba(63,185,80,0.1);' : ''}" data-pos="1">瑙︾偣 1</button><button class="tbtn" style="font-size:10px;padding:2px 10px;${comp.props.position === 2 ? 'border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,0.1);' : ''}" data-pos="2">瑙︾偣 2</button></div>`;
       row.querySelectorAll('button').forEach(btn => {
         btn.addEventListener('click', () => { comp.props.position = parseInt(btn.dataset.pos); S.dirty = true; this.showProps(comp); render(); });
       });
@@ -3166,56 +3207,56 @@ const UI = {
     }
     else if (comp.type === 'push_no' || comp.type === 'push_nc') {
       const row = document.createElement('div'); row.className = 'prop-row';
-      row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.pressed ? 'border-color:var(--yellow);color:var(--yellow);' : ''}">${comp.props.pressed ? '按下' : '释放'}</button>`;
+      row.innerHTML = `<span class="label">鐘舵€?/span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.pressed ? 'border-color:var(--yellow);color:var(--yellow);' : ''}">${comp.props.pressed ? '鎸変笅' : '閲婃斁'}</button>`;
       row.querySelector('button').addEventListener('click', () => { comp.props.pressed = !comp.props.pressed; S.dirty = true; this.showProps(comp); render(); });
       content.appendChild(row);
     }
     else if (comp.type === 'fuse') {
-      makeRow('额定 (A)', 'rating', comp.props.rating);
+      makeRow('棰濆畾 (A)', 'rating', comp.props.rating);
       const row = document.createElement('div'); row.className = 'prop-row';
-      row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.blown ? 'border-color:var(--red);color:var(--red);' : ''}">${comp.props.blown ? '熔断' : '正常'}</button>`;
+      row.innerHTML = `<span class="label">鐘舵€?/span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.blown ? 'border-color:var(--red);color:var(--red);' : ''}">${comp.props.blown ? '鐔旀柇' : '姝ｅ父'}</button>`;
       row.querySelector('button').addEventListener('click', () => { comp.props.blown = !comp.props.blown; S.dirty = true; this.showProps(comp); render(); });
       content.appendChild(row);
     }
     else if (comp.type === 'relay5' || comp.type === 'relay8' || comp.type === 'contactor') {
-      makeRow('线圈电压 (V)', 'coilVoltage', comp.props.coilVoltage);
+      makeRow('绾垮湀鐢靛帇 (V)', 'coilVoltage', comp.props.coilVoltage);
       const row = document.createElement('div'); row.className = 'prop-row';
-      row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.energized ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.energized ? '吸合' : '释放'}</button>`;
+      row.innerHTML = `<span class="label">鐘舵€?/span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.energized ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.energized ? '鍚稿悎' : '閲婃斁'}</button>`;
       row.querySelector('button').addEventListener('click', () => { comp.props.energized = !comp.props.energized; S.dirty = true; this.showProps(comp); render(); });
       content.appendChild(row);
     }
-    else if (comp.type === 'motor_dc') makeRow('电压 (V)', 'voltage', comp.props.voltage);
-    else if (comp.type === 'buzzer') makeRow('电压 (V)', 'voltage', comp.props.voltage);
-    else if (comp.type === 'solenoid') makeRow('电压 (V)', 'voltage', comp.props.voltage);
+    else if (comp.type === 'motor_dc') makeRow('鐢靛帇 (V)', 'voltage', comp.props.voltage);
+    else if (comp.type === 'buzzer') makeRow('鐢靛帇 (V)', 'voltage', comp.props.voltage);
+    else if (comp.type === 'solenoid') makeRow('鐢靛帇 (V)', 'voltage', comp.props.voltage);
     else if (comp.type === 'lamp') {
-      makeRow('额定电压 (V)', 'voltage', comp.props.voltage);
-      makeRow('额定功率 (W)', 'wattage', comp.props.wattage);
-      // 热态电阻 R = V²/P，由以上两值自动计算，不可编辑
+      makeRow('棰濆畾鐢靛帇 (V)', 'voltage', comp.props.voltage);
+      makeRow('棰濆畾鍔熺巼 (W)', 'wattage', comp.props.wattage);
+      // 鐑€佺數闃?R = V虏/P锛岀敱浠ヤ笂涓ゅ€艰嚜鍔ㄨ绠楋紝涓嶅彲缂栬緫
       const hotR = Math.max(1, (comp.props.voltage*comp.props.voltage)/(comp.props.wattage||1)).toFixed(1);
       const row = document.createElement('div'); row.className = 'prop-row';
-      row.innerHTML = `<span class="label">热态电阻 (Ω)</span><span style="color:var(--yellow);font-size:11px">${hotR}</span>`;
+      row.innerHTML = `<span class="label">鐑€佺數闃?(惟)</span><span style="color:var(--yellow);font-size:11px">${hotR}</span>`;
       content.appendChild(row);
     }
-    else if (comp.type === 'indicator') makeRow('正向压降 (V)', 'forwardV', comp.props.forwardV);
-    else if (comp.type === 'diode') makeRow('正向压降 (V)', 'forwardV', comp.props.forwardV);
-    else if (comp.type === 'npn') makeRow('放大倍数', 'beta', comp.props.beta);
+    else if (comp.type === 'indicator') makeRow('姝ｅ悜鍘嬮檷 (V)', 'forwardV', comp.props.forwardV);
+    else if (comp.type === 'diode') makeRow('姝ｅ悜鍘嬮檷 (V)', 'forwardV', comp.props.forwardV);
+    else if (comp.type === 'npn') makeRow('鏀惧ぇ鍊嶆暟', 'beta', comp.props.beta);
     else if (comp.props.behavior === 'relay') {
       const row = document.createElement('div'); row.className = 'prop-row';
-      row.innerHTML = `<span class="label">继电器</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.energized ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.energized ? 'ON' : 'OFF'}</button>`;
+      row.innerHTML = `<span class="label">缁х數鍣?/span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.energized ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.energized ? 'ON' : 'OFF'}</button>`;
       row.querySelector('button').addEventListener('click', () => { comp.props.energized = !comp.props.energized; S.dirty = true; this.showProps(comp); render(); });
       content.appendChild(row);
     }
 
     // Delete button
     const del = document.createElement('div'); del.style.marginTop = '10px'; del.style.textAlign = 'right';
-    del.innerHTML = `<button class="btn-danger" style="font-size:10px;">删除元件</button>`;
+    del.innerHTML = `<button class="btn-danger" style="font-size:10px;">鍒犻櫎鍏冧欢</button>`;
     del.querySelector('button').addEventListener('click', () => {
       const removed = S.components.find(c => c.id === comp.id);
       History.push({ type: 'remove', comp: { ...removed } });
       S.components = S.components.filter(c => c.id !== comp.id);
       WireRouter.removeWiresForComp(comp.id);
       S.selected = null; this.hideProps();
-      this.toast('已删除: ' + comp.name, 'success');
+      this.toast('宸插垹闄? ' + comp.name, 'success');
       S.dirty = true;
       render();
     });
@@ -3233,19 +3274,19 @@ const UI = {
 
     if (comp) {
       const items = [
-        { label: '📋 属性', action: () => { UI.showProps(comp); } },
-        { label: '📋 复制', action: () => {
+        { label: '馃搵 灞炴€?, action: () => { UI.showProps(comp); } },
+        { label: '馃搵 澶嶅埗', action: () => {
           const def = Registry.getDef(comp.type) || { type: comp.type, name: comp.name, cat: comp.cat, icon: comp.icon, w: comp.w, h: comp.h, pins: comp.pins, props: comp.props };
           Renderer.addComponent(def, comp.x + 30, comp.y + 30);
         }},
         { sep: true },
-        { label: '🗑️ 删除', cls: 'danger', action: () => {
+        { label: '馃棏锔?鍒犻櫎', cls: 'danger', action: () => {
           const removed = S.components.find(c => c.id === comp.id);
           History.push({ type: 'remove', comp: { ...removed } });
           S.components = S.components.filter(c => c.id !== comp.id);
           WireRouter.removeWiresForComp(comp.id);
           S.selected = null; UI.hideProps();
-          UI.toast('已删除: ' + comp.name, 'success');
+          UI.toast('宸插垹闄? ' + comp.name, 'success');
           S.dirty = true;
           render();
         }}
@@ -3312,10 +3353,10 @@ function onMouseDown(e) {
 
   if (WireRouter.isActive()) {
     if (pin) {
-      // Clicked on a pin → complete the wire
+      // Clicked on a pin 鈫?complete the wire
       WireRouter.complete({ comp: pin.comp, pin: pin.pin });
     } else {
-      // Clicked on blank space → add waypoint (fix current segment)
+      // Clicked on blank space 鈫?add waypoint (fix current segment)
       WireRouter.routeClick(pos);
     }
     return;
@@ -3327,7 +3368,7 @@ function onMouseDown(e) {
     if (wire) {
       WireRouter.deleteWire(wire);
     } else {
-      // Clicked on empty space → cancel delete mode
+      // Clicked on empty space 鈫?cancel delete mode
       WireRouter.toggleDeleteMode();
     }
     return;
@@ -3437,7 +3478,7 @@ function onKeyDown(e) {
         S.components = S.components.filter(c => c.id !== comp.id);
         WireRouter.removeWiresForComp(comp.id);
         S.selected = null; UI.hideProps();
-        UI.toast('已删除: ' + comp.name, 'success');
+        UI.toast('宸插垹闄? ' + comp.name, 'success');
         S.dirty = true;
         render();
       }
@@ -3492,7 +3533,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
 }
-function formatR(r) { return r >= 1e6 ? (r / 1e6) + 'MΩ' : r >= 1e3 ? (r / 1e3) + 'kΩ' : r + 'Ω'; }
+function formatR(r) { return r >= 1e6 ? (r / 1e6) + 'M惟' : r >= 1e3 ? (r / 1e3) + 'k惟' : r + '惟'; }
 function getPointOnPath(points, dist) {
   let remaining = dist;
   for (let i = 0; i < points.length - 1; i++) {
@@ -3676,7 +3717,7 @@ function init() {
   Persistence.startAutoSave();
 
   // Start with empty canvas (no default template)
-  UI.toast('就绪 | 从左侧元件库拖放元件，或从模板库加载', 'success');
+  UI.toast('灏辩华 | 浠庡乏渚у厓浠跺簱鎷栨斁鍏冧欢锛屾垨浠庢ā鏉垮簱鍔犺浇', 'success');
 }
 
 function buildLibrary() {
@@ -3712,15 +3753,15 @@ function buildLibrary() {
   if (qiachipDefs.length > 0) {
     const catEl = document.createElement('div');
     catEl.className = 'comp-cat';
-    catEl.style.color = Config.categoryColors['QIACHIP产品'];
-    catEl.textContent = 'QIACHIP产品';
+    catEl.style.color = Config.categoryColors['QIACHIP浜у搧'];
+    catEl.textContent = 'QIACHIP浜у搧';
     list.appendChild(catEl);
 
     qiachipDefs.forEach(item => {
       const el = document.createElement('div');
       el.className = 'comp-item';
       el.draggable = true;
-      el.innerHTML = `<div class="comp-icon">${item.icon || '📡'}</div><div class="comp-info"><div class="comp-name">${item.name}</div><div class="comp-desc">${item.desc}</div></div>`;
+      el.innerHTML = `<div class="comp-icon">${item.icon || '馃摗'}</div><div class="comp-info"><div class="comp-name">${item.name}</div><div class="comp-desc">${item.desc}</div></div>`;
       el.addEventListener('dragstart', e => {
         e.dataTransfer.setData('text/plain', JSON.stringify(item));
       });
