@@ -499,6 +499,7 @@ const S = {
   selected: null,
   simRunning: false,
   simTime: 0,
+  animTick: 0,
   zoom: 1,
   pan: { x: 0, y: 0 },
   dragging: null,
@@ -995,6 +996,7 @@ function screenToCanvas(sx, sy) {
 
 const Renderer = {
   render() {
+    S.animTick++;
     ctx.clearRect(0, 0, W, H);
     // Recording mode: pure white background, no grid
     if (S.recording) {
@@ -1795,19 +1797,19 @@ const WireRouter = {
       flowColor = baseColor; glowColor = hexToRGBA(baseColor, 0.3);
     }
 
-    const dashLen = 18, gapLen = 22, patternLen = dashLen + gapLen;
+    const dashLen = 18, gapLen = 22;
 
     ctx.save();
     ctx.lineCap = 'butt';
     ctx.lineWidth = 4;
 
-    // Flow direction: animate dash offset (negative = forward)
+    // Flow direction: animate dash offset using frame counter (negative = forward)
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
     ctx.strokeStyle = flowColor;
     ctx.setLineDash([dashLen, gapLen]);
-    ctx.lineDashOffset = -(Date.now() * speed / 35);
+    ctx.lineDashOffset = -(S.animTick * speed * 0.6);
     ctx.shadowColor = glowColor;
     ctx.shadowBlur = 5;
     ctx.stroke();
