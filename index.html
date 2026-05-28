@@ -998,14 +998,26 @@ const Renderer = {
   render() {
     S.animTick++;
     ctx.clearRect(0, 0, W, H);
-    // Recording mode: solid background (#dddddd), no grid
+    // Recording mode: solid background (#7b7b7b) with grid
     if (S.recording) {
-      ctx.fillStyle = '#dddddd';
+      ctx.fillStyle = '#7b7b7b';
       ctx.fillRect(0, 0, W, H);
       ctx.save();
       ctx.translate(S.pan.x, S.pan.y);
       ctx.scale(S.zoom, S.zoom);
-      // Draw wires and components only — no grid during recording
+      // Grid: light gray, 40% opacity
+      const g = S.grid;
+      const startX = Math.floor(-S.pan.x / S.zoom / g) * g;
+      const startY = Math.floor(-S.pan.y / S.zoom / g) * g;
+      const endX = startX + W / S.zoom + g * 2;
+      const endY = startY + H / S.zoom + g * 2;
+      ctx.strokeStyle = 'rgba(200,200,200,0.4)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      for (let x = startX; x < endX; x += g) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
+      for (let y = startY; y < endY; y += g) { ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
+      ctx.stroke();
+      // Draw wires and components
       WireRouter.drawWires();
       this.drawComponents();
       if (WireRouter.isActive()) WireRouter.drawTempWire();
