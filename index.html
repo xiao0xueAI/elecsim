@@ -1779,42 +1779,40 @@ const WireRouter = {
   },
 
   drawCurrentFlow(points, current, wireColor) {
-    const speed = Math.min(Math.abs(current) / 5, 3);
-    const particleCount = Math.ceil(Math.abs(current) / 3);
+    if (!points || points.length < 2) return;
+    const speed = Math.min(Math.abs(current) / 4, 5);
     const isXray = S.viewMode === 'xray';
-    const color = isXray ? '#39d2c0' : (wireColor || '#58a6ff');
+    const baseColor = isXray ? '#39d2c0' : (wireColor || '#e53935');
 
-    let totalLen = 0;
-    for (let i = 1; i < points.length; i++) {
-      totalLen += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+    let flowColor, glowColor;
+    if (isXray) {
+      flowColor = '#39d2c0'; glowColor = 'rgba(57,210,192,0.5)';
+    } else if (wireColor === '#e53935' || wireColor === '#c62828') {
+      flowColor = '#ff1744'; glowColor = '#ffcdd2';
+    } else if (wireColor === '#1e88e5' || wireColor === '#1565c0') {
+      flowColor = '#2979ff'; glowColor = '#bbdefb';
+    } else {
+      flowColor = baseColor; glowColor = hexToRGBA(baseColor, 0.3);
     }
 
-    for (let i = 0; i < particleCount; i++) {
-      const t = ((Date.now() * speed / 1000 + i / Math.max(particleCount, 1)) % 1);
-      const dist = t * totalLen;
-      const pt = getPointOnPath(points, dist);
+    const dashLen = 18, gapLen = 22, patternLen = dashLen + gapLen;
 
-      // Glowing particle with 3D effect
-      ctx.save();
-      // Outer glow
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = hexToRGBA(isXray ? '#39d2c0' : color, 0.2);
-      ctx.fill();
-      // Main particle
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = isXray ? '#39d2c0' : color;
-      ctx.shadowColor = isXray ? '#39d2c0' : color;
-      ctx.shadowBlur = 8;
-      ctx.fill();
-      // Bright center
-      ctx.beginPath();
-      ctx.arc(pt.x - 0.5, pt.y - 0.5, 1.2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fill();
-      ctx.restore();
-    }
+    ctx.save();
+    ctx.lineCap = 'butt';
+    ctx.lineWidth = 4;
+
+    // Flow direction: animate dash offset (negative = forward)
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    ctx.strokeStyle = flowColor;
+    ctx.setLineDash([dashLen, gapLen]);
+    ctx.lineDashOffset = -(Date.now() * speed / 35);
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 5;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
   },
 
   isPinConnected(compId, pinId) {
