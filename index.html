@@ -998,9 +998,9 @@ const Renderer = {
   render() {
     S.animTick++;
     ctx.clearRect(0, 0, W, H);
-    // Recording mode: pure white background, no grid
+    // Recording mode: solid background (#dddddd), no grid
     if (S.recording) {
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#dddddd';
       ctx.fillRect(0, 0, W, H);
       ctx.save();
       ctx.translate(S.pan.x, S.pan.y);
@@ -1789,12 +1789,9 @@ const WireRouter = {
     let flowColor, glowColor;
     if (isXray) {
       flowColor = '#39d2c0'; glowColor = 'rgba(57,210,192,0.5)';
-    } else if (wireColor === '#e53935' || wireColor === '#c62828') {
-      flowColor = '#ff1744'; glowColor = '#ffcdd2';
-    } else if (wireColor === '#1e88e5' || wireColor === '#1565c0') {
-      flowColor = '#2979ff'; glowColor = '#bbdefb';
     } else {
-      flowColor = baseColor; glowColor = hexToRGBA(baseColor, 0.3);
+      // Yellow dashed flow — visible on both red and blue wires
+      flowColor = '#FFD700'; glowColor = 'rgba(255,215,0,0.4)';
     }
 
     const dashLen = 18, gapLen = 22;
@@ -1809,7 +1806,7 @@ const WireRouter = {
     for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
     ctx.strokeStyle = flowColor;
     ctx.setLineDash([dashLen, gapLen]);
-    ctx.lineDashOffset = -(S.animTick * speed * 0.6);
+    ctx.lineDashOffset = -(S.animTick * speed * 0.15);
     ctx.shadowColor = glowColor;
     ctx.shadowBlur = 5;
     ctx.stroke();
