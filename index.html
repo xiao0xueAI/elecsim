@@ -1796,15 +1796,9 @@ const WireRouter = {
     if (!points || points.length < 2) return;
     const speed = Math.min(Math.abs(current) / 4, 5);
     const isXray = S.viewMode === 'xray';
-    const baseColor = isXray ? '#39d2c0' : (wireColor || '#e53935');
 
-    let flowColor, glowColor;
-    if (isXray) {
-      flowColor = '#39d2c0'; glowColor = 'rgba(57,210,192,0.5)';
-    } else {
-      // Yellow dashed flow — visible on both red and blue wires
-      flowColor = '#FFD700'; glowColor = 'rgba(255,215,0,0.4)';
-    }
+    // Yellow dashed flow in normal mode, cyan in X-ray
+    const flowColor = isXray ? '#39d2c0' : '#FFD700';
 
     const dashLen = 18, gapLen = 22;
 
@@ -1819,8 +1813,6 @@ const WireRouter = {
     ctx.strokeStyle = flowColor;
     ctx.setLineDash([dashLen, gapLen]);
     ctx.lineDashOffset = -(S.animTick * speed * 0.15);
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 5;
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
@@ -1892,7 +1884,9 @@ const Engine = {
     if (!this.running) return;
     S.simTime += 0.016;
     document.getElementById('simTime').textContent = S.simTime.toFixed(2) + ' s';
-    this.solve();
+    // Throttle solve to every 4 frames (~15fps) — electrical quantities don't need 60Hz updates
+    this._solveFrame = (this._solveFrame || 0) + 1;
+    if (this._solveFrame >= 4) { this._solveFrame = 0; this.solve(); }
     render();
     this.simLoop = requestAnimationFrame(() => this.loop());
   },
