@@ -1827,56 +1827,23 @@ const WireRouter = {
     ctx.stroke();
     ctx.restore();
 
-    // === Layer 2: Dashed animated flow (base) ===
+    // === Layer 2: Animated dashed flow (base) ===
     ctx.save();
     ctx.lineCap = 'butt';
     ctx.lineWidth = 3;
-    const dashLen = 14, gapLen = 24;
+    const dashLen = 12, gapLen = 20;
     ctx.beginPath();
     ctx.moveTo(flowPoints[0].x, flowPoints[0].y);
     for (let i = 1; i < flowPoints.length; i++) ctx.lineTo(flowPoints[i].x, flowPoints[i].y);
     ctx.strokeStyle = flowColor;
     ctx.setLineDash([dashLen, gapLen]);
-    ctx.lineDashOffset = -(S.animTick * speed * 0.15);
+    ctx.lineDashOffset = -(S.animTick * speed * 0.18);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
 
-    // === Layer 3: Flowing particles ===
-    const totalLen = this._calcPathLength(flowPoints);
-    if (totalLen > 0) {
-      const numParticles = Math.min(Math.floor(Math.abs(current) / 2) + 3, 12);
-      const t = (S.animTick * speed * 0.05) % 1; // 0-1 cycle
-
-      ctx.save();
-      for (let p = 0; p < numParticles; p++) {
-        const dist = ((p / numParticles + t) % 1) * totalLen;
-        const pos = this._getPointAtDist(flowPoints, dist);
-        const pulse = 0.5 + 0.5 * Math.sin((S.animTick * 0.12) + p * 1.2);
-        const particleR = 2.5 + pulse * 1.5;
-        const alpha = 0.6 + 0.4 * pulse;
-
-        // Glow
-        const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, particleR * 3);
-        grad.addColorStop(0, `rgba(${Math.min(255, r + 120)}, ${Math.min(255, g + 120)}, ${Math.min(255, b + 120)}, ${alpha})`);
-        grad.addColorStop(0.4, `rgba(${Math.min(255, r + 80)}, ${Math.min(255, g + 80)}, ${Math.min(255, b + 80)}, ${alpha * 0.5})`);
-        grad.addColorStop(1, `rgba(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)}, 0)`);
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, particleR * 3, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        // Core dot (bright center)
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, particleR, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        ctx.fill();
-      }
-      ctx.restore();
-    }
-
-    // === Layer 4: Direction arrows ===
-    this._drawFlowArrows(flowPoints, flowColor, r, g, b);
+    // === Layer 3: Flowing arrows (moving along wire path) ===
+    this._drawFlowingArrows(flowPoints, flowColor, r, g, b, speed);
   },
 
   // Determine if current in wire actually flows from points[last] to points[0]
@@ -1938,77 +1905,96 @@ const WireRouter = {
     return points[points.length - 1];
   },
 
-  // Draw direction arrows along the wire path
-  _drawFlowArrows(points, flowColor, r, g, b) {
+  // Draw arrows that continuously flow/move along the wire path
+  _drawFlowingArrows(points, flowColor, r, g, b, speed) {
     const totalLen = this._calcPathLength(points);
-    if (totalLen < 40) return; // Skip for very short wires
+    if (totalLen < 30) return;
 
-    const arrowSpacing = Math.max(40, totalLen / Math.min(Math.floor(totalLen / 40), 6));
-    const numArrows = Math.floor(totalLen / arrowSpacing);
-    const t = (S.animTick * 0.04) % 1;
+    // Number of arrows based on wire length; each arrow travels full path
+    const arrowSpacing = 35; // px between arrows
+    const numArrows = Math.max(2, Math.floor(totalLen / arrowSpacing));
+
+    // All arrows move at the same speed, offset by their phase
+    const cycleLen = totalLen + arrowSpacing; // full cycle (start→end + reset gap)
+    const t = (S.animTick * speed * 0.6) % cycleLen; // distance traveled in px
 
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
     for (let i = 0; i < numArrows; i++) {
-      const phase = (i / numArrows + t) % 1;
-      const alpha = 0.3 + 0.5 * Math.sin(phase * Math.PI);
-      const dist = phase * totalLen;
+      // Each arrow is offset by its index * spacing
+      const offset = i * arrowSpacing;
+      const dist = (t + offset) % cycleLen;
+
+      // Skip arrow if in the "reset gap" (after end of wire)
+      if (dist > totalLen) continue;
+
       const pos = this._getPointAtDist(points, dist);
 
-      // Find direction (tangent) at this point
-      let dirAngle = 0;
-      let cumLen = 0;
-      for (let j = 0; j < points.length - 1; j++) {
-        const segLen = Math.hypot(points[j + 1].x - points[j].x, points[j + 1].y - points[j].y);
-        if (cumLen + segLen >= dist) {
-          const localT = (dist - cumLen) / Math.max(segLen, 0.01);
-          const dx = points[j + 1].x - points[j].x;
-          const dy = points[j + 1].y - points[j].y;
-          dirAngle = Math.atan2(dy, dx);
-          break;
-        }
-        cumLen += segLen;
-      }
+      // Fade in at start, fade out at end of wire
+      const fadeLen = arrowSpacing * 0.8;
+      let alpha = 1;
+      if (dist < fadeLen) alpha = dist / fadeLen;
+      else if (dist > totalLen - fadeLen) alpha = (totalLen - dist) / fadeLen;
+      alpha = Math.max(0.15, Math.min(1, alpha));
+
+      // Find tangent direction at this point
+      const dirAngle = this._getTangentAngle(points, dist);
 
       const arrowSize = 5;
-      const perpAngle = dirAngle + Math.PI / 2;
 
-      // Arrow body (line in direction of flow)
+      // Glow behind arrow
+      ctx.shadowColor = flowColor;
+      ctx.shadowBlur = 10 * alpha;
       ctx.beginPath();
-      ctx.moveTo(pos.x - Math.cos(dirAngle) * arrowSize * 0.6, pos.y - Math.sin(dirAngle) * arrowSize * 0.6);
-      ctx.lineTo(pos.x + Math.cos(dirAngle) * arrowSize * 0.6, pos.y + Math.sin(dirAngle) * arrowSize * 0.6);
-      ctx.strokeStyle = `rgba(${Math.min(255, r + 130)}, ${Math.min(255, g + 130)}, ${Math.min(255, b + 130)}, ${alpha})`;
+      ctx.arc(pos.x, pos.y, arrowSize * 2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${Math.min(255, r + 80)}, ${Math.min(255, g + 80)}, ${Math.min(255, b + 80)}, ${alpha * 0.3})`;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Arrow shaft (short line in flow direction)
+      ctx.beginPath();
+      ctx.moveTo(pos.x - Math.cos(dirAngle) * arrowSize * 0.8, pos.y - Math.sin(dirAngle) * arrowSize * 0.8);
+      ctx.lineTo(pos.x + Math.cos(dirAngle) * arrowSize * 0.4, pos.y + Math.sin(dirAngle) * arrowSize * 0.4);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
       ctx.lineWidth = 1.8;
       ctx.stroke();
 
       // Arrow head (triangle)
-      const ax1 = pos.x + Math.cos(dirAngle) * arrowSize * 0.6;
-      const ay1 = pos.y + Math.sin(dirAngle) * arrowSize * 0.6;
-      const ax2 = pos.x + Math.cos(dirAngle - 2.5) * arrowSize * 0.55;
-      const ay2 = pos.y + Math.sin(dirAngle - 2.5) * arrowSize * 0.55;
-      const ax3 = pos.x + Math.cos(dirAngle + 2.5) * arrowSize * 0.55;
-      const ay3 = pos.y + Math.sin(dirAngle + 2.5) * arrowSize * 0.55;
+      const ax1 = pos.x + Math.cos(dirAngle) * arrowSize * 0.5;
+      const ay1 = pos.y + Math.sin(dirAngle) * arrowSize * 0.5;
+      const ax2 = pos.x + Math.cos(dirAngle - 2.4) * arrowSize * 0.6;
+      const ay2 = pos.y + Math.sin(dirAngle - 2.4) * arrowSize * 0.6;
+      const ax3 = pos.x + Math.cos(dirAngle + 2.4) * arrowSize * 0.6;
+      const ay3 = pos.y + Math.sin(dirAngle + 2.4) * arrowSize * 0.6;
 
       ctx.beginPath();
       ctx.moveTo(ax1, ay1);
       ctx.lineTo(ax2, ay2);
       ctx.lineTo(ax3, ay3);
       ctx.closePath();
-      ctx.fillStyle = `rgba(${Math.min(255, r + 150)}, ${Math.min(255, g + 150)}, ${Math.min(255, b + 150)}, ${alpha})`;
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
       ctx.fill();
-
-      // Glow behind arrow
-      ctx.shadowColor = flowColor;
-      ctx.shadowBlur = 6 * alpha;
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, arrowSize * 1.5, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${Math.min(255, r + 100)}, ${Math.min(255, g + 100)}, ${Math.min(255, b + 100)}, ${alpha * 0.2})`;
-      ctx.fill();
-      ctx.shadowBlur = 0;
     }
     ctx.restore();
+  },
+
+  // Get tangent angle at a specific distance along the path
+  _getTangentAngle(points, dist) {
+    let cumLen = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      const segLen = Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
+      if (cumLen + segLen >= dist) {
+        const localT = (dist - cumLen) / Math.max(segLen, 0.01);
+        const dx = points[i + 1].x - points[i].x;
+        const dy = points[i + 1].y - points[i].y;
+        return Math.atan2(dy, dx);
+      }
+      cumLen += segLen;
+    }
+    const last = points.length - 1;
+    return Math.atan2(points[last].y - points[last - 1].y, points[last].x - points[last - 1].x);
   },
 
   isPinConnected(compId, pinId) {
