@@ -1914,9 +1914,9 @@ const WireRouter = {
     const arrowSpacing = 35; // px between arrows
     const numArrows = Math.max(2, Math.floor(totalLen / arrowSpacing));
 
-    // All arrows move at the same speed, offset by their phase
+    // All arrows move at the same speed as the dashed line (matching lineDashOffset)
     const cycleLen = totalLen + arrowSpacing; // full cycle (start→end + reset gap)
-    const t = (S.animTick * speed * 0.6) % cycleLen; // distance traveled in px
+    const t = (S.animTick * speed * 0.18) % cycleLen; // same speed as dashed line
 
     ctx.save();
     ctx.lineCap = 'round';
@@ -1943,15 +1943,6 @@ const WireRouter = {
       const dirAngle = this._getTangentAngle(points, dist);
 
       const arrowSize = 5;
-
-      // Glow behind arrow
-      ctx.shadowColor = flowColor;
-      ctx.shadowBlur = 10 * alpha;
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, arrowSize * 2, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${Math.min(255, r + 80)}, ${Math.min(255, g + 80)}, ${Math.min(255, b + 80)}, ${alpha * 0.3})`;
-      ctx.fill();
-      ctx.shadowBlur = 0;
 
       // Arrow shaft (short line in flow direction)
       ctx.beginPath();
