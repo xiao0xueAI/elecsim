@@ -546,8 +546,8 @@ const Registry = {
       props:{inputV:12,outputV:5,maxI:3} },
 
     // --- 开关/按钮 ---
-    // SPST (单开单控): 最简单的开关，L1=相线入，L2=相线出，闭合导通断开截止
-    { type:'spst', name:'单开单控', cat:'开关/按钮', icon:'🔌', desc:'单刀单掷/单开单控',
+    // SPST (单开单控): 最简单的开关，L1=相线入(红)，L2=相线出(蓝)，闭合导通断开截止
+    { type:'spst', name:'单开单控', cat:'开关/按钮', icon:'🎚', desc:'单刀单掷/单开单控跷跷板开关',
       w:120, h:40,
       pins:[{id:'l1',label:'L1',dx:-60,dy:0},{id:'l2',label:'L2',dx:60,dy:0}],
       props:{closed:true} },
@@ -1333,14 +1333,162 @@ const Renderer = {
       ctx.font = '7px monospace'; ctx.textAlign = 'center';
       ctx.fillText('+', 12, -4); ctx.fillText('-', -14, -4);
     } else if (c.type === 'switch' || c.type === 'spst') {
-      // SPST / 普通开关: 水平线进，闭合=直线，断开=斜线
-      ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(0, 0);
-      if (c.props.closed) ctx.lineTo(18, 0); else ctx.lineTo(14, -12);
+      // =========================================================
+      // 真实跷跷板开关 (Seesaw/Rocker Switch)
+      // 特点: ON/OFF状态直观、端子颜色编码(L1红=相线入/L2蓝=相线出)
+      // =========================================================
+      const closed = c.props.closed;
+      const plateW = 70, plateH = 54;        // 开关面板尺寸
+      const plateX = -35, plateY = -27;      // 面板左上角位置
+      const rockerW = 54, rockerH = 44;      // 跷跷板摇键尺寸
+      const tiltAngle = closed ? -0.28 : 0.28; // 倾斜角度 (rad)
+
+      // --- 画线连接端子与开关面板 ---
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 2;
+      // L1 (左, 红) → 面板左侧
+      ctx.beginPath();
+      ctx.moveTo(-58, 0);
+      ctx.lineTo(-plateX - 4, 0);
       ctx.stroke();
-      // 右端触点圆点
-      ctx.beginPath(); ctx.arc(18, 0, 2.5, 0, Math.PI * 2); ctx.fill();
-      // 左端触点圆点
-      ctx.beginPath(); ctx.arc(-18, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+      // 面板右侧 → L2 (右, 蓝)
+      ctx.beginPath();
+      ctx.moveTo(plateX + plateW + 4, 0);
+      ctx.lineTo(58, 0);
+      ctx.stroke();
+
+      // --- 开关面板底座 (3D效果) ---
+      ctx.save();
+      ctx.translate(0, 0);
+
+      // 底座阴影
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath();
+      ctx.roundRect(plateX + 2, plateY + 3, plateW, plateH, 6);
+      ctx.fill();
+
+      // 面板主体 (深灰金属质感)
+      const plateGrad = ctx.createLinearGradient(plateX, plateY, plateX, plateY + plateH);
+      plateGrad.addColorStop(0, '#4a4a4a');
+      plateGrad.addColorStop(0.3, '#3a3a3a');
+      plateGrad.addColorStop(1, '#2a2a2a');
+      ctx.fillStyle = plateGrad;
+      ctx.beginPath();
+      ctx.roundRect(plateX, plateY, plateW, plateH, 6);
+      ctx.fill();
+
+      // 面板边框
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // --- 跷跷板摇键 ( rocker ) ---
+      ctx.save();
+      ctx.translate(plateW / 2 + plateX, plateH / 2 + plateY);
+      ctx.rotate(tiltAngle);
+
+      // 摇键阴影
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.roundRect(-rockerW / 2 + 1, -rockerH / 2 + 2, rockerW, rockerH, 5);
+      ctx.fill();
+
+      // 摇键主体 (浅灰塑料)
+      const rockerGrad = ctx.createLinearGradient(-rockerW / 2, -rockerH / 2, rockerW / 2, rockerH / 2);
+      if (closed) {
+        // ON: 偏暖白色
+        rockerGrad.addColorStop(0, '#e8e8e8');
+        rockerGrad.addColorStop(1, '#c8c8c8');
+      } else {
+        // OFF: 偏冷灰色
+        rockerGrad.addColorStop(0, '#b0b0b0');
+        rockerGrad.addColorStop(1, '#909090');
+      }
+      ctx.fillStyle = rockerGrad;
+      ctx.beginPath();
+      ctx.roundRect(-rockerW / 2, -rockerH / 2, rockerW, rockerH, 5);
+      ctx.fill();
+
+      // 摇键边框
+      ctx.strokeStyle = closed ? '#888' : '#666';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // --- ON/OFF 标签 ---
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // ON 文字 (上侧)
+      ctx.fillStyle = closed ? '#1a8a1a' : '#aaa';
+      ctx.fillText('ON', 0, -rockerH / 2 + 12);
+      // OFF 文字 (下侧)
+      ctx.fillStyle = closed ? '#aaa' : '#8a2a2a';
+      ctx.fillText('OFF', 0, rockerH / 2 - 12);
+
+      // 中线 (指示当前状态)
+      ctx.strokeStyle = closed ? 'rgba(40,160,40,0.6)' : 'rgba(160,40,40,0.6)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(-rockerW / 2 + 4, 0);
+      ctx.lineTo(rockerW / 2 - 4, 0);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.restore();
+
+      // --- 状态指示灯 LED (右上角) ---
+      const ledX = plateX + plateW - 10, ledY = plateY + 10;
+      const ledOn = closed;
+      if (ledOn) {
+        // LED发光效果
+        ctx.shadowColor = '#00ff44';
+        ctx.shadowBlur = 8;
+      }
+      ctx.beginPath();
+      ctx.arc(ledX, ledY, 4, 0, Math.PI * 2);
+      ctx.fillStyle = ledOn ? '#00ff44' : '#333';
+      ctx.fill();
+      if (ledOn) {
+        ctx.beginPath();
+        ctx.arc(ledX, ledY, 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#aaffaa';
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+
+      // --- 端子圆点 + 颜色编码 ---
+      // L1 (左, 红色 = 相线/火线)
+      ctx.beginPath();
+      ctx.arc(-58, 0, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#cc2222'; // 红色端子
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // L1 标签
+      ctx.font = 'bold 8px sans-serif';
+      ctx.fillStyle = '#cc2222';
+      ctx.textAlign = 'center';
+      ctx.fillText('L1', -58, 11);
+
+      // L2 (右, 蓝色 = 零线)
+      ctx.beginPath();
+      ctx.arc(58, 0, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#2255cc'; // 蓝色端子
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // L2 标签
+      ctx.font = 'bold 8px sans-serif';
+      ctx.fillStyle = '#2255cc';
+      ctx.textAlign = 'center';
+      ctx.fillText('L2', 58, 11);
     } else if (c.type === 'spdt' || c.type === 'rotary') {
       ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(0, 0);
       const tgt = c.props.position === 1 ? -15 : 15;
