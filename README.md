@@ -2,6 +2,15 @@
 
 **QIACHIP 电工电路仿真平台** | 专业级电路仿真与产品演示工具
 
+## 🔗 在线预览
+
+| 平台 | 链接 |
+|------|------|
+| **GitHub Pages** | https://xiao0xueai.github.io/elecsim/ |
+| **CloudStudio** | https://ce5b654ee7cd4a3aa2dd20f4110bd52f.app.codebuddy.work |
+
+---
+
 基于浏览器的交互式电路仿真工具，专注遥控模块/控制器场景。支持拖放搭建电路、实时仿真、继电器行为模拟、故障检测、QIACHIP 产品集成演示。
 
 ## 功能特性
