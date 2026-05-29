@@ -1746,7 +1746,7 @@ const WireRouter = {
       // Current flow
       if (S.simRunning && S.showCurrentDir && w.current > 0) {
         const flowColor = isXray ? '#39d2c0' : this.WireColors[wt];
-        this.drawCurrentFlow(allPoints, w.current, flowColor);
+        this.drawCurrentFlow(allPoints, w.current, flowColor, w);
       }
     });
   },
@@ -1792,29 +1792,222 @@ const WireRouter = {
     ctx.restore();
   },
 
-  drawCurrentFlow(points, current, wireColor) {
+  drawCurrentFlow(points, current, wireColor, wire) {
     if (!points || points.length < 2) return;
     const speed = Math.min(Math.abs(current) / 4, 5);
     const isXray = S.viewMode === 'xray';
-
-    // Yellow dashed flow in normal mode, cyan in X-ray
     const flowColor = isXray ? '#39d2c0' : '#FFD700';
 
-    const dashLen = 18, gapLen = 22;
+    // Determine actual current direction from positive terminal to negative terminal
+    let flowPoints = points;
+    if (wire) {
+      const reversed = this._isWireFlowReversed(wire);
+      if (reversed) {
+        flowPoints = [...points].reverse();
+      }
+    }
 
+    // Parse wire color for glow
+    const r = parseInt(wireColor.slice(1, 3), 16);
+    const g = parseInt(wireColor.slice(3, 5), 16);
+    const b = parseInt(wireColor.slice(5, 7), 16);
+
+    // === Layer 1: Ambient glow (wide, soft) ===
+    ctx.save();
+    ctx.shadowColor = flowColor;
+    ctx.shadowBlur = 18;
+    ctx.strokeStyle = flowColor;
+    ctx.globalAlpha = 0.2;
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(flowPoints[0].x, flowPoints[0].y);
+    for (let i = 1; i < flowPoints.length; i++) ctx.lineTo(flowPoints[i].x, flowPoints[i].y);
+    ctx.stroke();
+    ctx.restore();
+
+    // === Layer 2: Dashed animated flow (base) ===
     ctx.save();
     ctx.lineCap = 'butt';
-    ctx.lineWidth = 4;
-
-    // Flow direction: animate dash offset using frame counter (negative = forward)
+    ctx.lineWidth = 3;
+    const dashLen = 14, gapLen = 24;
     ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    ctx.moveTo(flowPoints[0].x, flowPoints[0].y);
+    for (let i = 1; i < flowPoints.length; i++) ctx.lineTo(flowPoints[i].x, flowPoints[i].y);
     ctx.strokeStyle = flowColor;
     ctx.setLineDash([dashLen, gapLen]);
     ctx.lineDashOffset = -(S.animTick * speed * 0.15);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.restore();
+
+    // === Layer 3: Flowing particles ===
+    const totalLen = this._calcPathLength(flowPoints);
+    if (totalLen > 0) {
+      const numParticles = Math.min(Math.floor(Math.abs(current) / 2) + 3, 12);
+      const t = (S.animTick * speed * 0.05) % 1; // 0-1 cycle
+
+      ctx.save();
+      for (let p = 0; p < numParticles; p++) {
+        const dist = ((p / numParticles + t) % 1) * totalLen;
+        const pos = this._getPointAtDist(flowPoints, dist);
+        const pulse = 0.5 + 0.5 * Math.sin((S.animTick * 0.12) + p * 1.2);
+        const particleR = 2.5 + pulse * 1.5;
+        const alpha = 0.6 + 0.4 * pulse;
+
+        // Glow
+        const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, particleR * 3);
+        grad.addColorStop(0, `rgba(${Math.min(255, r + 120)}, ${Math.min(255, g + 120)}, ${Math.min(255, b + 120)}, ${alpha})`);
+        grad.addColorStop(0.4, `rgba(${Math.min(255, r + 80)}, ${Math.min(255, g + 80)}, ${Math.min(255, b + 80)}, ${alpha * 0.5})`);
+        grad.addColorStop(1, `rgba(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)}, 0)`);
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, particleR * 3, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Core dot (bright center)
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, particleR, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // === Layer 4: Direction arrows ===
+    this._drawFlowArrows(flowPoints, flowColor, r, g, b);
+  },
+
+  // Determine if current in wire actually flows from points[last] to points[0]
+  // (i.e., if positive terminal of power source is at the wire's `to` end)
+  _isWireFlowReversed(wire) {
+    if (!wire) return false;
+    const { from, to } = wire;
+    const fromComp = getComp(from.comp), toComp = getComp(to.comp);
+    if (!fromComp || !toComp) return false;
+
+    // Check if the positive terminal of a power source is at the 'to' end
+    // AC source: L=hot/positive, N=neutral/negative
+    // Battery: + = positive, - = negative
+    const fromIsPos = this._isPositiveTerminal(fromComp, from.pin);
+    const toIsPos = this._isPositiveTerminal(toComp, to.pin);
+
+    // If from is positive → flow is from-from (correct direction)
+    // If to is positive → flow is from-to (reversed)
+    return toIsPos && !fromIsPos;
+  },
+
+  // Check if a pin is the positive terminal of a power source
+  _isPositiveTerminal(comp, pinId) {
+    if (!comp) return false;
+    const t = comp.type;
+    if (t === 'battery') {
+      const pin = comp.pins.find(p => p.id === pinId);
+      return pin && pin.label === '+';
+    }
+    if (t === 'ac_source') {
+      const pin = comp.pins.find(p => p.id === pinId);
+      return pin && pin.label === 'L'; // L = Line/hot = positive in AC context
+    }
+    return false;
+  },
+
+  // Calculate total path length
+  _calcPathLength(points) {
+    let len = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      len += Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
+    }
+    return len;
+  },
+
+  // Get point at specific distance along path
+  _getPointAtDist(points, dist) {
+    let remaining = dist;
+    for (let i = 0; i < points.length - 1; i++) {
+      const dx = points[i + 1].x - points[i].x;
+      const dy = points[i + 1].y - points[i].y;
+      const segLen = Math.hypot(dx, dy);
+      if (remaining <= segLen) {
+        const t = remaining / Math.max(segLen, 0.01);
+        return { x: points[i].x + dx * t, y: points[i].y + dy * t };
+      }
+      remaining -= segLen;
+    }
+    return points[points.length - 1];
+  },
+
+  // Draw direction arrows along the wire path
+  _drawFlowArrows(points, flowColor, r, g, b) {
+    const totalLen = this._calcPathLength(points);
+    if (totalLen < 40) return; // Skip for very short wires
+
+    const arrowSpacing = Math.max(40, totalLen / Math.min(Math.floor(totalLen / 40), 6));
+    const numArrows = Math.floor(totalLen / arrowSpacing);
+    const t = (S.animTick * 0.04) % 1;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (let i = 0; i < numArrows; i++) {
+      const phase = (i / numArrows + t) % 1;
+      const alpha = 0.3 + 0.5 * Math.sin(phase * Math.PI);
+      const dist = phase * totalLen;
+      const pos = this._getPointAtDist(points, dist);
+
+      // Find direction (tangent) at this point
+      let dirAngle = 0;
+      let cumLen = 0;
+      for (let j = 0; j < points.length - 1; j++) {
+        const segLen = Math.hypot(points[j + 1].x - points[j].x, points[j + 1].y - points[j].y);
+        if (cumLen + segLen >= dist) {
+          const localT = (dist - cumLen) / Math.max(segLen, 0.01);
+          const dx = points[j + 1].x - points[j].x;
+          const dy = points[j + 1].y - points[j].y;
+          dirAngle = Math.atan2(dy, dx);
+          break;
+        }
+        cumLen += segLen;
+      }
+
+      const arrowSize = 5;
+      const perpAngle = dirAngle + Math.PI / 2;
+
+      // Arrow body (line in direction of flow)
+      ctx.beginPath();
+      ctx.moveTo(pos.x - Math.cos(dirAngle) * arrowSize * 0.6, pos.y - Math.sin(dirAngle) * arrowSize * 0.6);
+      ctx.lineTo(pos.x + Math.cos(dirAngle) * arrowSize * 0.6, pos.y + Math.sin(dirAngle) * arrowSize * 0.6);
+      ctx.strokeStyle = `rgba(${Math.min(255, r + 130)}, ${Math.min(255, g + 130)}, ${Math.min(255, b + 130)}, ${alpha})`;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // Arrow head (triangle)
+      const ax1 = pos.x + Math.cos(dirAngle) * arrowSize * 0.6;
+      const ay1 = pos.y + Math.sin(dirAngle) * arrowSize * 0.6;
+      const ax2 = pos.x + Math.cos(dirAngle - 2.5) * arrowSize * 0.55;
+      const ay2 = pos.y + Math.sin(dirAngle - 2.5) * arrowSize * 0.55;
+      const ax3 = pos.x + Math.cos(dirAngle + 2.5) * arrowSize * 0.55;
+      const ay3 = pos.y + Math.sin(dirAngle + 2.5) * arrowSize * 0.55;
+
+      ctx.beginPath();
+      ctx.moveTo(ax1, ay1);
+      ctx.lineTo(ax2, ay2);
+      ctx.lineTo(ax3, ay3);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${Math.min(255, r + 150)}, ${Math.min(255, g + 150)}, ${Math.min(255, b + 150)}, ${alpha})`;
+      ctx.fill();
+
+      // Glow behind arrow
+      ctx.shadowColor = flowColor;
+      ctx.shadowBlur = 6 * alpha;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, arrowSize * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${Math.min(255, r + 100)}, ${Math.min(255, g + 100)}, ${Math.min(255, b + 100)}, ${alpha * 0.2})`;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
     ctx.restore();
   },
 
