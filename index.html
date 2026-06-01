@@ -3732,6 +3732,7 @@ function onMouseDown(e) {
     S.dragging = comp.id;
     S.dragOff = { x: pos.x - comp.x, y: pos.y - comp.y };
     UI.showProps(comp);
+    S.clickCompId = comp.id; // Track clicked component for toggle on mouseup
   } else {
     S.selected = null;
     UI.hideProps();
@@ -3774,6 +3775,16 @@ function onMouseMove(e) {
 }
 
 function onMouseUp(e) {
+  // Toggle switch if clicked (not dragged)
+  if (S.clickCompId && !S.panning) {
+    const comp = getComp(S.clickCompId);
+    if (comp && (comp.type === 'spst' || comp.type === 'switch' || comp.type === 'breaker')) {
+      comp.props.closed = !comp.props.closed;
+      S.dirty = true;
+      render();
+    }
+  }
+  S.clickCompId = null;
   S.panning = false;
   S.dragging = null;
   canvas.style.cursor = 'crosshair';
