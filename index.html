@@ -711,6 +711,7 @@ const Registry = {
       cat: def.cat,
       icon: def.icon,
       image: def.image || null,
+      imageOn: def.imageOn || null,
       w: def.w || 100,
       h: def.h || 56,
       x: Math.round(x / g) * g,
@@ -1079,10 +1080,17 @@ const Renderer = {
         // Selection glow
         if (sel) { ctx.shadowColor = catColor; ctx.shadowBlur = 14; }
 
-        // Draw image full-bleed (no dark box, no padding)
+        // Draw image full-bleed (no dark box, no padding) — with Image caching
         try {
-          const imgSrc = (c.props.closed && c.imageOn) ? c.imageOn : c.image;
-          const img = imgSrc instanceof HTMLImageElement ? imgSrc : (() => { const i = new Image(); i.src = imgSrc; return i; })();
+          const wantOn = c.props.closed && c.imageOn;
+          const imgSrc = wantOn ? c.imageOn : c.image;
+          const cacheKey = wantOn ? '_imgOnCache' : '_imgCache';
+          let img = c[cacheKey];
+          if (!img || img.src !== imgSrc) {
+            img = new Image();
+            img.src = imgSrc;
+            c[cacheKey] = img;
+          }
           if (img.complete && img.naturalWidth > 0) {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
@@ -3733,6 +3741,7 @@ function onMouseDown(e) {
     S.dragOff = { x: pos.x - comp.x, y: pos.y - comp.y };
     UI.showProps(comp);
     S.clickCompId = comp.id; // Track clicked component for toggle on mouseup
+    S.clickPos = { x: e.offsetX, y: e.offsetY }; // Record mouse down position for drag detection
   } else {
     S.selected = null;
     UI.hideProps();
@@ -3775,16 +3784,19 @@ function onMouseMove(e) {
 }
 
 function onMouseUp(e) {
-  // Toggle switch if clicked (not dragged)
-  if (S.clickCompId && !S.panning) {
+  // Toggle switch if clicked (not dragged) — require movement < 5px
+  const clickMoved = S.clickPos ? Math.hypot(e.offsetX - S.clickPos.x, e.offsetY - S.clickPos.y) : 0;
+  if (S.clickCompId && !S.panning && clickMoved < 5) {
     const comp = getComp(S.clickCompId);
     if (comp && (comp.type === 'spst' || comp.type === 'switch' || comp.type === 'breaker')) {
       comp.props.closed = !comp.props.closed;
       S.dirty = true;
+      UI.showProps(comp); // Refresh property panel to show new state
       render();
     }
   }
   S.clickCompId = null;
+  S.clickPos = null;
   S.panning = false;
   S.dragging = null;
   canvas.style.cursor = 'crosshair';
