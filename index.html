@@ -1162,43 +1162,6 @@ const Renderer = {
           ctx.stroke();
         }
 
-        // SPST switch state overlay (ON: rocker tilted up with LED on top)
-        if ((c.type === 'spst' || c.type === 'switch') && c.image) {
-          const closed = c.props.closed;
-          if (closed) {
-            ctx.save();
-            const kx = -52, ky = -52, kw = 104, kh = 104;
-            // Rocker panel tilted up (trapezoid: wider at top)
-            ctx.beginPath();
-            ctx.moveTo(kx - 4, ky - 6);
-            ctx.lineTo(kx + kw + 4, ky - 6);
-            ctx.lineTo(kx + kw - 2, ky + kh);
-            ctx.lineTo(kx + 2, ky + kh);
-            ctx.closePath();
-            const grad = ctx.createLinearGradient(0, ky - 6, 0, ky + kh);
-            grad.addColorStop(0, '#f5f5f5');
-            grad.addColorStop(0.5, '#e8e8e8');
-            grad.addColorStop(1, '#d5d5d5');
-            ctx.fillStyle = grad;
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            // Bottom shadow
-            ctx.fillStyle = 'rgba(0,0,0,0.12)';
-            ctx.fill();
-            // LED on top (glowing cyan)
-            ctx.shadowColor = '#00ddff';
-            ctx.shadowBlur = 10;
-            ctx.fillStyle = '#00ddff';
-            ctx.beginPath();
-            ctx.roundRect(-8, ky + 12, 16, 3, 1.5);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.restore();
-          }
-        }
-
         ctx.restore();
 
         // Draw pins for image-based components
