@@ -1174,8 +1174,126 @@ const Renderer = {
 
         ctx.restore();
 
-        // Draw pins for image-based components
-        this._drawPinsForComponent(c);
+        // === SPST embedded pins + internal contact structure ===
+        if (c.type === 'spst') {
+          const closed = c.props.closed;
+          const halfH = bh / 2;  // 110 (panel top/bottom in local coords)
+
+          // Terminal circles — embedded at panel top/bottom edges
+          const termR = 8;
+          const termTopY = -halfH;   //  -110 (top edge)
+          const termBotY = halfH;    //  +110 (bottom edge)
+          const isTopLive = closed;  // current can flow through when closed
+
+          // Draw fixed contact pads (inside panel, just below/below edge)
+          const padW = 18, padH = 10;
+          const padTopY = -halfH + 8;   // fixed contact for L at top
+          const padBotY = halfH - 18;    // fixed contact for L1 at bottom
+
+          // Moving contact (the bridging arm)
+          const armCX = 0;
+          const armCY = closed ? 0 : -20; // center of arc when open shifts up
+
+          // --- Top terminal circle (L) ---
+          ctx.beginPath();
+          ctx.arc(0, termTopY, termR, 0, Math.PI * 2);
+          ctx.fillStyle = '#f85149';      // red = L (live)
+          ctx.fill();
+          ctx.strokeStyle = '#c02222';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          // L label inside terminal
+          ctx.font = 'bold 11px Arial';
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('L', 0, termTopY);
+
+          // --- Bottom terminal circle (L1) ---
+          ctx.beginPath();
+          ctx.arc(0, termBotY, termR, 0, Math.PI * 2);
+          ctx.fillStyle = '#58a6ff';      // blue = L1 (output)
+          ctx.fill();
+          ctx.strokeStyle = '#2266cc';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.fillStyle = '#fff';
+          ctx.fillText('L1', 0, termBotY);
+
+          // --- Internal contact structure (semi-transparent overlay) ---
+          ctx.save();
+          ctx.globalAlpha = 0.65;
+
+          // Top fixed contact bar
+          ctx.fillStyle = '#aaa';
+          ctx.strokeStyle = '#888';
+          ctx.lineWidth = 1;
+          roundRect(ctx, -padW / 2, padTopY, padW, padH, 2);
+          ctx.fill(); ctx.stroke();
+
+          // Bottom fixed contact bar
+          roundRect(ctx, -padW / 2, padBotY, padW, padH, 2);
+          ctx.fill(); ctx.stroke();
+
+          // Moving contact arm — a curved bridge
+          if (closed) {
+            // Closed: draw arc connecting top to bottom
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.moveTo(0, padTopY + padH);
+            ctx.quadraticCurveTo(0, armCY, 0, padBotY);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Contact point dots (where the connection is made)
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(0, padTopY + padH, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, padBotY, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Small arrow showing current direction top→bottom
+            ctx.fillStyle = '#FF6600';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('↓', 0, 0);
+          } else {
+            // Open: draw gap with zigzag break symbol
+            const gapY1 = padTopY + padH;     // bottom of top contact
+            const gapY2 = padBotY;           // top of bottom contact
+            ctx.strokeStyle = '#ff4444';
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = '#ff4444';
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.moveTo(-6, gapY1 + 4);
+            ctx.lineTo(0, gapY1 + 10);
+            ctx.lineTo(6, gapY1 + 4);
+            ctx.moveTo(-6, gapY2 - 4);
+            ctx.lineTo(0, gapY2 - 10);
+            ctx.lineTo(6, gapY2 - 4);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // "OFF" text between contacts
+            ctx.fillStyle = '#ff6666';
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('断开', 0, (gapY1 + gapY2) / 2);
+          }
+
+          ctx.restore();
+        } else {
+          // Draw floating pins for other image-based components
+          this._drawPinsForComponent(c);
+        }
         return;
       }
 
