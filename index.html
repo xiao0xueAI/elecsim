@@ -1765,27 +1765,9 @@ const WireRouter = {
     return { x: Math.round(pt.x / g) * g, y: Math.round(pt.y / g) * g };
   },
 
-  // Constrain mouse position to be orthogonal from head
-  // Returns the constrained point (one axis matches head, other follows mouse)
+  // Free routing: follow mouse directly (only snap to grid)
   _constrainOrtho(head, mouse) {
-    const snapped = this._snap(mouse);
-
-    if (this.lastDir === null) {
-      // First segment: use pin's natural direction (h for left/right pins, v for top/bottom)
-      const dir = this.pinNaturalDir || (Math.abs(mouse.x - head.x) >= Math.abs(mouse.y - head.y) ? 'h' : 'v');
-      if (dir === 'h') {
-        return { x: snapped.x, y: head.y, dir: 'h' };
-      } else {
-        return { x: head.x, y: snapped.y, dir: 'v' };
-      }
-    } else {
-      // Subsequent segments: alternate direction
-      if (this.lastDir === 'h') {
-        return { x: head.x, y: snapped.y, dir: 'v' };
-      } else {
-        return { x: snapped.x, y: head.y, dir: 'h' };
-      }
-    }
+    return { x: mouse.x, y: mouse.y, dir: null };
   },
 
   start(pin) {
