@@ -3178,12 +3178,8 @@ const Recorder = {
     this.isPaused = false;
     // Adjust startTime to account for pause duration
     this.startTime += (Date.now() - this.pauseTime);
-    if (this.format === 'gif') {
-      this._captureGifFrames(this.fps);
-    } else {
-      if (this.mediaRecorder && this.mediaRecorder.state === 'paused') {
-        this.mediaRecorder.resume();
-      }
+    if (this.mediaRecorder && this.mediaRecorder.state === 'paused') {
+      this.mediaRecorder.resume();
     }
     this._startTimer();
     document.getElementById('recPauseBtn').innerHTML = '&#10074;&#10074; 暂停';
@@ -3204,24 +3200,18 @@ const Recorder = {
       this._renderRafId = null;
     }
 
-    if (this.format === 'gif') {
-      cancelAnimationFrame(this.rafId);
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      if (this.mediaRecorder.state === 'paused') this.mediaRecorder.resume();
+      this.mediaRecorder.stop();
+      // Wait for final ondataavailable chunk before assembling blob
+      // Without this delay, the last chunk may not be collected → MOOV atom missing → can't seek
       clearInterval(this.timerInterval);
-      this._onGifStop();
-    } else {
-      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-        if (this.mediaRecorder.state === 'paused') this.mediaRecorder.resume();
-        this.mediaRecorder.stop();
-        // Wait for final ondataavailable chunk before assembling blob
-        // Without this delay, the last chunk may not be collected → MOOV atom missing → can't seek
-        clearInterval(this.timerInterval);
-        const recorder = this.mediaRecorder;
-        const self = this;
-        setTimeout(() => { self._onVideoStop(); }, 200);
-        return;
-      }
-      clearInterval(this.timerInterval);
+      const recorder = this.mediaRecorder;
+      const self = this;
+      setTimeout(() => { self._onVideoStop(); }, 200);
+      return;
     }
+    clearInterval(this.timerInterval);
 
     // Restore toolbar buttons: show start + re-record, hide pause/stop
     document.getElementById('recStartBtn').style.display = 'inline-flex';
@@ -3378,12 +3368,9 @@ const Recorder = {
 
   exportCurrent() {
     if (!this.currentBlob) return;
-    const fmt = this.format;
-    const ext = fmt === 'gif' ? 'gif' : (fmt === 'mp4' ? 'mp4' : 'webm');
-    const mime = fmt === 'gif' ? 'image/gif' : (fmt === 'mp4' ? 'video/mp4' : 'video/webm');
     const a = document.createElement('a');
     a.href = this.currentUrl || URL.createObjectURL(this.currentBlob);
-    a.download = 'ElecSim_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.' + ext;
+    a.download = 'ElecSim_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.mp4';
     a.click();
     UI.toast('已导出: ' + a.download, 'success');
   },
@@ -3396,18 +3383,32 @@ const Recorder = {
 
   // Re-record: close preview and reset state for a fresh recording
   reRecord() {
+    // Stop current recording if active
+    if (this.isRecording) {
+      clearInterval(this.timerInterval);
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        this.mediaRecorder.stop();
+      }
+      this.isRecording = false;
+      S.recording = false;
+      cancelAnimationFrame(this._renderRafId);
+      this.chunks = [];
+    }
+
     this.closePreview();
     this.currentBlob = null;
     this.currentUrl = null;
-    this.chunks = [];
     this.elapsedTime = 0;
     this._setStatus('准备就绪', '');
     document.getElementById('recExportBtn').disabled = true;
     document.getElementById('recTime').textContent = '00:00';
     const t2 = document.getElementById('recTime2');
     if (t2) t2.textContent = '00:00';
-    // Toolbar: show start, hide re-record
+
+    // Toolbar: show start, hide pause/stop/re-record
     document.getElementById('recStartBtn').style.display = 'inline-flex';
+    document.getElementById('recPauseBtn').style.display = 'none';
+    document.getElementById('recStopBtn').style.display = 'none';
     document.getElementById('recReRecordBtn').style.display = 'none';
   },
 
