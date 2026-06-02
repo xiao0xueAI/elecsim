@@ -1178,9 +1178,9 @@ const Renderer = {
           const halfH = bh / 2;  // 110
           const pinR = 7;
 
-          // Terminal positions: disc inner edge flush with panel border
-          const termTopY = -halfH + pinR;   // -103: disc sits just above panel
-          const termBotY =  halfH - pinR;   // +103: disc sits just below panel
+          // Terminal positions: disc nearly touching panel edge (2px gap)
+          const termTopY = -halfH + 2;   // -108: disc very close to top edge
+          const termBotY =  halfH - 2;   // +108: disc very close to bottom edge
 
           // Contact points inside panel (vertically aligned for straight wires)
           const redX  = 0,  redY  = -35;   // red: directly below L terminal
