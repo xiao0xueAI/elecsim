@@ -1104,29 +1104,40 @@ const Renderer = {
         // Glow effects on top of image
         if (c.type === 'lamp' && S.simRunning && c.simCurrent > 0) {
           const intensity = Math.min(c.simCurrent / 30, 1);
-          const flicker = Math.sin(Date.now() / 150) * 1.5;
-          // Bulb glass glow centered in the upper half of the bulb
-          const glowCX = 0, glowCY = -37;
-          const glowR = 12 + intensity * 10 + flicker;
-          const grd = ctx.createRadialGradient(glowCX, glowCY, 2, glowCX, glowCY, glowR);
-          grd.addColorStop(0, `rgba(255,248,180,${0.85 * intensity})`);
-          grd.addColorStop(0.25, `rgba(255,220,80,${0.6 * intensity})`);
-          grd.addColorStop(0.6, `rgba(255,180,30,${0.25 * intensity})`);
+          // LED bulb warm-white glow — covers the entire glass dome
+          const glowCX = 0, glowCY = -26;   // center of glass bulb
+          const glowR = 32 + intensity * 6; // large radius covering dome
+
+          ctx.globalCompositeOperation = 'screen';
+
+          // Outer warm glow halo
+          const grd = ctx.createRadialGradient(glowCX, glowCY, 6, glowCX, glowCY, glowR);
+          grd.addColorStop(0, `rgba(255,252,230,${0.55 * intensity})`);
+          grd.addColorStop(0.35, `rgba(255,240,180,${0.35 * intensity})`);
+          grd.addColorStop(0.7, `rgba(255,210,100,${0.15 * intensity})`);
           grd.addColorStop(1, 'transparent');
           ctx.fillStyle = grd;
           ctx.beginPath();
           ctx.arc(glowCX, glowCY, glowR, 0, Math.PI * 2);
           ctx.fill();
-          // Filament core - bright white-yellow line in the bulb center
-          ctx.strokeStyle = `rgba(255,255,220,${0.7 + intensity * 0.3})`;
-          ctx.lineWidth = 1.5;
+
+          // Bright core — the actual LED chip area
+          ctx.fillStyle = `rgba(255,255,235,${0.25 * intensity})`;
           ctx.beginPath();
-          ctx.moveTo(-6, glowCY - 2);
-          ctx.lineTo(-3, glowCY + 3);
-          ctx.lineTo(0, glowCY - 1);
-          ctx.lineTo(3, glowCY + 3);
-          ctx.lineTo(6, glowCY - 2);
-          ctx.stroke();
+          ctx.ellipse(glowCX, glowCY, 16, 20, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Soft highlight at top of bulb
+          const hlR = 10 + intensity * 4;
+          const hl = ctx.createRadialGradient(glowCX, glowCY - 10, 1, glowCX, glowCY - 10, hlR);
+          hl.addColorStop(0, `rgba(255,255,255,${0.4 * intensity})`);
+          hl.addColorStop(1, 'transparent');
+          ctx.fillStyle = hl;
+          ctx.beginPath();
+          ctx.arc(glowCX, glowCY - 10, hlR, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.globalCompositeOperation = 'source-over';
         }
 
         if (c.type === 'led' && S.simRunning && c.simCurrent > 0) {
