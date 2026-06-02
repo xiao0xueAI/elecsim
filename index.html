@@ -1176,105 +1176,82 @@ const Renderer = {
         if (c.type === 'spst') {
           const closed = c.props.closed;
           const halfH = bh / 2;  // 110
-          const termR = 9;       // terminal ball radius
+          const pinR = 7;        // same as other components
 
           // Terminal positions: outside the panel image
-          const termTopY = -halfH - termR - 4;   // above panel (-123)
-          const termBotY = halfH + termR + 4;    // below panel (+123)
+          const termTopY = -halfH - pinR - 4;   // -121 (above panel)
+          const termBotY = halfH + pinR + 4;    // +121 (below panel)
 
           // Internal wire endpoints (inside panel)
-          const wireTopEndY = -halfH + 50;   // -60 (inside panel, upper)
-          const wireBotEndY = halfH - 50;    // +60 (inside panel, lower)
+          const wireTopEndY = -30;   // red wire ends here (inside panel)
+          const wireBotEndY = +30;   // green wire ends here (inside panel)
 
-          function drawMetalBall(x, y, r, colors, label) {
-            // Outer metallic ball
-            const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
-            grad.addColorStop(0, colors.light);
-            grad.addColorStop(0.6, colors.mid);
-            grad.addColorStop(1, colors.dark);
-
+          function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fillStyle = grad;
+            ctx.fillStyle = fillColor;
             ctx.fill();
-            ctx.strokeStyle = colors.dark;
+            ctx.strokeStyle = strokeColor;
             ctx.lineWidth = 1.5;
             ctx.stroke();
-
-            // Inner hole
-            ctx.beginPath();
-            ctx.arc(x, y, r * 0.4, 0, Math.PI * 2);
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fill();
-
-            // Highlight shine
-            ctx.beginPath();
-            ctx.arc(x - r*0.25, y - r*0.25, r*0.2, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.fill();
-
-            // Label to the right of terminal
-            ctx.font = 'bold 11px Arial';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = colors.dark;
-            ctx.fillText(label, x + r + 5, y);
+            if (label) {
+              ctx.font = 'bold 12px Arial';
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'middle';
+              ctx.fillStyle = fillColor;
+              ctx.fillText(label, x + r + 4, y);
+            }
           }
 
-          const redMetal = { light:'#ff9999', mid:'#e53e3e', dark:'#991b1b' };
-          const greenMetal = { light:'#86efac', mid:'#22c55e', dark:'#166534' };
+          // Draw terminals (same style as other components)
+          drawPinDisc(0, termTopY, pinR, '#f85149', '#c02222', 'L');
+          drawPinDisc(0, termBotY, pinR, '#22c55e', '#166534', 'L1');
 
-          // Draw terminals
-          drawMetalBall(0, termTopY, termR, redMetal, 'L');
-          drawMetalBall(0, termBotY, termR, greenMetal, 'L1');
-
-          // Draw thick wires from terminals into panel
+          // Thick wires from terminals into panel
           ctx.lineCap = 'round';
           ctx.lineWidth = 6;
 
-          // Red wire: L terminal → inside panel
+          // Red wire: L terminal → wireTopEndY
           ctx.strokeStyle = '#e53e3e';
           ctx.beginPath();
-          ctx.moveTo(0, termTopY + termR);
+          ctx.moveTo(0, termTopY + pinR);
           ctx.lineTo(0, wireTopEndY);
           ctx.stroke();
 
-          // Green wire: L1 terminal → inside panel
+          // Green wire: L1 terminal → wireBotEndY
           ctx.strokeStyle = '#22c55e';
           ctx.beginPath();
-          ctx.moveTo(0, termBotY - termR);
+          ctx.moveTo(0, termBotY - pinR);
           ctx.lineTo(0, wireBotEndY);
           ctx.stroke();
 
           // Contact arm (seesaw) — pivots at red wire end
           const pivotX = 0, pivotY = wireTopEndY;
-          const armLen = 40;
+          const armLen = 70;
           const armWidth = 5;
 
-          if (closed) {
-            // ON: arm tilts down-right to touch green wire
-            ctx.strokeStyle = '#8B6914';
-            ctx.lineWidth = armWidth;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(pivotX, pivotY);
-            ctx.lineTo(14, wireBotEndY - 2);
-            ctx.stroke();
+          // Compute arm endpoint based on angle (0 = straight down)
+          // OFF: tilt 20° up-right  → angle = -20°
+          // ON:  tilt 31° down-right → angle = +31° (calculated to reach green wire at y=30)
+          const angleDeg = closed ? 31 : -20;
+          const angleRad = angleDeg * Math.PI / 180;
+          const endX = pivotX + armLen * Math.sin(angleRad);
+          const endY = pivotY + armLen * Math.cos(angleRad);
 
-            // Gold contact spark
+          ctx.strokeStyle = '#8B6914';
+          ctx.lineWidth = armWidth;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(pivotX, pivotY);
+          ctx.lineTo(endX, endY);
+          ctx.stroke();
+
+          if (closed) {
+            // Gold contact spark at the tip touching green wire
             ctx.fillStyle = '#FFD700';
             ctx.beginPath();
-            ctx.arc(14, wireBotEndY - 2, 3, 0, Math.PI * 2);
+            ctx.arc(endX, endY, 3, 0, Math.PI * 2);
             ctx.fill();
-          } else {
-            // OFF: arm tilts up-right, away from green wire
-            ctx.strokeStyle = '#8B6914';
-            ctx.lineWidth = armWidth;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(pivotX, pivotY);
-            ctx.lineTo(18, pivotY - 38);
-            ctx.stroke();
           }
         }
 
