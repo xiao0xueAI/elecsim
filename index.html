@@ -3143,11 +3143,11 @@ const Recorder = {
     this._updateUI(true);
     this._startTimer();
 
-    // Show pause/stop in toolbar, hide start/re-record
+    // Show pause/stop/re-record in toolbar, hide start
     document.getElementById('recPauseBtn').style.display = 'inline-flex';
     document.getElementById('recStopBtn').style.display = 'inline-flex';
+    document.getElementById('recReRecordBtn').style.display = 'inline-flex';
     document.getElementById('recStartBtn').style.display = 'none';
-    document.getElementById('recReRecordBtn').style.display = 'none';
 
     UI.toast('后台录制已开始，可正常操作画布', 'success');
   },
