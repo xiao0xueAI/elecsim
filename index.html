@@ -3564,6 +3564,7 @@ const Recorder = {
             videoCodec: config.codec.substring(0, 3) === 'avc' ? 'avc' : 'hevc',
             width: config.width,
             height: config.height,
+            fastStart: 'in-memory',   // place moov at file start for seekable playback
           });
         },
         onSamples: (samples) => {
