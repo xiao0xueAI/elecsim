@@ -1172,7 +1172,7 @@ const Renderer = {
           ctx.stroke();
         }
 
-        // === SPST: external terminals + vertical wires + horizontal contact pads + seesaw arm ===
+        // === SPST: external terminals + vertical wires + contact dots + seesaw arm ===
         if (c.type === 'spst') {
           const closed = c.props.closed;
           const halfH = bh / 2;  // 110
@@ -1182,14 +1182,9 @@ const Renderer = {
           const termTopY = -halfH - pinR - 4;   // -121
           const termBotY = halfH + pinR + 4;    // +121
 
-          // Wire endpoints inside panel (vertical wires end here)
-          const wireTopY = -25;   // red wire ends inside panel
-          const wireBotY = +25;   // green wire ends inside panel
-
-          // Contact pad offsets (horizontal stubs from vertical wires)
-          const redPadX = -10;    // red contact pad extends left
-          const greenPadX = +10;  // green contact pad extends right
-          const padW = 3, padH = 8;
+          // Wire endpoints inside panel (= contact points)
+          const wireTopY = -25;   // red wire ends here = pivot
+          const wireBotY = +25;   // green wire ends here
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
@@ -1230,46 +1225,47 @@ const Renderer = {
           ctx.lineTo(0, wireBotY);
           ctx.stroke();
 
-          // Horizontal contact pads (stub from vertical wire)
-          ctx.fillStyle = '#aaa';
-          ctx.strokeStyle = '#888';
-          ctx.lineWidth = 1;
-          // Red pad (left)
-          roundRect(ctx, redPadX - padW/2, wireTopY - padH/2, padW, padH, 1);
-          ctx.fill(); ctx.stroke();
-          // Green pad (right)
-          roundRect(ctx, greenPadX - padW/2, wireBotY - padH/2, padW, padH, 1);
-          ctx.fill(); ctx.stroke();
+          // Contact dots at wire ends
+          ctx.fillStyle = '#c0392b';
+          ctx.beginPath();
+          ctx.arc(0, wireTopY, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#27ae60';
+          ctx.beginPath();
+          ctx.arc(0, wireBotY, 3.5, 0, Math.PI * 2);
+          ctx.fill();
 
-          // Contact arm (seesaw) — pivots at red contact pad
-          const pivotX = redPadX, pivotY = wireTopY;
+          // Seesaw arm — pivots at red wire end (0, wireTopY)
+          const pivotX = 0, pivotY = wireTopY;
           const armWidth = 5;
 
-          // Arm length = distance from red pad to green pad
-          const dx = greenPadX - redPadX;   // 20
-          const dy = wireBotY - wireTopY;   // 50
-          const armLen = Math.sqrt(dx*dx + dy*dy);  // ≈ 53.85
+          // ON arm: from pivot to green wire contact (16, wireBotY)
+          // dx=16, dy=50 → angle ≈ arctan(16/50) ≈ 17.7° right of down
+          const onEndX = 16;
+          const onEndY = wireBotY;
+          const armLen = Math.sqrt(onEndX*onEndX + (onEndY-pivotY)*(onEndY-pivotY)); // ≈ 52.5
 
           if (closed) {
-            // ON: arm reaches green contact pad
+            // ON: arm tilts down-right, tip touches green dot
             ctx.strokeStyle = '#8B6914';
             ctx.lineWidth = armWidth;
             ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(pivotX, pivotY);
-            ctx.lineTo(greenPadX, wireBotY);
+            ctx.lineTo(onEndX, onEndY);
             ctx.stroke();
 
-            // Gold contact spark
+            // Gold contact spark at tip
             ctx.fillStyle = '#FFD700';
             ctx.beginPath();
-            ctx.arc(greenPadX, wireBotY, 3, 0, Math.PI * 2);
+            ctx.arc(onEndX, onEndY, 3, 0, Math.PI * 2);
             ctx.fill();
           } else {
-            // OFF: arm tilts 20° up-left from pivot
-            const angle = -20 * Math.PI / 180;  // 20° left of straight-up
-            const endX = pivotX + armLen * Math.sin(angle);   // ≈ -28.4
-            const endY = pivotY + armLen * Math.cos(angle);   // ≈ -75.6
+            // OFF: same arm length, tilt 20° left-up from vertical-up
+            // 0° = straight up (negative y), -20° = 20° left of up
+            const angle = -20 * Math.PI / 180;
+            const endX = pivotX + armLen * Math.sin(angle);   // ≈ -18.0 (left)
+            const endY = pivotY - armLen * Math.cos(angle);   // ≈ -74.3 (up)
 
             ctx.strokeStyle = '#8B6914';
             ctx.lineWidth = armWidth;
