@@ -373,9 +373,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:11px;color:#8b949e;">格式</span>
         <div style="display:flex;gap:4px;">
-          <button class="fmt-btn active" id="fmtWebm" onclick="ElecSim.Recorder.setFormat('webm')">WebM</button>
-          <button class="fmt-btn" id="fmtMp4" onclick="ElecSim.Recorder.setFormat('mp4')">MP4</button>
-          <button class="fmt-btn" id="fmtGif" onclick="ElecSim.Recorder.setFormat('gif')">GIF</button>
+          <button class="fmt-btn active" id="fmtMp4" onclick="ElecSim.Recorder.setFormat('mp4')">MP4</button>
         </div>
       </div>
       <!-- FPS -->
@@ -396,7 +394,6 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
           <option value="low">低 (1 Mbps)</option>
         </select>
       </div>
-      <p class="gif-note" id="gifNote" style="display:none;font-size:10px;color:#6e7681;">GIF 导出会截取前 15 秒</p>
       <!-- Controls -->
       <div style="display:flex;gap:6px;margin-top:2px;">
         <button onclick="ElecSim.Recorder.start()" style="flex:1;padding:7px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">&#9679; 开始录制</button>
@@ -2963,7 +2960,6 @@ const Recorder = {
   mediaRecorder: null,
   stream: null,
   chunks: [],
-  gifFrames: [],
   rafId: null,
   startTime: 0,
   elapsedTime: 0,
@@ -2974,7 +2970,7 @@ const Recorder = {
   panelVisible: false,
 
   // Settings
-  format: 'webm',
+  format: 'mp4',
   fps: 30,
   qualityMap: { high: 8000000, medium: 4000000, low: 1000000 },
   quality: 4000000,
@@ -3037,12 +3033,7 @@ const Recorder = {
   },
 
   setFormat(fmt) {
-    this.format = fmt;
-    ['fmtWebm', 'fmtMp4', 'fmtGif'].forEach(id => {
-      document.getElementById(id).classList.remove('active');
-    });
-    document.getElementById('fmt' + fmt.charAt(0).toUpperCase() + fmt.slice(1)).classList.add('active');
-    document.getElementById('gifNote').style.display = fmt === 'gif' ? 'block' : 'none';
+    this.format = 'mp4';
   },
 
   setFps(val) { this.fps = parseInt(val); },
@@ -3114,23 +3105,15 @@ const Recorder = {
       return;
     }
 
-    // Determine mime type
-    let mimeType = 'video/webm;codecs=vp9';
-    if (this.format === 'mp4') {
-      mimeType = 'video/mp4';
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
-    }
-    if (!mimeType || !MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'video/webm;codecs=vp9';
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-      if (this.format === 'mp4') {
-        UI.toast('当前浏览器不支持 MP4，将导出 WebM 格式', 'warning');
-      }
+    // MP4 only
+    let mimeType = 'video/mp4';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      UI.toast('当前浏览器不支持 MP4 录制', 'error');
+      cancelAnimationFrame(this._renderRafId);
+      return;
     }
 
     this.chunks = [];
-    this.gifFrames = [];
     this.stream = stream;
     this.startTime = Date.now();
     this.elapsedTime = 0;
@@ -3140,23 +3123,18 @@ const Recorder = {
     this.isRecording = true;
     S.recording = true; // Enable pure-white/no-grid recording mode
 
-    // For GIF: capture frames manually
-    if (this.format === 'gif') {
-      this._captureGifFrames(fps);
-    } else {
-      const bitrate = this.quality;
-      try {
-        this.mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
-      } catch(e) {
-        this.mediaRecorder = new MediaRecorder(stream, { mimeType });
-      }
-      this.mediaRecorder.ondataavailable = e => {
-        if (e.data && e.data.size > 0) this.chunks.push(e.data);
-      };
-      // Note: onstop is NOT set here; stop() uses setTimeout to call _onVideoStop
-      // after a 200ms delay to ensure the final chunk is collected (MOOV atom fix)
-      this.mediaRecorder.start(100);
+    const bitrate = this.quality;
+    try {
+      this.mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
+    } catch(e) {
+      this.mediaRecorder = new MediaRecorder(stream, { mimeType });
     }
+    this.mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) this.chunks.push(e.data);
+    };
+    // Note: onstop is NOT set here; stop() uses setTimeout to call _onVideoStop
+    // after a 200ms delay to ensure the final chunk is collected (MOOV atom fix)
+    this.mediaRecorder.start(100);
 
     // Auto-collapse panel so it doesn't block the canvas
     this._collapsePanel();
@@ -3272,96 +3250,46 @@ const Recorder = {
     }
   },
 
-  _captureGifFrames(fps) {
-    const interval = 1000 / fps;
-    let lastTime = 0;
-    const capture = (timestamp) => {
-      if (!this.isRecording || this.isPaused) return;
-      if (this.elapsedTime >= 15000) {
-        this.stop();
-        return;
-      }
-      if (timestamp - lastTime >= interval) {
-        lastTime = timestamp;
-        try {
-          // Force render to get latest frame (respects S.recording for white bg)
-          Renderer.render();
-          const tmpCanvas = document.createElement('canvas');
-          tmpCanvas.width = canvas.width;
-          tmpCanvas.height = canvas.height;
-          const tmpCtx = tmpCanvas.getContext('2d');
-          tmpCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
-          this.gifFrames.push(tmpCanvas);
-        } catch(e) {}
-      }
-      this.rafId = requestAnimationFrame(capture);
-    };
-    this.rafId = requestAnimationFrame(capture);
-  },
-
   async _onVideoStop() {
     if (this.chunks.length === 0) {
       UI.toast('录制失败，请重试', 'error');
       return;
     }
-    const mimeType = this.stream && this.stream.getVideoTracks().length > 0
-      ? (this.mediaRecorder ? this.mediaRecorder.mimeType : 'video/webm')
-      : 'video/webm';
-    const webmBlob = new Blob(this.chunks, { type: mimeType });
-
-    // MP4: 转码 (FFmpeg adds +faststart -> seekable)
-    if (this.format === 'mp4') {
-      await this._convertToMp4(webmBlob);
-    } else {
-      // WebM: remux to seekable MP4
-      this._setStatus('处理视频seekability...', '');
-      const isWebM = mimeType.includes('webm');
-      this.currentBlob = await this._ensureSeekable(webmBlob, isWebM);
-      this._showPreview();
-    }
+    const mp4Blob = new Blob(this.chunks, { type: 'video/mp4' });
+    await this._convertToMp4(mp4Blob);
   },
 
-  async _convertToMp4(webmBlob) {
-    this._setStatus('正在加载转码器...', '');
+  async _convertToMp4(mp4Blob) {
+    this._setStatus('正在处理 MP4...', '');
     try {
-      // 动态加载 FFmpeg.wasm
-      if (!window.FFmpeg) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js';
-        await new Promise((res, rej) => { script.onload = res; script.onerror = rej; document.head.appendChild(script); });
-      }
-      const { FFmpeg } = window.FFmpeg;
-      if (!this._ffmpeg) {
-        this._ffmpeg = new FFmpeg();
-        this._ffmpeg.on('log', ({ message }) => { /* silent */ });
-        this._ffmpeg.on('progress', ({ progress }) => {
-          this._setStatus('正在转码: ' + Math.round(progress * 100) + '%', '');
-        });
-        await this._ffmpeg.load({
-          coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js'
-        });
-      }
-      this._setStatus('正在转码为 MP4...', '');
-      const webmData = await webmBlob.arrayBuffer();
-      await this._ffmpeg.writeFile('input.webm', new Uint8Array(webmData));
-      await this._ffmpeg.exec([
-        '-i', 'input.webm',
-        '-c:v', 'libx264',
-        '-c:a', 'aac',
-        '-movflags', '+faststart',
-        '-preset', 'ultrafast',
-        'output.mp4'
-      ]);
-      const mp4Data = await this._ffmpeg.readFile('output.mp4');
-      await this._ffmpeg.deleteFile('input.webm');
-      await this._ffmpeg.deleteFile('output.mp4');
-      this.currentBlob = new Blob([mp4Data.buffer], { type: 'video/mp4' });
+      const { Mp4Demuxer, Mp4Muxer } = await import('https://cdn.jsdelivr.net/npm/mp4muxer@4.2.1/dist/esm/mp4_muxer.js');
+      this._setStatus('正在注入 seek 信息...', '');
+      let muxer = null;
+      const demuxer = new Mp4Demuxer({
+        onConfig: (config) => {
+          muxer = new Mp4Muxer({
+            target: 'container',
+            videoCodec: config.codec.substring(0, 3) === 'avc' ? 'avc' : 'hevc',
+            width: config.width,
+            height: config.height,
+            fastStart: 'in-memory',
+          });
+        },
+        onSamples: (samples) => {
+          if (muxer) muxer.addVideoChunk({ samples });
+        },
+      });
+      const buf = await mp4Blob.arrayBuffer();
+      demuxer.appendBuffer(buf);
+      demuxer.flush();
+      const { buffer } = muxer.finalize();
+      this.currentBlob = new Blob([buffer], { type: 'video/mp4' });
       this._showPreview();
-      this._setStatus('MP4 转码完成', '#3fb950');
+      this._setStatus('MP4 处理完成', '#3fb950');
     } catch(e) {
-      console.error('MP4 转码失败:', e);
-      UI.toast('MP4 转码失败，将导出 WebM 格式', 'error');
-      this.currentBlob = webmBlob;
+      console.error('MP4 处理失败:', e);
+      UI.toast('MP4 处理失败', 'error');
+      this.currentBlob = mp4Blob;
       this._showPreview();
     }
   },
@@ -3584,11 +3512,6 @@ const Recorder = {
     }
   },
 
-  // Wrap blob: ensure seekable by remuxing WebM to MP4
-  async _ensureSeekable(blob, isWebM) {
-    if (!isWebM) return blob;
-    return this._remuxToSeekableMp4(blob);
-  }
 };
 
 // ==================== Section 12: UI Controllers ====================
