@@ -1098,40 +1098,33 @@ const Renderer = {
           }
         } catch(e) {}
 
-        // Glow effects on top of image
+        // Glow effects on top of image — screen blend for realistic light emission
         if (c.type === 'lamp' && S.simRunning && c.simCurrent > 0) {
-          const intensity = Math.min(c.simCurrent / 30, 1);
-          // LED bulb warm-white glow — covers the entire glass dome
-          const glowCX = 0, glowCY = -26;   // center of glass bulb
-          const glowR = 32 + intensity * 6; // large radius covering dome
+          const intensity = Math.min(c.simCurrent / 1.5, 1);  // very low threshold so even dim current glows visibly
+          const cx = 0, cy = -50;
+          const r = 95;
 
           ctx.globalCompositeOperation = 'screen';
 
-          // Outer warm glow halo
-          const grd = ctx.createRadialGradient(glowCX, glowCY, 6, glowCX, glowCY, glowR);
-          grd.addColorStop(0, `rgba(255,252,230,${0.55 * intensity})`);
-          grd.addColorStop(0.35, `rgba(255,240,180,${0.35 * intensity})`);
-          grd.addColorStop(0.7, `rgba(255,210,100,${0.15 * intensity})`);
-          grd.addColorStop(1, 'transparent');
+          // Wide soft glow halo
+          const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+          grd.addColorStop(0,    `rgba(255,255,220,${intensity})`);
+          grd.addColorStop(0.15, `rgba(255,250,180,${0.85 * intensity})`);
+          grd.addColorStop(0.4,  `rgba(255,220,100,${0.55 * intensity})`);
+          grd.addColorStop(0.7,  `rgba(255,180,50,${0.25 * intensity})`);
+          grd.addColorStop(1,    'transparent');
           ctx.fillStyle = grd;
           ctx.beginPath();
-          ctx.arc(glowCX, glowCY, glowR, 0, Math.PI * 2);
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
           ctx.fill();
 
-          // Bright core — the actual LED chip area
-          ctx.fillStyle = `rgba(255,255,235,${0.25 * intensity})`;
+          // Bright center core
+          const crd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 30);
+          crd.addColorStop(0, `rgba(255,255,255,${0.8 * intensity})`);
+          crd.addColorStop(1, 'transparent');
+          ctx.fillStyle = crd;
           ctx.beginPath();
-          ctx.ellipse(glowCX, glowCY, 16, 20, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Soft highlight at top of bulb
-          const hlR = 10 + intensity * 4;
-          const hl = ctx.createRadialGradient(glowCX, glowCY - 10, 1, glowCX, glowCY - 10, hlR);
-          hl.addColorStop(0, `rgba(255,255,255,${0.4 * intensity})`);
-          hl.addColorStop(1, 'transparent');
-          ctx.fillStyle = hl;
-          ctx.beginPath();
-          ctx.arc(glowCX, glowCY - 10, hlR, 0, Math.PI * 2);
+          ctx.arc(cx, cy, 30, 0, Math.PI * 2);
           ctx.fill();
 
           ctx.globalCompositeOperation = 'source-over';
