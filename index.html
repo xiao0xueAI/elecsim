@@ -1765,27 +1765,17 @@ const WireRouter = {
     return { x: Math.round(pt.x / g) * g, y: Math.round(pt.y / g) * g };
   },
 
-  // Constrain mouse: follow mouse direction (horizontal or vertical, no diagonal)
-  // Always alternate direction, but allow horizontal-first if mouse is more horizontal
+  // Constrain mouse: horizontal or vertical only, follow mouse direction
+  // No forced alternation — continuous horizontal or vertical segments allowed
   _constrainOrtho(head, mouse) {
     const snapped = this._snap(mouse);
     const dx = Math.abs(snapped.x - head.x);
     const dy = Math.abs(snapped.y - head.y);
 
-    if (this.lastDir === null) {
-      // First segment: choose direction based on mouse movement
-      if (dx >= dy) {
-        return { x: snapped.x, y: head.y, dir: 'h' };
-      } else {
-        return { x: head.x, y: snapped.y, dir: 'v' };
-      }
+    if (dx >= dy) {
+      return { x: snapped.x, y: head.y, dir: 'h' };
     } else {
-      // Alternate direction
-      if (this.lastDir === 'h') {
-        return { x: head.x, y: snapped.y, dir: 'v' };
-      } else {
-        return { x: snapped.x, y: head.y, dir: 'h' };
-      }
+      return { x: head.x, y: snapped.y, dir: 'v' };
     }
   },
 
