@@ -1178,9 +1178,9 @@ const Renderer = {
           const halfH = bh / 2;  // 110
           const pinR = 7;
 
-          // Terminal positions (outside panel, vertically aligned at x=0)
-          const termTopY = -halfH - pinR - 2;   // -119
-          const termBotY = halfH + pinR + 2;    // +119
+          // Terminal positions: disc center right at panel edge (half in, half out)
+          const termTopY = -halfH;   // -110: disc straddles top edge
+          const termBotY = halfH;    // +110: disc straddles bottom edge
 
           // Contact points inside panel (vertically aligned for straight wires)
           const redX  = 0,  redY  = -35;   // red: directly below L terminal
