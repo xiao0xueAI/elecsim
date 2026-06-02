@@ -1253,11 +1253,11 @@ const Renderer = {
             ctx.arc(endX, endY, 3, 0, Math.PI * 2);
             ctx.fill();
           } else {
-            // OFF: angle=20°, shorter arm, away from green wire
-            const angle = 20 * Math.PI / 180;
-            const L = 25;
-            const endX = L * Math.sin(angle);           // ≈ 8.6
-            const endY = pivotY + L * Math.cos(angle);  // ≈ -6.5
+            // OFF: tilt up-right 20° from vertical, same arm length as ON
+            const L = 62;
+            const tilt = 20 * Math.PI / 180;  // 20° rightward from straight-up
+            const endX = L * Math.sin(tilt);           // ≈ 21.2 (right)
+            const endY = pivotY - L * Math.cos(tilt);  // ≈ -88.2 (up inside panel)
 
             ctx.strokeStyle = '#8B6914';
             ctx.lineWidth = armWidth;
