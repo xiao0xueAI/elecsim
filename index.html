@@ -234,6 +234,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
     <button class="tbtn export-btn" id="recStartBtn" onclick="ElecSim.Recorder.start()">&#128249; 开始录制</button>
     <button class="tbtn" id="recPauseBtn" onclick="ElecSim.Recorder.toggle()" style="display:none;color:#d29922;">&#10074;&#10074; 暂停</button>
     <button class="tbtn" id="recStopBtn" onclick="ElecSim.Recorder.stop()" style="display:none;color:#f85149;">&#9632; 停止</button>
+    <button class="tbtn" id="recReRecordBtn" onclick="ElecSim.Recorder.reRecord()" style="display:none;color:#d29922;">&#9654; 重新录制</button>
     <div id="recIndicator" onclick="ElecSim.Recorder.togglePanel()" style="display:none;cursor:pointer;">
       <div class="rec-dot"></div>
       <span class="rec-time" id="recTime">00:00</span>
@@ -417,7 +418,6 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="btn-secondary" onclick="ElecSim.Recorder.closePreview()">取消</button>
-        <button class="btn-primary" style="background:#d29922;" onclick="ElecSim.Recorder.reRecord();">&#9654; 重新录制</button>
         <button class="btn-primary" onclick="ElecSim.Recorder.exportCurrent();ElecSim.Recorder.closePreview();">&#11015; 导出到本地</button>
       </div>
     </div>
@@ -3143,10 +3143,11 @@ const Recorder = {
     this._updateUI(true);
     this._startTimer();
 
-    // Show pause button in toolbar
+    // Show pause/stop in toolbar, hide start/re-record
     document.getElementById('recPauseBtn').style.display = 'inline-flex';
     document.getElementById('recStopBtn').style.display = 'inline-flex';
     document.getElementById('recStartBtn').style.display = 'none';
+    document.getElementById('recReRecordBtn').style.display = 'none';
 
     UI.toast('后台录制已开始，可正常操作画布', 'success');
   },
@@ -3222,8 +3223,9 @@ const Recorder = {
       clearInterval(this.timerInterval);
     }
 
-    // Restore toolbar buttons
+    // Restore toolbar buttons: show start + re-record, hide pause/stop
     document.getElementById('recStartBtn').style.display = 'inline-flex';
+    document.getElementById('recReRecordBtn').style.display = 'inline-flex';
     document.getElementById('recPauseBtn').style.display = 'none';
     document.getElementById('recPauseBtn').innerHTML = '&#10074;&#10074; 暂停';
     document.getElementById('recStopBtn').style.display = 'none';
@@ -3404,6 +3406,9 @@ const Recorder = {
     document.getElementById('recTime').textContent = '00:00';
     const t2 = document.getElementById('recTime2');
     if (t2) t2.textContent = '00:00';
+    // Toolbar: show start, hide re-record
+    document.getElementById('recStartBtn').style.display = 'inline-flex';
+    document.getElementById('recReRecordBtn').style.display = 'none';
   },
 
   close() {
