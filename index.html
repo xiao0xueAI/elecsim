@@ -1176,112 +1176,105 @@ const Renderer = {
         if (c.type === 'spst') {
           const closed = c.props.closed;
           const halfH = bh / 2;  // 110
-          const termR = 11;      // terminal radius — half inside, half outside panel
+          const termR = 9;       // terminal ball radius
 
-          // Metal terminal colors
-          const redMetal = { light:'#ff9999', mid:'#e53e3e', dark:'#991b1b', stroke:'#7f1d1d' };
-          const greenMetal = { light:'#86efac', mid:'#22c55e', dark:'#166534', stroke:'#14532d' };
+          // Terminal positions: outside the panel image
+          const termTopY = -halfH - termR - 4;   // above panel (-123)
+          const termBotY = halfH + termR + 4;    // below panel (+123)
 
-          function drawTerminal(x, y, r, colors, label, labelOffsetY) {
-            // Radial gradient for metallic 3D look
-            const grad = ctx.createRadialGradient(x - r*0.25, y - r*0.25, r*0.12, x, y, r);
+          // Internal wire endpoints (inside panel)
+          const wireTopEndY = -halfH + 50;   // -60 (inside panel, upper)
+          const wireBotEndY = halfH - 50;    // +60 (inside panel, lower)
+
+          function drawMetalBall(x, y, r, colors, label) {
+            // Outer metallic ball
+            const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
             grad.addColorStop(0, colors.light);
-            grad.addColorStop(0.55, colors.mid);
+            grad.addColorStop(0.6, colors.mid);
             grad.addColorStop(1, colors.dark);
 
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.fillStyle = grad;
             ctx.fill();
-            ctx.strokeStyle = colors.stroke;
+            ctx.strokeStyle = colors.dark;
             ctx.lineWidth = 1.5;
             ctx.stroke();
 
-            // Highlight dot for extra metallic shine
+            // Inner hole
             ctx.beginPath();
-            ctx.arc(x - r*0.25, y - r*0.25, r*0.3, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.arc(x, y, r * 0.4, 0, Math.PI * 2);
+            ctx.fillStyle = '#1a1a2e';
             ctx.fill();
 
-            // Label inside panel edge (inset)
-            ctx.font = 'bold 10px Arial';
-            ctx.textAlign = 'center';
+            // Highlight shine
+            ctx.beginPath();
+            ctx.arc(x - r*0.25, y - r*0.25, r*0.2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fill();
+
+            // Label to the right of terminal
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = colors.dark;
-            ctx.fillText(label, x, y + labelOffsetY);
+            ctx.fillText(label, x + r + 5, y);
           }
 
-          // Terminal centers sit ON the panel edge line — half in, half out
-          const topY = -halfH;   // panel top edge  (-110)
-          const botY = halfH;    // panel bottom edge (+110)
+          const redMetal = { light:'#ff9999', mid:'#e53e3e', dark:'#991b1b' };
+          const greenMetal = { light:'#86efac', mid:'#22c55e', dark:'#166534' };
 
-          // L (top, RED) — label below terminal (inside panel)
-          drawTerminal(0, topY, termR, redMetal, 'L', termR + 7);
-          // L1 (bottom, GREEN) — label above terminal (inside panel)
-          drawTerminal(0, botY, termR, greenMetal, 'L1', -termR - 7);
+          // Draw terminals
+          drawMetalBall(0, termTopY, termR, redMetal, 'L');
+          drawMetalBall(0, termBotY, termR, greenMetal, 'L1');
 
-          // Internal bridge / contact arm
-          const connTopY = topY + termR * 0.5;   // inner connection point of top terminal
-          const connBotY = botY - termR * 0.5;   // inner connection point of bottom terminal
+          // Draw thick wires from terminals into panel
+          ctx.lineCap = 'round';
+          ctx.lineWidth = 6;
+
+          // Red wire: L terminal → inside panel
+          ctx.strokeStyle = '#e53e3e';
+          ctx.beginPath();
+          ctx.moveTo(0, termTopY + termR);
+          ctx.lineTo(0, wireTopEndY);
+          ctx.stroke();
+
+          // Green wire: L1 terminal → inside panel
+          ctx.strokeStyle = '#22c55e';
+          ctx.beginPath();
+          ctx.moveTo(0, termBotY - termR);
+          ctx.lineTo(0, wireBotEndY);
+          ctx.stroke();
+
+          // Contact arm (seesaw) — pivots at red wire end
+          const pivotX = 0, pivotY = wireTopEndY;
+          const armLen = 40;
+          const armWidth = 5;
 
           if (closed) {
-            // CLOSED: solid diagonal bridge connecting L → L1
-            ctx.strokeStyle = '#8B6914';       // dark bronze
-            ctx.lineWidth = 5;
-            ctx.lineCap = 'round';
-            ctx.shadowColor = 'rgba(139,105,20,0.35)';
-            ctx.shadowBlur = 5;
-            ctx.beginPath();
-            ctx.moveTo(0, connTopY);
-            ctx.lineTo(0, connBotY);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-
-            // Gold contact dots
-            ctx.fillStyle = '#FFD700';
-            ctx.beginPath(); ctx.arc(0, connTopY, 3, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(0, connBotY, 3, 0, Math.PI * 2); ctx.fill();
-
-            // Current direction arrow
-            ctx.fillStyle = '#FF6600';
-            ctx.font = 'bold 11px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('↓', 0, 0);
-          } else {
-            // OPEN: broken bridge with gap
-            const gap = 12;
-            const midY = (connTopY + connBotY) / 2;
-
-            // Upper stub
+            // ON: arm tilts down-right to touch green wire
             ctx.strokeStyle = '#8B6914';
-            ctx.lineWidth = 5;
+            ctx.lineWidth = armWidth;
             ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.moveTo(0, connTopY);
-            ctx.lineTo(0, midY - gap/2);
+            ctx.moveTo(pivotX, pivotY);
+            ctx.lineTo(14, wireBotEndY - 2);
             ctx.stroke();
 
-            // Lower stub
+            // Gold contact spark
+            ctx.fillStyle = '#FFD700';
             ctx.beginPath();
-            ctx.moveTo(0, midY + gap/2);
-            ctx.lineTo(0, connBotY);
-            ctx.stroke();
-
-            // Red break cross
-            ctx.strokeStyle = '#ff4444';
-            ctx.lineWidth = 2;
+            ctx.arc(14, wireBotEndY - 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            // OFF: arm tilts up-right, away from green wire
+            ctx.strokeStyle = '#8B6914';
+            ctx.lineWidth = armWidth;
+            ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.moveTo(-5, midY - 3); ctx.lineTo(5, midY + 3);
-            ctx.moveTo(5, midY - 3);  ctx.lineTo(-5, midY + 3);
+            ctx.moveTo(pivotX, pivotY);
+            ctx.lineTo(18, pivotY - 38);
             ctx.stroke();
-
-            // "断开" label
-            ctx.fillStyle = '#ff6666';
-            ctx.font = 'bold 9px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('断开', 0, midY);
           }
         }
 
