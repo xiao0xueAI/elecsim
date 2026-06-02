@@ -420,6 +420,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="btn-secondary" onclick="ElecSim.Recorder.closePreview()">取消</button>
+        <button class="btn-primary" style="background:#d29922;" onclick="ElecSim.Recorder.reRecord();">&#9654; 重新录制</button>
         <button class="btn-primary" onclick="ElecSim.Recorder.exportCurrent();ElecSim.Recorder.closePreview();">&#11015; 导出到本地</button>
       </div>
     </div>
@@ -3450,6 +3451,17 @@ const Recorder = {
     document.getElementById('previewModal').classList.remove('show');
     document.getElementById('prevVideo').src = '';
     this._revokeUrl();
+  },
+
+  // Re-record: close preview and reset state for a fresh recording
+  reRecord() {
+    this.closePreview();
+    this.currentBlob = null;
+    this.currentUrl = null;
+    this.chunks = [];
+    this.elapsedTime = 0;
+    this._setStatus('准备就绪', '');
+    document.getElementById('recExportBtn').disabled = true;
   },
 
   close() {
