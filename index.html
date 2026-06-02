@@ -1002,20 +1002,20 @@ const Renderer = {
   render() {
     S.animTick++;
     ctx.clearRect(0, 0, W, H);
-    // Recording mode: solid background (#7b7b7b) with grid
+    // Recording mode: same dark background as normal view
     if (S.recording) {
-      ctx.fillStyle = '#7b7b7b';
+      ctx.fillStyle = '#0d1117';
       ctx.fillRect(0, 0, W, H);
       ctx.save();
       ctx.translate(S.pan.x, S.pan.y);
       ctx.scale(S.zoom, S.zoom);
-      // Grid: light gray, 40% opacity
+      // Grid: same subtle white grid as normal mode
       const g = S.grid;
       const startX = Math.floor(-S.pan.x / S.zoom / g) * g;
       const startY = Math.floor(-S.pan.y / S.zoom / g) * g;
       const endX = startX + W / S.zoom + g * 2;
       const endY = startY + H / S.zoom + g * 2;
-      ctx.strokeStyle = 'rgba(200,200,200,0.4)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       for (let x = startX; x < endX; x += g) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
