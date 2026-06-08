@@ -1099,6 +1099,25 @@ const Renderer = {
           }
         } catch(e) {}
 
+        // === AC Source: draw lead wires from image bottom down to pin positions ===
+        if (c.type === 'ac_source' && c.pins && c.pins.length >= 2) {
+          const wireTopY = bh / 2 - 5;        // just below the image (plug cable end)
+          const leadLen = 18;                  // length of visible lead wire
+          const pinSpacing = 30;               // horizontal distance between L and N pin dots
+          for (const pin of c.pins) {
+            const isL = pin.label === 'L';
+            const x = pin.dx;
+            const color = isL ? '#e53935' : '#1e88e5'; // L=red, N=blue
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x, wireTopY);
+            ctx.lineTo(x, pin.dy - 6);
+            ctx.stroke();
+          }
+        }
+
         // Glow effects on top of image — screen blend for realistic light emission
         if (c.type === 'lamp' && S.simRunning && c.simCurrent > 0) {
           const intensity = Math.min(c.simCurrent / 1.5, 1);  // very low threshold so even dim current glows visibly
