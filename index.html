@@ -480,8 +480,8 @@ const Config = {
   maxHistory: 50,
   autoSaveInterval: 30000,
   maxImageSize: 200 * 1024, // 200KB base64
-  pinRadius: 6,
-  pinHitRadius: 12,
+  pinRadius: 8.5,
+  pinHitRadius: 14,
   particleSpeed: 0.3,
   categoryColors: {
     '电源': '#f0883e', '开关/按钮': '#58a6ff', '保护器件': '#f85149',
@@ -1396,10 +1396,10 @@ const Renderer = {
       const connected = WireRouter.isPinConnected(c.id, pin.id);
       const pinWireType = connected ? WireRouter.getPinWireType(c.id, pin.id) : null;
       const wireColor = pinWireType ? WireRouter.WireColors[pinWireType] : null;
-      const pinR = (c.type === 'lamp' || c.type === 'spst' || c.type === 'switch') ? 5 : 7;
+      const pinR = (c.type === 'lamp' || c.type === 'spst' || c.type === 'switch') ? 5 : 8.5;
 
       if (connected && wireColor && !isXray) {
-        drawCrimp3D(px, py, wireColor, (c.type === 'lamp' || c.type === 'spst' || c.type === 'switch') ? 5 : 6.5);
+        drawCrimp3D(px, py, wireColor, (c.type === 'lamp' || c.type === 'spst' || c.type === 'switch') ? 5 : 8);
       } else {
         ctx.beginPath();
         ctx.arc(px, py, pinR, 0, Math.PI * 2);
