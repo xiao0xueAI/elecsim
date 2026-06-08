@@ -3303,6 +3303,158 @@ const Templates = {
 };
 
 // ==================== Section 11: Recording System ====================
+// === Pure-JS MP4 faststart: relocate MOOV atom to front of file ===
+// MediaRecorder produces MP4 with MOOV at the end → players can't seek.
+// This walks the box tree, lifts the MOOV, and rewrites stco/co64 offsets
+// in-place. No external dependencies.
+function fastStartMp4(buf) {
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const decoder = new TextDecoder('ascii');
+  const FOURCC = (i) => decoder.decode(buf.slice(i, i + 4));
+
+  // Parse boxes at the top level, return array of {type, header, start, end}
+  function parseBoxes(start, end) {
+    const boxes = [];
+    let off = start;
+    while (off + 8 <= end) {
+      let size = view.getUint32(off);
+      const type = FOURCC(off + 4);
+      let hdrSize = 8;
+      if (size === 1) {
+        // 64-bit size
+        const hi = view.getUint32(off + 8);
+        const lo = view.getUint32(off + 12);
+        size = hi * 2 ** 32 + lo;
+        hdrSize = 16;
+      } else if (size === 0) {
+        size = end - off; // extends to EOF
+      }
+      if (size < hdrSize || off + size > end) break;
+      boxes.push({ type, header: hdrSize, start: off, end: off + size });
+      off += size;
+    }
+    return boxes;
+  }
+
+  // Recursively rewrite chunk offsets in stco (32-bit) and co64 (64-bit) boxes
+  function rewriteOffsets(box, delta) {
+    if (box.type === 'stco') {
+      const count = view.getUint32(box.start + box.header + 4);
+      for (let i = 0; i < count; i++) {
+        const p = box.start + box.header + 8 + i * 4;
+        const old = view.getUint32(p);
+        view.setUint32(p, old + delta);
+      }
+    } else if (box.type === 'co64') {
+      const count = view.getUint32(box.start + box.header + 4);
+      for (let i = 0; i < count; i++) {
+        const p = box.start + box.header + 8 + i * 8;
+        const hi = view.getUint32(p);
+        const lo = view.getUint32(p + 4);
+        const old = hi * 2 ** 32 + lo;
+        const nw = old + delta;
+        view.setUint32(p, Math.floor(nw / 2 ** 32));
+        view.setUint32(p + 4, nw >>> 0);
+      }
+    } else {
+      // Recurse into container boxes
+      const kids = parseBoxes(box.start + box.header, box.end);
+      for (const k of kids) rewriteOffsets(k, delta);
+    }
+  }
+
+  const top = parseBoxes(0, buf.length);
+  const moov = top.find(b => b.type === 'moov');
+  if (!moov) throw new Error('No MOOV box found');
+  if (moov.start === 0) {
+    // MOOV already at front
+    return buf;
+  }
+
+  // The MDAT comes after MOOV; everything after MDAT (other boxes) goes between
+  // MOOV and MDAT. Layout: [FTYP][MOOV][MDAT][others] -> [FTYP][MOOV][others][MDAT]
+  // We move MOOV to right after FTYP, before everything else.
+
+  // Find ftyp box (may be absent)
+  const ftyp = top.find(b => b.type === 'ftyp');
+  const ftypEnd = ftyp ? ftyp.end : 0;
+
+  // Reassemble: everything before MOOV (ftyp) + MOOV + everything between ftypEnd and moov.start (excluding MOOV) + everything after MOOV
+  const beforeMoov = buf.slice(0, moov.start);
+  const moovData = buf.slice(moov.start, moov.end);
+  const betweenFtypAndMoov = ftypEnd < moov.start ? buf.slice(ftypEnd, moov.start) : new Uint8Array(0);
+  const afterMoov = buf.slice(moov.end);
+
+  // Recompose
+  const out = new Uint8Array(buf.length);
+  let off = 0;
+  out.set(beforeMoov, off); off += beforeMoov.length;        // ftyp
+  out.set(moovData, off); off += moovData.length;            // moov (now at front)
+  out.set(betweenFtypAndMoov, off); off += betweenFtypAndMoov.length;  // any other pre-moov boxes
+  out.set(afterMoov, off);                                    // mdat + others
+
+  // Now rewrite all stco/co64 offsets that pointed into the pre-moov region
+  // The shift = new_position_of_mdat_or_other - old_position
+  // For each chunk offset that was > moov.end, subtract moov.size - betweenFtypAndMoov.length
+  // Simpler: rewrite offsets in MOOV by subtracting (moov.size - betweenFtypAndMoov.length)
+  // from any offset that is > moov.end (i.e., shifted left)
+  const shift = betweenFtypAndMoov.length;  // positive = content after moov moved left by this much
+  if (shift > 0) {
+    // Update view to point at the new MOOV in the output
+    const newView = new DataView(out.buffer, out.byteOffset, out.byteLength);
+    const newMoovStart = beforeMoov.length;
+    // Recurse to find all stco/co64 and shift their offsets by -shift
+    function shiftOffsets(box, delta) {
+      if (box.type === 'stco') {
+        const count = newView.getUint32(box.start + box.header + 4);
+        for (let i = 0; i < count; i++) {
+          const p = box.start + box.header + 8 + i * 4;
+          const old = newView.getUint32(p);
+          if (old > moov.end) newView.setUint32(p, old - delta);
+        }
+      } else if (box.type === 'co64') {
+        const count = newView.getUint32(box.start + box.header + 4);
+        for (let i = 0; i < count; i++) {
+          const p = box.start + box.header + 8 + i * 8;
+          const hi = newView.getUint32(p);
+          const lo = newView.getUint32(p + 4);
+          const old = hi * 2 ** 32 + lo;
+          if (old > moov.end) {
+            const nw = old - delta;
+            newView.setUint32(p, Math.floor(nw / 2 ** 32));
+            newView.setUint32(p + 4, nw >>> 0);
+          }
+        }
+      } else {
+        const kids = parseBoxesInView(newView, box.start + box.header, box.end);
+        for (const k of kids) shiftOffsets(k, delta);
+      }
+    }
+    function parseBoxesInView(v, start, end) {
+      const boxes = [];
+      let off2 = start;
+      while (off2 + 8 <= end) {
+        let size = v.getUint32(off2);
+        const type = decoder.decode(out.slice(off2 + 4, off2 + 8));
+        let hdrSize = 8;
+        if (size === 1) { size = v.getUint32(off2 + 8) * 2 ** 32 + v.getUint32(off2 + 12); hdrSize = 16; }
+        else if (size === 0) { size = end - off2; }
+        if (size < hdrSize || off2 + size > end) break;
+        boxes.push({ type, header: hdrSize, start: off2, end: off2 + size });
+        off2 += size;
+      }
+      return boxes;
+    }
+    const newMoovEnd = newMoovStart + moovData.length;
+    // Parse top-level boxes in the new view
+    const newTop = parseBoxesInView(newView, 0, out.length);
+    const newMoovBox = newTop.find(b => b.type === 'moov');
+    if (newMoovBox) shiftOffsets(newMoovBox, shift);
+  }
+
+  return out;
+}
+
 const Recorder = {
   isRecording: false,
   isPaused: false,
@@ -3600,45 +3752,19 @@ const Recorder = {
     await this._convertToMp4(mp4Blob);
   },
 
+  // Pure-JS MP4 faststart: rewrite the file so the MOOV atom is at the front
+  // (MediaRecorder puts MOOV at the end → video plays but progress bar is unseekable)
   async _convertToMp4(mp4Blob) {
-    this._setStatus('正在加载转码器...', '');
+    this._setStatus('正在优化 MP4 (faststart)...', '');
     try {
-      if (!window.FFmpeg) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js';
-        await new Promise((res, rej) => { script.onload = res; script.onerror = rej; document.head.appendChild(script); });
-      }
-      const { FFmpeg } = window.FFmpeg;
-      if (!this._ffmpeg) {
-        this._ffmpeg = new FFmpeg();
-        this._ffmpeg.on('log', ({ message }) => { /* silent */ });
-        this._ffmpeg.on('progress', ({ progress }) => {
-          this._setStatus('正在转码: ' + Math.round(progress * 100) + '%', '');
-        });
-        await this._ffmpeg.load({
-          coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js'
-        });
-      }
-      this._setStatus('正在转码为 MP4...', '');
-      const mp4Data = await mp4Blob.arrayBuffer();
-      await this._ffmpeg.writeFile('input.mp4', new Uint8Array(mp4Data));
-      await this._ffmpeg.exec([
-        '-i', 'input.mp4',
-        '-c:v', 'libx264',
-        '-c:a', 'aac',
-        '-movflags', '+faststart',
-        '-preset', 'ultrafast',
-        'output.mp4'
-      ]);
-      const outData = await this._ffmpeg.readFile('output.mp4');
-      await this._ffmpeg.deleteFile('input.mp4');
-      await this._ffmpeg.deleteFile('output.mp4');
-      this.currentBlob = new Blob([outData.buffer], { type: 'video/mp4' });
+      const buf = await mp4Blob.arrayBuffer();
+      const fixed = fastStartMp4(new Uint8Array(buf));
+      this.currentBlob = new Blob([fixed], { type: 'video/mp4' });
       this._showPreview();
-      this._setStatus('MP4 转码完成', '#3fb950');
+      this._setStatus('MP4 优化完成，可拖动进度条', '#3fb950');
     } catch(e) {
-      console.error('MP4 转码失败:', e);
-      UI.toast('MP4 转码失败，将导出原始文件', 'error');
+      console.error('MP4 faststart 失败:', e);
+      UI.toast('MP4 优化失败，将导出原始文件', 'error');
       this.currentBlob = mp4Blob;
       this._showPreview();
     }
