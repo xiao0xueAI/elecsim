@@ -614,11 +614,11 @@ const Registry = {
       // 右侧（从上到下）: L红、N蓝 - 线圈供电
       // 左侧（从上到下）: NO常开、COM公共、NC常闭 - 干接点
       // 坐标基于1728x1090源图螺丝位置精确定位
-      pins:[{id:'l',label:'L',dx:127,dy:-19,lo:25,ld:0,type:'coil'},
-            {id:'n',label:'N',dx:127,dy:10,lo:25,ld:0,type:'coil'},
-            {id:'no',label:'NO',dx:-129,dy:-34,lo:-32,ld:0,type:'contact'},
-            {id:'com',label:'COM',dx:-129,dy:-5,lo:-32,ld:0,type:'contact'},
-            {id:'nc',label:'NC',dx:-129,dy:24,lo:-32,ld:0,type:'contact'}],
+      pins:[{id:'l',label:'L',dx:127,dy:-19,lo:35,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:127,dy:10,lo:35,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-129,dy:-34,lo:-42,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-129,dy:-5,lo:-42,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-129,dy:24,lo:-42,ld:0,type:'contact'}],
       props:{coilVoltage:5,coilResistance:200,contactR:0.05,maxCurrent:10,energized:false} },
 
     // --- 传感器 ---
