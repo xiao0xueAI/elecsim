@@ -710,8 +710,9 @@ const Registry = {
       w:120, h:80,
       pins:[{id:'b',label:'B',dx:-60,dy:-20},{id:'c',label:'C',dx:60,dy:-20},{id:'e',label:'E',dx:60,dy:20}],
       props:{beta:100} },
-    // --- 433MHz 无线遥控器 (RF Remote, 发射无线信号) ---
-    { type:'rf_remote', name:'433MHz遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz无线遥控器A键（按压式发射器）',
+    // --- 433MHz 无线遥控器 (RF Remote, 433MHz信号发射器, 专配433MHz控制器) ---
+    // 用途: 必须搭配 dry_relay (433MHz干接点控制器) 使用, 按下A键发射433MHz无线信号
+    { type:'rf_remote', name:'433MHz遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz无线遥控器A键（433MHz信号发射器, 配433MHz控制器使用）',
       w:100, h:134,
       image:'images/rf_remote_关闭.png',
       imageOn:'images/rf_remote_打开.png',
