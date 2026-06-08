@@ -536,7 +536,7 @@ const Registry = {
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
       w:160, h:260,
       image:'images/ac_plug.png',
-      pins:[{id:'p',label:'L',dx:-22,dy:122},{id:'n',label:'N',dx:22,dy:122}],
+      pins:[{id:'p',label:'L',dx:-21,dy:122},{id:'n',label:'N',dx:9,dy:122}],
       props:{voltage:220,freq:50} },
     { type:'dc_dc', name:'DC-DC模块', cat:'电源', icon:'🔌', desc:'降压/升压',
       w:120, h:80,
@@ -1096,7 +1096,9 @@ const Renderer = {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             ctx.globalAlpha = isXray ? 0.3 : 1.0;
-            ctx.drawImage(img, -plugW / 2, plugTopY, plugW, plugH);
+            // Shift image so cable is at component center (source image cable is at x=760, image width 1651, so offset = (760/1651 - 0.5) * plugW)
+            const cableOffsetX = (760 / 1651 - 0.5) * plugW;  // ~ -6.3 for plugW=160
+            ctx.drawImage(img, -plugW / 2 - cableOffsetX, plugTopY, plugW, plugH);
             ctx.globalAlpha = 1;
           }
         } catch(e) {}
