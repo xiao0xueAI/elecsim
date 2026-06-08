@@ -609,16 +609,16 @@ const Registry = {
     // 干接点继电器模块 (Dry Contact Relay Module)
     // 5V线圈 + SPDT干接点(NO/COM/NC)，右侧L/N为线圈供电，左侧3个端子为干接点
     { type:'dry_relay', name:'干接点继电器', cat:'继电器/接触器', icon:'🔌', desc:'5V干接点通断器（实物照片）',
-      w:300, h:250,
+      w:300, h:190,
       image:'images/dry_relay.png',
       // 右侧（从上到下）: L红、N蓝 - 线圈供电
       // 左侧（从上到下）: NO常开、COM公共、NC常闭 - 干接点
-      // 坐标基于图片源点位置精确定位
-      pins:[{id:'l',label:'L',dx:110,dy:-53,lo:25,ld:0,type:'coil'},
-            {id:'n',label:'N',dx:110,dy:-26,lo:25,ld:0,type:'coil'},
-            {id:'no',label:'NO',dx:-130,dy:-67,lo:-32,ld:0,type:'contact'},
-            {id:'com',label:'COM',dx:-130,dy:-40,lo:-32,ld:0,type:'contact'},
-            {id:'nc',label:'NC',dx:-130,dy:-13,lo:-32,ld:0,type:'contact'}],
+      // 坐标基于1728x1090源图螺丝位置精确定位
+      pins:[{id:'l',label:'L',dx:127,dy:-19,lo:25,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:127,dy:10,lo:25,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-129,dy:-34,lo:-32,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-129,dy:-5,lo:-32,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-129,dy:24,lo:-32,ld:0,type:'contact'}],
       props:{coilVoltage:5,coilResistance:200,contactR:0.05,maxCurrent:10,energized:false} },
 
     // --- 传感器 ---
