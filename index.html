@@ -605,6 +605,17 @@ const Registry = {
             {id:'l1',label:'L1',dx:80,dy:-20,type:'contact'},{id:'t1',label:'T1',dx:80,dy:0,type:'contact'},
             {id:'l2',label:'L2',dx:80,dy:20,type:'contact'}],
       props:{coilVoltage:220,contactR:0.02,maxCurrent:25,energized:false} },
+    // 干接点继电器模块 (Dry Contact Relay Module)
+    // 5V线圈 + SPDT干接点(NO/COM/NC)，右侧L/N为线圈供电，左侧3个端子为干接点
+    { type:'dry_relay', name:'干接点继电器', cat:'继电器/接触器', icon:'🔌', desc:'5V干接点通断器（实物照片）',
+      w:300, h:250,
+      image:'images/dry_relay.png',
+      // 右侧（从上到下）: L红、N蓝 - 线圈供电
+      // 左侧（从上到下）: NO常开、COM公共、NC常闭 - 干接点
+      pins:[{id:'l',label:'L',dx:140,dy:-58,type:'coil'},{id:'n',label:'N',dx:140,dy:-28,type:'coil'},
+            {id:'no',label:'NO',dx:-140,dy:-78,type:'contact'},{id:'com',label:'COM',dx:-140,dy:-45,type:'contact'},
+            {id:'nc',label:'NC',dx:-140,dy:-13,type:'contact'}],
+      props:{coilVoltage:5,coilResistance:200,contactR:0.05,maxCurrent:10,energized:false} },
 
     // --- 传感器 ---
     { type:'thermistor', name:'温度传感器', cat:'传感器', icon:'🌡️', desc:'NTC热敏',
@@ -1497,7 +1508,7 @@ const Renderer = {
     if (c.type === 'rotary') return '→' + c.props.position;
     if (c.type === 'push_no' || c.type === 'push_nc') return c.props.pressed ? '按下' : '释放';
     if (c.type === 'fuse') return c.props.blown ? '熔断!' : c.props.rating + 'A';
-    if (c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor') return c.props.energized ? '吸合' : '释放';
+    if (c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor' || c.type === 'dry_relay') return c.props.energized ? '吸合' : '释放';
     if (c.type === 'motor_dc') return c.props.voltage + 'V';
     if (c.type === 'buzzer') return c.props.voltage + 'V';
     if (c.type === 'solenoid') return c.props.voltage + 'V';
@@ -1702,7 +1713,7 @@ const Renderer = {
       ctx.lineTo(14, tgt); ctx.stroke();
       ctx.beginPath(); ctx.arc(14, -15, 2.5, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(14, 15, 2.5, 0, Math.PI * 2); ctx.fill();
-    } else if (c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor') {
+    } else if (c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor' || c.type === 'dry_relay') {
       // Coil
       ctx.beginPath(); ctx.arc(-20, 0, 10, 0, Math.PI * 2); ctx.stroke();
       ctx.font = '7px monospace'; ctx.textAlign = 'center'; ctx.fillText('C', -20, 3);
@@ -2463,7 +2474,7 @@ const Engine = {
         if (!c.props.pressed && pins.length >= 2) {
           addEdge(mkKey(c.id, pins[0].id), mkKey(c.id, pins[1].id), null, c.id);
         }
-      } else if (t === 'relay5' || t === 'relay8' || t === 'contactor') {
+      } else if (t === 'relay5' || t === 'relay8' || t === 'contactor' || t === 'dry_relay') {
         const coilPins = pins.filter(p => p.type === 'coil');
         if (coilPins.length >= 2) {
           addEdge(mkKey(c.id, coilPins[0].id), mkKey(c.id, coilPins[1].id), null, c.id);
@@ -2512,7 +2523,7 @@ const Engine = {
       if (t === 'photoresistor') return Math.max(100, comp.props.resistance || 5000);
       if (t === 'capacitor') return 1e9; // DC steady state: open circuit (does NOT conduct)
       if (t === 'npn') return 500;
-      if (t === 'relay5' || t === 'relay8' || t === 'contactor') return comp.props.coilResistance || 10;
+      if (t === 'relay5' || t === 'relay8' || t === 'contactor' || t === 'dry_relay') return comp.props.coilResistance || 10;
       if (t === 'switch' || t === 'spst' || t === 'breaker') return 0.05; // realistic contact resistance (~50mΩ)
       if (t === 'push_no' || t === 'push_nc') return 0.05;
       if (t === 'spdt' || t === 'rotary') return 0.05;
@@ -2810,7 +2821,7 @@ const Engine = {
       });
 
       // ==================== Update relays ====================
-      S.components.filter(c => ['relay5', 'relay8', 'contactor'].includes(c.type)).forEach(relay => {
+      S.components.filter(c => ['relay5', 'relay8', 'contactor', 'dry_relay'].includes(c.type)).forEach(relay => {
         relay.props.energized = relay.simCurrent > 1; // 1mA threshold
       });
     });
@@ -3630,7 +3641,7 @@ const UI = {
       row.querySelector('button').addEventListener('click', () => { comp.props.blown = !comp.props.blown; S.dirty = true; this.showProps(comp); render(); });
       content.appendChild(row);
     }
-    else if (comp.type === 'relay5' || comp.type === 'relay8' || comp.type === 'contactor') {
+    else if (comp.type === 'relay5' || comp.type === 'relay8' || comp.type === 'contactor' || comp.type === 'dry_relay') {
       makeRow('线圈电压 (V)', 'coilVoltage', comp.props.coilVoltage);
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.energized ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.energized ? '吸合' : '释放'}</button>`;
