@@ -1165,6 +1165,37 @@ const Renderer = {
           }
         } catch(e) {}
 
+        // === Dry Relay: LED指示灯 (右上角，绿灯亮=吸合) ===
+        if (c.type === 'dry_relay') {
+          const ledX = bw / 2 - 18;
+          const ledY = -bh / 2 + 12;
+          const ledR = 6;
+          if (c.props.energized) {
+            // 绿灯亮 - 吸合状态
+            ctx.beginPath();
+            ctx.arc(ledX, ledY, ledR + 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.3)';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(ledX, ledY, ledR, 0, Math.PI * 2);
+            ctx.fillStyle = '#4caf50';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(ledX - 2, ledY - 2, ledR * 0.4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.fill();
+          } else {
+            // 灰灯 - 释放状态
+            ctx.beginPath();
+            ctx.arc(ledX, ledY, ledR, 0, Math.PI * 2);
+            ctx.fillStyle = '#666';
+            ctx.fill();
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+
         // === AC Source: draw lead wires from image bottom down to pin positions ===
         if (c.type === 'ac_source' && c.pins && c.pins.length >= 2) {
           const wireTopY = bh / 2 - 5;        // just below the image (plug cable end)
@@ -2500,9 +2531,23 @@ const Engine = {
         if (coilPins.length >= 2) {
           addEdge(mkKey(c.id, coilPins[0].id), mkKey(c.id, coilPins[1].id), null, c.id);
         }
-        const contactPins = pins.filter(p => p.type !== 'coil');
-        if (c.props.energized && contactPins.length >= 2) {
-          addEdge(mkKey(c.id, contactPins[0].id), mkKey(c.id, contactPins[1].id), null, c.id);
+        // 触点逻辑: COM-NO(吸合时) / COM-NC(释放时)
+        const noPin = pins.find(p => p.id === 'no');
+        const comPin = pins.find(p => p.id === 'com');
+        const ncPin = pins.find(p => p.id === 'nc');
+        if (comPin && noPin && ncPin) {
+          if (c.props.energized) {
+            // 吸合: COM连接到NO
+            addEdge(mkKey(c.id, comPin.id), mkKey(c.id, noPin.id), null, c.id);
+          } else {
+            // 释放: COM连接到NC
+            addEdge(mkKey(c.id, comPin.id), mkKey(c.id, ncPin.id), null, c.id);
+          }
+        } else if (contactPins.length >= 2) {
+          // 兼容其他继电器类型（只有2个触点脚）
+          if (c.props.energized && contactPins.length >= 2) {
+            addEdge(mkKey(c.id, contactPins[0].id), mkKey(c.id, contactPins[1].id), null, c.id);
+          }
         }
       } else if (pins.length >= 2 && !['battery', 'ac_source', 'dc_dc'].includes(t)) {
         // Default: adjacent pins connected (for 2-pin pass-through components)
