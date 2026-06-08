@@ -534,6 +534,11 @@ const Registry = {
       w:120, h:60,
       pins:[{id:'p',label:'+',dx:60,dy:0},{id:'n',label:'-',dx:-60,dy:0}],
       props:{voltage:9} },
+    { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
+      w:180, h:140,
+      image:'images/battery_12v.png',
+      pins:[{id:'p',label:'+',dx:74,dy:-14},{id:'n',label:'-',dx:67,dy:-14}],
+      props:{voltage:12} },
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
       w:100, h:170,
       image:'images/ac_plug.png',
@@ -1593,7 +1598,7 @@ const Renderer = {
     if (c.type === 'resistor') return formatR(c.props.resistance);
     if (c.type === 'capacitor') return c.props.capacitance + 'μF';
     if (c.type === 'inductor') return c.props.inductance + 'mH';
-    if (c.type === 'battery' || c.type === 'ac_source') return c.props.voltage + 'V';
+    if (c.type === 'battery' || c.type === 'ac_source' || c.type === 'battery_12v') return c.props.voltage + 'V';
     if (c.type === 'dc_dc') return c.props.inputV + '→' + c.props.outputV + 'V';
     if (c.type === 'led') return c.props.forwardV + 'V';
     if (c.type === 'switch' || c.type === 'breaker') return c.props.closed ? 'ON' : 'OFF';
@@ -2740,7 +2745,7 @@ const Engine = {
     // ==================== Component resistance & behavior ====================
     const getR = (comp) => {
       const t = comp.type;
-      if (t === 'battery' || t === 'ac_source' || t === 'dc_dc') return 0.1; // realistic internal R (~100mΩ)
+      if (t === 'battery' || t === 'battery_12v' || t === 'ac_source' || t === 'dc_dc') return 0.1; // realistic internal R (~100mΩ)
       if (t === 'resistor') return Math.max(0.1, comp.props.resistance || 1000);
       if (t === 'led') return 1; // LED dynamic R ~1Ω when conducting (approximates If=20mA at Vf=2V)
       if (t === 'diode') return 0.1; // diode ~0.1Ω forward resistance
@@ -3871,7 +3876,7 @@ const UI = {
     if (comp.type === 'resistor') makeRow('阻值 (Ω)', 'resistance', comp.props.resistance);
     else if (comp.type === 'capacitor') makeRow('容值 (μF)', 'capacitance', comp.props.capacitance);
     else if (comp.type === 'inductor') makeRow('电感 (mH)', 'inductance', comp.props.inductance);
-    else if (comp.type === 'battery' || comp.type === 'ac_source') makeRow('电压 (V)', 'voltage', comp.props.voltage);
+    else if (comp.type === 'battery' || comp.type === 'battery_12v' || comp.type === 'ac_source') makeRow('电压 (V)', 'voltage', comp.props.voltage);
     else if (comp.type === 'dc_dc') { makeRow('输入 (V)', 'inputV', comp.props.inputV); makeRow('输出 (V)', 'outputV', comp.props.outputV); }
     else if (comp.type === 'led') {
       makeRow('正向压降 (V)', 'forwardV', comp.props.forwardV);
