@@ -1143,7 +1143,18 @@ const Renderer = {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             ctx.globalAlpha = isXray ? 0.3 : 1.0;
-            ctx.drawImage(img, -bw / 2, -bh / 2, bw, bh);
+            // Preserve natural aspect ratio (fit inside bw x bh)
+            const imgAR = img.naturalWidth / img.naturalHeight;
+            const boxAR = bw / bh;
+            let drawW, drawH;
+            if (imgAR > boxAR) {
+              drawW = bw;
+              drawH = bw / imgAR;
+            } else {
+              drawH = bh;
+              drawW = bh * imgAR;
+            }
+            ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
             ctx.globalAlpha = 1;
           }
         } catch(e) {}
