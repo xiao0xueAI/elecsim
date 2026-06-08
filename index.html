@@ -535,9 +535,9 @@ const Registry = {
       pins:[{id:'p',label:'+',dx:60,dy:0},{id:'n',label:'-',dx:-60,dy:0}],
       props:{voltage:9} },
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
-      w:200, h:160,
+      w:280, h:220,
       image:'images/battery_12v.png',
-      pins:[{id:'p',label:'+',dx:96,dy:-50},{id:'n',label:'-',dx:86,dy:-50}],
+      pins:[{id:'p',label:'+',dx:134,dy:-70},{id:'n',label:'-',dx:120,dy:-70}],
       props:{voltage:12} },
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
       w:100, h:170,
@@ -1245,10 +1245,10 @@ const Renderer = {
         // === 12V电池: 主体居中，引线从端子球引到pin ===
         if (c.type === 'battery_12v' && c.pins && c.pins.length >= 2) {
           // 主体bbox (相对原图): x=[292,1897] y=[790,1664], 主体宽1606, 高875
-          // 主体AR ≈ 1.835, 元件 w=200 h=160
-          const bodyW = 200, bodyH = 200 / 1.835;  // ≈ 109
-          const bodyX = -bodyW / 2, bodyY = -bodyH / 2;  // 主体居中
-          // 引线：从端子球位置(主体内) → pin位置
+          // 主体AR ≈ 1.835
+          const bodyW = bw;  // 主体占满元件宽度
+          const bodyH = bodyW / 1.835;
+          // 引线：从端子球位置 → pin (相距5px)
           for (const pin of c.pins) {
             const isPos = pin.label === '+';
             const color = isPos ? '#e53935' : '#1e88e5';
@@ -1256,9 +1256,6 @@ const Renderer = {
             ctx.lineWidth = 3.5;
             ctx.lineCap = 'round';
             ctx.beginPath();
-            // 从球的位置开始画线(球位置就是 pin.dx, pin.dy)
-            // 球位置刚好在主体顶部上方
-            // 让线从球到pin (相距很近，球=pin)
             ctx.moveTo(pin.dx, pin.dy);
             ctx.lineTo(pin.dx, pin.dy - 5);
             ctx.stroke();
