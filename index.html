@@ -1165,37 +1165,6 @@ const Renderer = {
           }
         } catch(e) {}
 
-        // === Dry Relay: LED指示灯 (右上角，绿灯亮=吸合) ===
-        if (c.type === 'dry_relay') {
-          const ledX = bw / 2 - 18;
-          const ledY = -bh / 2 + 12;
-          const ledR = 6;
-          if (c.props.energized) {
-            // 绿灯亮 - 吸合状态
-            ctx.beginPath();
-            ctx.arc(ledX, ledY, ledR + 4, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(76, 175, 80, 0.3)';
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(ledX, ledY, ledR, 0, Math.PI * 2);
-            ctx.fillStyle = '#4caf50';
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(ledX - 2, ledY - 2, ledR * 0.4, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.fill();
-          } else {
-            // 灰灯 - 释放状态
-            ctx.beginPath();
-            ctx.arc(ledX, ledY, ledR, 0, Math.PI * 2);
-            ctx.fillStyle = '#666';
-            ctx.fill();
-            ctx.strokeStyle = '#888';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-        }
-
         // === AC Source: draw lead wires from image bottom down to pin positions ===
         if (c.type === 'ac_source' && c.pins && c.pins.length >= 2) {
           const wireTopY = bh / 2 - 5;        // just below the image (plug cable end)
