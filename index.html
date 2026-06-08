@@ -562,12 +562,12 @@ const Registry = {
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
       w:300, h:170,
       image:'images/battery_12v.webp',
-      pins:[{id:'p',label:'+',dx:160,dy:-78},{id:'n',label:'-',dx:144,dy:-78}],
+      pins:[{id:'p',label:'+',dx:70,dy:-16},{id:'n',label:'-',dx:63,dy:-16}],
       props:{voltage:12} },
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
       w:100, h:260,
       image:'images/ac_plug.webp',
-      pins:[{id:'p',label:'L',dx:-22,dy:128},{id:'n',label:'N',dx:22,dy:128}],
+      pins:[{id:'p',label:'L',dx:-15,dy:77},{id:'n',label:'N',dx:15,dy:77}],
       props:{voltage:220,freq:50} },
     { type:'dc_dc', name:'DC-DC模块', cat:'电源', icon:'🔌', desc:'降压/升压',
       w:120, h:80,
@@ -1199,11 +1199,11 @@ const Renderer = {
 
       // === AC SOURCE: custom layout (plug image at top, lead wires + pins at bottom) ===
       if (c.type === 'ac_source' && c.image) {
-        const imgAR = 1651 / 2540;  // full plug image aspect ratio (unchanged)
-        const plugW = bw;                      // full component width
-        const plugH = plugW / imgAR;            // preserve aspect
-        const plugTopY = -bh / 2;                // image at top
-        const plugBottomY = plugTopY + plugH;    // = -bh/2 + plugH
+        const imgAR = 390 / 600;  // webp aspect ratio (resized to 600 max side)
+        const plugW = bw;
+        const plugH = plugW / imgAR;
+        const plugTopY = -bh / 2;
+        const plugBottomY = plugTopY + plugH;
         const wireTopY = plugBottomY + 2;        // start lead wire just below cable end
         // Selection glow
         if (sel) { ctx.shadowColor = catColor; ctx.shadowBlur = 14; }
@@ -1219,9 +1219,8 @@ const Renderer = {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             ctx.globalAlpha = isXray ? 0.3 : 1.0;
-            // Shift image so cable is at component center (source image cable is at x=760, image width 1651, so offset = (760/1651 - 0.5) * plugW)
-            const cableOffsetX = (760 / 1651 - 0.5) * plugW;  // ~ -6.3 for plugW=160
-            ctx.drawImage(img, -plugW / 2 - cableOffsetX, plugTopY, plugW, plugH);
+            // 插头主体居中(原图主体中心已在x=195,主体宽= 880-324=380 → x=195, y=300~2539, 线缆中心x≈195, 总图宽390)
+            ctx.drawImage(img, -plugW / 2, plugTopY, plugW, plugH);
             ctx.globalAlpha = 1;
           }
         } catch(e) {}
