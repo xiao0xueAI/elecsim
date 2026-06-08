@@ -712,7 +712,7 @@ const Registry = {
       props:{beta:100} },
     // --- 433MHz 无线遥控器 (RF Remote, 发射无线信号) ---
     { type:'rf_remote', name:'433MHz遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz无线遥控器A键（按压式发射器）',
-      w:80, h:107,
+      w:100, h:134,
       image:'images/rf_remote_关闭.png',
       imageOn:'images/rf_remote_打开.png',
       pins:[],
@@ -1896,8 +1896,12 @@ const Renderer = {
       }
     } else if (c.type === 'rf_remote') {
       // 433MHz 无线遥控器：渲染中央按钮和指示灯
-      const cx = 0, cy = -10;
-      const btnR = 18;
+      // 实物图 200x268 中央按钮大致在 (100, 95) → 缩放到元件局部坐标
+      const btnImgY = 95;  // 实物图上按钮中心的y
+      const imgH = 268;
+      const localBtnY = (btnImgY / imgH - 0.5) * c.h;  // = (95/268 - 0.5) * 134 ≈ -22
+      const cx = 0, cy = localBtnY;
+      const btnR = 16;
       // 按钮光晕
       if (S.simRunning && c.props.pressed) {
         ctx.beginPath();
@@ -4066,15 +4070,18 @@ function onMouseDown(e) {
     }
   }
 
-  // 433MHz 遥控器按钮按下
+  // 433MHz 遥控器按钮按下（按图片中按钮位置 95/268）
   for (const c of S.components) {
     if (c.type === 'rf_remote') {
       const localX = pos.x - c.x, localY = pos.y - c.y;
-      if (Math.hypot(localX, localY + 10) < 22) {  // 按钮在 cy=-10, 半径18
+      const btnLocalY = (95 / 268 - 0.5) * c.h;  // ≈ -22
+      if (Math.hypot(localX - 0, localY - btnLocalY) < 20) {  // 按钮半径约16+容差
         c.props.pressed = true;
         S._pressRemote = c.id;
+        S.dragging = null;  // 不要触发拖动
         S.dirty = true;
         render();
+        e.preventDefault();
         return;
       }
     }
