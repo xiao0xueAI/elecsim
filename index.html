@@ -534,9 +534,9 @@ const Registry = {
       pins:[{id:'p',label:'+',dx:60,dy:0},{id:'n',label:'-',dx:-60,dy:0}],
       props:{voltage:9} },
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
-      w:130, h:225,
+      w:130, h:180,
       image:'images/ac_plug.png',
-      pins:[{id:'p',label:'L',dx:-18,dy:100},{id:'n',label:'N',dx:18,dy:100}],
+      pins:[{id:'p',label:'L',dx:-18,dy:50},{id:'n',label:'N',dx:18,dy:50}],
       props:{voltage:220,freq:50} },
     { type:'dc_dc', name:'DC-DC模块', cat:'电源', icon:'🔌', desc:'降压/升压',
       w:120, h:80,
@@ -1076,7 +1076,7 @@ const Renderer = {
 
       // === AC SOURCE: custom layout (plug image at top, lead wires + pins at bottom) ===
       if (c.type === 'ac_source' && c.image) {
-        const imgAR = 1651 / 2540;  // source image aspect ratio
+        const imgAR = 879 / 839;  // source image aspect ratio (plug head only)
         const plugW = bw;                      // full component width
         const plugH = plugW / imgAR;            // preserve aspect
         const plugTopY = -bh / 2;                // image at top
