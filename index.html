@@ -291,6 +291,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
           <button class="wire-type-btn active" data-wtype="live" onclick="ElecSim.WireRouter.setWireType('live')" style="color:#e53935;border-color:#e53935">火线 L</button>
           <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#1e88e5;border-color:#1e88e5">零线 N</button>
           <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#43a047;border-color:#43a047">地线 PE</button>
+          <button class="wire-type-btn" data-wtype="signal" onclick="ElecSim.WireRouter.setWireType('signal')" style="color:#ffa800;border-color:#ffa800">信号/干接点</button>
         </div>
         <span id="wireHintText" style="color:var(--yellow);">点击画布布线，点击端子完成连接</span>
         <button onclick="ElecSim.WireRouter.undoSegment()" style="color:var(--yellow);font-size:11px;">撤销段</button>
@@ -613,9 +614,11 @@ const Registry = {
       // 右侧（从上到下）: L红、N蓝 - 线圈供电
       // 左侧（从上到下）: NO常开、COM公共、NC常闭 - 干接点
       // 坐标基于图片源点位置精确定位
-      pins:[{id:'l',label:'L',dx:110,dy:-53,type:'coil'},{id:'n',label:'N',dx:110,dy:-26,type:'coil'},
-            {id:'no',label:'NO',dx:-130,dy:-67,type:'contact'},{id:'com',label:'COM',dx:-130,dy:-40,type:'contact'},
-            {id:'nc',label:'NC',dx:-130,dy:-13,type:'contact'}],
+      pins:[{id:'l',label:'L',dx:110,dy:-53,lo:25,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:110,dy:-26,lo:25,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-130,dy:-67,lo:-32,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-130,dy:-40,lo:-32,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-130,dy:-13,lo:-32,ld:0,type:'contact'}],
       props:{coilVoltage:5,coilResistance:200,contactR:0.05,maxCurrent:10,energized:false} },
 
     // --- 传感器 ---
@@ -1790,14 +1793,14 @@ const WireRouter = {
   lastDir: null,         // 'h' | 'v' - direction of last committed segment
   deleteMode: false,     // wire deletion mode
 
-  WireColors: { live:'#e53935', neutral:'#1e88e5', ground:'#43a047' },
+  WireColors: { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800' },
   WireWidth: 5,
 
   isActive() { return this.active; },
 
   setWireType(type) {
     this.wireType = type;
-    const colorMap = { live:'#e53935', neutral:'#1e88e5', ground:'#43a047' };
+    const colorMap = { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800' };
     document.querySelectorAll('#wireTypeBar .wire-type-btn').forEach(b => {
       const isActive = b.dataset.wtype === type;
       b.classList.toggle('active', isActive);
