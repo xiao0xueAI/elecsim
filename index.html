@@ -560,14 +560,14 @@ const Registry = {
       pins:[{id:'p',label:'+',dx:60,dy:0},{id:'n',label:'-',dx:-60,dy:0}],
       props:{voltage:9} },
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
-      w:280, h:220,
+      w:300, h:170,
       image:'images/battery_12v.png',
-      pins:[{id:'p',label:'+',dx:134,dy:-70},{id:'n',label:'-',dx:120,dy:-70}],
+      pins:[{id:'p',label:'+',dx:160,dy:-78},{id:'n',label:'-',dx:144,dy:-78}],
       props:{voltage:12} },
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
-      w:100, h:170,
+      w:100, h:260,
       image:'images/ac_plug.png',
-      pins:[{id:'p',label:'L',dx:-9,dy:80},{id:'n',label:'N',dx:9,dy:80}],
+      pins:[{id:'p',label:'L',dx:-22,dy:128},{id:'n',label:'N',dx:22,dy:128}],
       props:{voltage:220,freq:50} },
     { type:'dc_dc', name:'DC-DC模块', cat:'电源', icon:'🔌', desc:'降压/升压',
       w:120, h:80,
@@ -1270,10 +1270,10 @@ const Renderer = {
 
         // === 12V电池: 主体居中，引线从端子球引到pin ===
         if (c.type === 'battery_12v' && c.pins && c.pins.length >= 2) {
-          // 主体bbox (相对原图): x=[292,1897] y=[790,1664], 主体宽1606, 高875
-          // 主体AR ≈ 1.835
-          const bodyW = bw;  // 主体占满元件宽度
-          const bodyH = bodyW / 1.835;
+          // 主体bbox (相对原图): x=[293,1814] y=[791,1656], 主体宽1522, 高866
+          // 主体AR ≈ 1.758
+          const bodyW = bw;
+          const bodyH = bodyW / 1.758;
           // 引线：从端子球位置 → pin (相距5px)
           for (const pin of c.pins) {
             const isPos = pin.label === '+';
