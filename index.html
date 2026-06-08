@@ -525,6 +525,31 @@ const Registry = {
     '无线遥控', '传感器', '输出器件', '测量仪表', '无源元件'
   ],
 
+  // Global image cache: shared across all components (key = image URL)
+  _imageCache: new Map(),
+  _preloadQueue: [],
+  _preloading: false,
+
+  // Preload an image and cache it. Returns the cached Image element.
+  preloadImage(src) {
+    if (!src) return null;
+    if (this._imageCache.has(src)) return this._imageCache.get(src);
+    const img = new Image();
+    img.decoding = 'async';
+    this._imageCache.set(src, img);
+    img.src = src;
+    return img;
+  },
+
+  // Preload all images used by component defs (call on app init)
+  preloadAllImages() {
+    const seen = new Set();
+    for (const def of this.defs) {
+      if (def.image && !seen.has(def.image)) { seen.add(def.image); this.preloadImage(def.image); }
+      if (def.imageOn && !seen.has(def.imageOn)) { seen.add(def.imageOn); this.preloadImage(def.imageOn); }
+    }
+  },
+
   // Component definitions
   defs: [
     // --- 电源 ---
@@ -1186,8 +1211,8 @@ const Renderer = {
           const cacheKey = '_imgCache';
           let img = c[cacheKey];
           if (!img || img.src !== c.image) {
-            img = new Image();
-            img.src = c.image;
+            // Use shared Registry cache to avoid reloading image on every component placement
+            img = Registry.preloadImage(c.image);
             c[cacheKey] = img;
           }
           if (img.complete && img.naturalWidth > 0) {
@@ -1211,15 +1236,16 @@ const Renderer = {
         // Selection glow
         if (sel) { ctx.shadowColor = catColor; ctx.shadowBlur = 14; }
 
-        // Draw image full-bleed (no dark box, no padding) — with Image caching
+        // Draw image full-bleed (no dark box, no padding) — with SHARED image cache
         try {
           const wantOn = c.props.closed && c.imageOn;
           const imgSrc = wantOn ? c.imageOn : c.image;
           const cacheKey = wantOn ? '_imgOnCache' : '_imgCache';
           let img = c[cacheKey];
           if (!img || img.src !== imgSrc) {
-            img = new Image();
-            img.src = imgSrc;
+            // Use shared Registry cache so component placement is instant
+            // (no new Image() per component, no reload from network)
+            img = Registry.preloadImage(imgSrc);
             c[cacheKey] = img;
           }
           if (img.complete && img.naturalWidth > 0) {
@@ -4614,6 +4640,9 @@ class UnionFind {
 
 // ==================== Section 15: Init ====================
 function init() {
+  // Preload all component images into shared cache (no per-component reload)
+  Registry.preloadAllImages();
+
   // Build component library UI
   buildLibrary();
   // Init QIACHIP products
