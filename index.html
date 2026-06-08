@@ -709,8 +709,10 @@ const Registry = {
       w:120, h:80,
       pins:[{id:'b',label:'B',dx:-60,dy:-20},{id:'c',label:'C',dx:60,dy:-20},{id:'e',label:'E',dx:60,dy:20}],
       props:{beta:100} },
-    // --- 直流电铃 (通电时发出叮-叮响声) ---
-    { type:'bell_dc', name:'直流电铃', cat:'输出器件', icon:'🔔', desc:'直流电铃（通电即响）',
+    // --- 直流电铃 (电磁锤式，通电即响，内部触点自动通断) ---
+    // 原理：线圈通电→电磁吸引→锤柄敲击铃铛→触点断开→弹簧复位→触点闭合→循环"叮-叮"
+    // 接线：两个端子直接接DC电源（+ / -），无需外接开关
+    { type:'bell_dc', name:'直流电铃', cat:'输出器件', icon:'🔔', desc:'直流电磁锤式电铃（通电即响，内部触点自动通断）',
       w:100, h:80,
       pins:[{id:'p',label:'+',dx:-50,dy:0},{id:'n',label:'-',dx:50,dy:0}],
       props:{voltage:12,resistance:20} },  // voltage=额定电压, resistance=线圈电阻(Ω)
@@ -1836,6 +1838,10 @@ const Renderer = {
       ctx.beginPath(); ctx.moveTo(-12, 10); ctx.lineTo(-12, 15); ctx.stroke();
     } else if (c.type === 'bell_dc') {
       const isRinging = S.simRunning && c.simCurrent > 0;
+      // 敲击动画相位（每秒约2次敲击，周期480ms）
+      const strikePhase = isRinging ? Math.sin(Date.now() / 240 * Math.PI) : 0;
+      const hammerX = 10 + strikePhase * 14;  // 锤柄摆动：10→24
+      const hammerY = -18 + Math.abs(strikePhase) * 6;  // 向下压
       // Bell dome (上半圆)
       ctx.beginPath();
       ctx.arc(0, -5, 28, Math.PI, 0, false);
@@ -1851,13 +1857,14 @@ const Renderer = {
       ctx.beginPath();
       ctx.moveTo(-28, 8); ctx.lineTo(28, 8);
       ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.stroke();
-      // 电磁锤 (右上角)
+      // 电磁锤 (右侧，随动画摆动)
       ctx.beginPath();
-      ctx.moveTo(10, -18); ctx.lineTo(22, -8);
-      ctx.strokeStyle = '#666'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.moveTo(10, -18); ctx.lineTo(hammerX, hammerY);
+      ctx.strokeStyle = '#666'; ctx.lineWidth = 2.5; ctx.stroke();
       ctx.beginPath();
-      ctx.arc(22, -8, 4, 0, Math.PI * 2);
-      ctx.fillStyle = '#888'; ctx.fill();
+      ctx.arc(hammerX, hammerY, 4, 0, Math.PI * 2);
+      ctx.fillStyle = isRinging ? '#ff6666' : '#888';
+      ctx.fill();
       ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
       // 响铃时发光效果
       if (isRinging) {
