@@ -709,6 +709,11 @@ const Registry = {
       w:120, h:80,
       pins:[{id:'b',label:'B',dx:-60,dy:-20},{id:'c',label:'C',dx:60,dy:-20},{id:'e',label:'E',dx:60,dy:20}],
       props:{beta:100} },
+    // --- 直流电铃 (通电时发出叮-叮响声) ---
+    { type:'bell_dc', name:'直流电铃', cat:'输出器件', icon:'🔔', desc:'直流电铃（通电即响）',
+      w:100, h:80,
+      pins:[{id:'p',label:'+',dx:-50,dy:0},{id:'n',label:'-',dx:50,dy:0}],
+      props:{voltage:12,resistance:20} },  // voltage=额定电压, resistance=线圈电阻(Ω)
   ],
 
   getDef(type) { return this.defs.find(d => d.type === type); },
@@ -997,6 +1002,62 @@ const QIACHIP = {
 };
 
 // ==================== Section 5: Canvas & Rendering ====================
+// --- 直流电铃音效模块 (Web Audio API 程序生成) ---
+const BellAudio = {
+  ctx: null,
+  active: false,
+
+  init() {
+    if (this.ctx) return;
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  },
+
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+
+  // 产生一个"叮-叮"电铃音调
+  ding() {
+    if (!this.ctx) return;
+    const c = this.ctx;
+    const now = c.currentTime;
+    // 叮 (高频)
+    const o1 = c.createOscillator();
+    const g1 = c.createGain();
+    o1.connect(g1); g1.connect(c.destination);
+    o1.type = 'sine';
+    o1.frequency.setValueAtTime(880, now);
+    o1.frequency.exponentialRampToValueAtTime(660, now + 0.08);
+    g1.gain.setValueAtTime(0.35, now);
+    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    o1.start(now); o1.stop(now + 0.25);
+    // 咚 (低频，稍后)
+    const o2 = c.createOscillator();
+    const g2 = c.createGain();
+    o2.connect(g2); g2.connect(c.destination);
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(440, now + 0.15);
+    o2.frequency.exponentialRampToValueAtTime(330, now + 0.25);
+    g2.gain.setValueAtTime(0.3, now + 0.15);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    o2.start(now + 0.15); o2.stop(now + 0.45);
+  },
+
+  // 持续响铃：在延迟后再次调用ding()
+  ring(bellId) {
+    this.init();
+    this.resume();
+    this.ding();
+    // 约500ms后再次敲击（电铃特性：电磁锤持续往复敲击）
+    if (this._timer) clearTimeout(this._timer);
+    this._timer = setTimeout(() => {
+      const bell = S.components.find(c => c.id === bellId && c.type === 'bell_dc');
+      if (bell && S.simRunning && bell.simCurrent > 0) {
+        this.ring(bellId);
+      }
+    }, 480);
+  }
+};
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let W, H;
@@ -1533,6 +1594,7 @@ const Renderer = {
     if (c.type === 'motor_dc') return c.props.voltage + 'V';
     if (c.type === 'buzzer') return c.props.voltage + 'V';
     if (c.type === 'solenoid') return c.props.voltage + 'V';
+    if (c.type === 'bell_dc') return S.simRunning && c.simCurrent > 0 ? '叮~叮~' : c.props.voltage + 'V';
     if (c.type === 'lamp') return c.props.wattage + 'W';
     if (c.type === 'diode') return c.props.forwardV + 'V';
     if (c.type === 'npn') return 'β=' + c.props.beta;
@@ -1772,6 +1834,51 @@ const Renderer = {
       ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(-10, -12); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(-10, 12); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-12, 10); ctx.lineTo(-12, 15); ctx.stroke();
+    } else if (c.type === 'bell_dc') {
+      const isRinging = S.simRunning && c.simCurrent > 0;
+      // Bell dome (上半圆)
+      ctx.beginPath();
+      ctx.arc(0, -5, 28, Math.PI, 0, false);
+      ctx.lineTo(28, 8);
+      ctx.lineTo(-28, 8);
+      ctx.closePath();
+      ctx.fillStyle = isRinging ? '#ffd700' : '#c9a800';
+      ctx.fill();
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Bell底部边缘
+      ctx.beginPath();
+      ctx.moveTo(-28, 8); ctx.lineTo(28, 8);
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.stroke();
+      // 电磁锤 (右上角)
+      ctx.beginPath();
+      ctx.moveTo(10, -18); ctx.lineTo(22, -8);
+      ctx.strokeStyle = '#666'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(22, -8, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#888'; ctx.fill();
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
+      // 响铃时发光效果
+      if (isRinging) {
+        ctx.globalCompositeOperation = 'screen';
+        const grd = ctx.createRadialGradient(0, -5, 5, 0, -5, 38);
+        grd.addColorStop(0, 'rgba(255,215,0,0.4)');
+        grd.addColorStop(1, 'transparent');
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(0, -5, 38, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      // 触发音效
+      if (isRinging && !c._ringing) {
+        c._ringing = true;
+        BellAudio.ring(c.id);
+      } else if (!isRinging && c._ringing) {
+        c._ringing = false;
+        if (BellAudio._timer) { clearTimeout(BellAudio._timer); BellAudio._timer = null; }
+      }
     }
     ctx.globalAlpha = 1;
   },
@@ -2552,6 +2659,7 @@ const Engine = {
       if (t === 'motor_dc') return Math.max(0.5, comp.props.resistance || 50);
       if (t === 'buzzer') return 80;
       if (t === 'solenoid') return Math.max(1, comp.props.resistance || 200);
+      if (t === 'bell_dc') return Math.max(1, comp.props.resistance || 20);
       if (t === 'lamp') { const v = comp.props.voltage||220, w = comp.props.wattage||60; return Math.max(1, (v*v)/w); }
       if (t === 'inductor') return Math.max(0.01, (comp.props.inductance||1)*10);
       if (t === 'thermistor') return Math.max(100, comp.props.resistance || 10000);
@@ -3686,6 +3794,10 @@ const UI = {
     else if (comp.type === 'motor_dc') makeRow('电压 (V)', 'voltage', comp.props.voltage);
     else if (comp.type === 'buzzer') makeRow('电压 (V)', 'voltage', comp.props.voltage);
     else if (comp.type === 'solenoid') makeRow('电压 (V)', 'voltage', comp.props.voltage);
+    else if (comp.type === 'bell_dc') {
+      makeRow('电压 (V)', 'voltage', comp.props.voltage);
+      makeRow('电阻 (Ω)', 'resistance', comp.props.resistance);
+    }
     else if (comp.type === 'lamp') {
       makeRow('额定电压 (V)', 'voltage', comp.props.voltage);
       makeRow('额定功率 (W)', 'wattage', comp.props.wattage);
