@@ -625,7 +625,7 @@ const Registry = {
             {id:'no',label:'NO',dx:-129,dy:-34,lo:-42,ld:0,type:'contact'},
             {id:'com',label:'COM',dx:-129,dy:-5,lo:-42,ld:0,type:'contact'},
             {id:'nc',label:'NC',dx:-129,dy:24,lo:-42,ld:0,type:'contact'}],
-      props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,energized:false} },
+      props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
 
     // --- 传感器 ---
     { type:'thermistor', name:'温度传感器', cat:'传感器', icon:'🌡️', desc:'NTC热敏',
@@ -709,6 +709,13 @@ const Registry = {
       w:120, h:80,
       pins:[{id:'b',label:'B',dx:-60,dy:-20},{id:'c',label:'C',dx:60,dy:-20},{id:'e',label:'E',dx:60,dy:20}],
       props:{beta:100} },
+    // --- 433MHz 无线遥控器 (RF Remote, 发射无线信号) ---
+    { type:'rf_remote', name:'433MHz遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz无线遥控器A键（按压式发射器）',
+      w:80, h:107,
+      image:'images/rf_remote_关闭.png',
+      imageOn:'images/rf_remote_打开.png',
+      pins:[],
+      props:{freq:433,channel:'A',pressed:false} },
     // --- 直流电铃 (电磁锤式，通电即响，内部触点自动通断) ---
     // 原理：线圈通电→电磁吸引→锤柄敲击铃铛→触点断开→弹簧复位→触点闭合→循环"叮-叮"
     // 接线：两个端子直接接DC电源（+ / -），无需外接开关
@@ -1886,6 +1893,74 @@ const Renderer = {
         c._ringing = false;
         if (BellAudio._timer) { clearTimeout(BellAudio._timer); BellAudio._timer = null; }
       }
+    } else if (c.type === 'rf_remote') {
+      // 433MHz 无线遥控器：渲染中央按钮和指示灯
+      const cx = 0, cy = -10;
+      const btnR = 18;
+      // 按钮光晕
+      if (S.simRunning && c.props.pressed) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, btnR + 6, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 80, 80, 0.35)';
+        ctx.fill();
+      }
+      // 按钮本体
+      ctx.beginPath();
+      ctx.arc(cx, cy, btnR, 0, Math.PI * 2);
+      ctx.fillStyle = S.simRunning && c.props.pressed ? '#ff4040' : '#2a2a2a';
+      ctx.fill();
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // A 字母
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('A', cx, cy);
+      // 433MHz 无线波纹（按下时扩散）
+      if (S.simRunning && c.props.pressed) {
+        const t = (Date.now() % 800) / 800;
+        for (let i = 0; i < 3; i++) {
+          const phase = (t + i * 0.33) % 1;
+          const r = 25 + phase * 30;
+          const alpha = (1 - phase) * 0.5;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 168, 0, ${alpha})`;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+      // 底部小字 "433MHz"
+      ctx.fillStyle = '#888';
+      ctx.font = '9px monospace';
+      ctx.fillText('433MHz', 0, bh / 2 - 12);
+    } else if (c.type === 'dry_relay') {
+      // 干接点控制器：模式文字标识（顶部）+ 模式小按钮（底部）
+      const modeText = c.props.mode === 'momentary' ? '点动'
+                     : c.props.mode === 'toggle' ? '自锁'
+                     : c.props.mode === 'interlock' ? '互锁' : '未设模式';
+      const modeColor = c.props.mode === 'none' ? '#ff5252' : '#4caf50';
+      ctx.fillStyle = modeColor;
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(modeText, 0, -bh / 2 + 4);
+      // 模式切换按钮（元件底部小圆点，鼠标可点）
+      const btnX = 0, btnY = bh / 2 - 8, btnR = 6;
+      const isPowered = c.simCurrent > 0;
+      ctx.beginPath();
+      ctx.arc(btnX, btnY, btnR, 0, Math.PI * 2);
+      ctx.fillStyle = isPowered ? '#ffa800' : '#666';
+      ctx.fill();
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // 保存按钮位置供点击事件用
+      c._modeBtnX = btnX;
+      c._modeBtnY = btnY;
+      c._modeBtnR = btnR;
     }
     ctx.globalAlpha = 1;
   },
@@ -2971,8 +3046,43 @@ const Engine = {
       });
 
       // ==================== Update relays ====================
-      S.components.filter(c => ['relay5', 'relay8', 'contactor', 'dry_relay'].includes(c.type)).forEach(relay => {
+      S.components.filter(c => ['relay5', 'relay8', 'contactor'].includes(c.type)).forEach(relay => {
         relay.props.energized = relay.simCurrent > 1; // 1mA threshold
+      });
+
+      // 干接点控制器：仅在通电状态下，由遥控器按模式驱动
+      S.components.filter(c => c.type === 'dry_relay').forEach(relay => {
+        const powered = relay.simCurrent > 1;
+        if (!powered) { relay.props.energized = false; return; }
+        const mode = relay.props.mode;
+        if (mode === 'none' || mode === undefined) { relay.props.energized = false; return; }
+        // 找画布上所有遥控器（实际应按配对码，但目前用最近的或全部）
+        const remotes = S.components.filter(c => c.type === 'rf_remote');
+        let signalOn = false, signalPulse = false;
+        for (const r of remotes) {
+          if (r.props.pressed) signalOn = true;
+          // 边沿检测：从松开→按下
+          if (r.props.pressed && !r._wasPressed) signalPulse = true;
+          r._wasPressed = r.props.pressed;
+        }
+        if (mode === 'momentary') {
+          // 点动：按住时吸合
+          relay.props.energized = signalOn;
+        } else if (mode === 'toggle') {
+          // 自锁：每次按一下翻转
+          if (signalPulse) relay.props.energized = !relay.props.energized;
+        } else if (mode === 'interlock') {
+          // 互锁：第1个遥控器按下→开，第2个按下→关
+          if (signalPulse) {
+            // 用第一个按下的遥控器在remotes中的index决定开关
+            for (let i = 0; i < remotes.length; i++) {
+              if (remotes[i].props.pressed) {
+                relay.props.energized = (i === 0);  // 第1个开，第2个关
+                break;
+              }
+            }
+          }
+        }
       });
     });
 
@@ -3793,6 +3903,19 @@ const UI = {
     }
     else if (comp.type === 'relay5' || comp.type === 'relay8' || comp.type === 'contactor' || comp.type === 'dry_relay') {
       makeRow('线圈电压 (V)', 'coilVoltage', comp.props.coilVoltage);
+      // 干接点控制器专用：模式选择（循环切换）
+      if (comp.type === 'dry_relay') {
+        const modeLabels = { 'none':'未设模式', 'momentary':'点动', 'toggle':'自锁', 'interlock':'互锁' };
+        const modeRow = document.createElement('div'); modeRow.className = 'prop-row';
+        const powered = comp.simCurrent > 0;
+        const nextMode = { 'none':'momentary', 'momentary':'toggle', 'toggle':'interlock', 'interlock':'momentary' }[comp.props.mode] || 'momentary';
+        modeRow.innerHTML = `<span class="label">控制模式</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${!powered ? 'opacity:0.4;' : ''}" ${!powered ? 'disabled' : ''} title="${!powered ? '需先通电' : '点击切换：' + modeLabels[nextMode]}">${modeLabels[comp.props.mode] || '未设模式'}</button>`;
+        modeRow.querySelector('button').addEventListener('click', () => {
+          comp.props.mode = nextMode;
+          S.dirty = true; this.showProps(comp); render();
+        });
+        content.appendChild(modeRow);
+      }
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.energized ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.energized ? '吸合' : '释放'}</button>`;
       row.querySelector('button').addEventListener('click', () => { comp.props.energized = !comp.props.energized; S.dirty = true; this.showProps(comp); render(); });
@@ -3925,6 +4048,37 @@ function onMouseDown(e) {
   // Close context menu
   document.getElementById('ctxMenu').style.display = 'none';
 
+  // 干接点控制器模式按钮点击
+  for (const c of S.components) {
+    if (c.type === 'dry_relay' && c._modeBtnX !== undefined) {
+      const localX = pos.x - c.x, localY = pos.y - c.y;
+      if (Math.hypot(localX - c._modeBtnX, localY - c._modeBtnY) < c._modeBtnR + 4) {
+        if (c.simCurrent <= 0) { UI.toast('请先通电！', 'warning'); return; }
+        const order = ['momentary', 'toggle', 'interlock'];
+        const idx = order.indexOf(c.props.mode);
+        c.props.mode = order[(idx + 1) % 3];
+        S.dirty = true;
+        UI.toast('干接点模式：' + (c.props.mode === 'momentary' ? '点动' : c.props.mode === 'toggle' ? '自锁' : '互锁'), 'success');
+        render();
+        return;
+      }
+    }
+  }
+
+  // 433MHz 遥控器按钮按下
+  for (const c of S.components) {
+    if (c.type === 'rf_remote') {
+      const localX = pos.x - c.x, localY = pos.y - c.y;
+      if (Math.hypot(localX, localY + 10) < 22) {  // 按钮在 cy=-10, 半径18
+        c.props.pressed = true;
+        S._pressRemote = c.id;
+        S.dirty = true;
+        render();
+        return;
+      }
+    }
+  }
+
   // Wiring mode
   const pin = findPinAt(pos.x, pos.y);
 
@@ -4017,6 +4171,13 @@ function onMouseUp(e) {
       UI.showProps(comp); // Refresh property panel to show new state
       render();
     }
+  }
+  // 433MHz 遥控器按钮松开
+  if (S._pressRemote) {
+    const c = getComp(S._pressRemote);
+    if (c && c.type === 'rf_remote') c.props.pressed = false;
+    S._pressRemote = null;
+    render();
   }
   S.clickCompId = null;
   S.clickPos = null;
