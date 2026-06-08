@@ -561,12 +561,12 @@ const Registry = {
       props:{voltage:9} },
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
       w:300, h:170,
-      image:'images/battery_12v.png',
+      image:'images/battery_12v.webp',
       pins:[{id:'p',label:'+',dx:160,dy:-78},{id:'n',label:'-',dx:144,dy:-78}],
       props:{voltage:12} },
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
       w:100, h:260,
-      image:'images/ac_plug.png',
+      image:'images/ac_plug.webp',
       pins:[{id:'p',label:'L',dx:-22,dy:128},{id:'n',label:'N',dx:22,dy:128}],
       props:{voltage:220,freq:50} },
     { type:'dc_dc', name:'DC-DC模块', cat:'电源', icon:'🔌', desc:'降压/升压',
@@ -648,7 +648,7 @@ const Registry = {
       desc:'KR2201-COM | 433MHz无线10A干接点1CH AC110V/220V（实物照片）',
       model:'KR2201-COM',
       w:300, h:190,
-      image:'images/dry_relay.png',
+      image:'images/dry_relay.webp',
       // 坐标基于1728x1090源图螺丝位置精确定位
       pins:[{id:'l',label:'L',dx:127,dy:-19,lo:35,ld:0,type:'coil'},
             {id:'n',label:'N',dx:127,dy:10,lo:35,ld:0,type:'coil'},
@@ -704,8 +704,8 @@ const Registry = {
       w:220, h:220,
       pins:[{id:'l',label:'L',dx:0,dy:70,lo:0,ld:22},{id:'n',label:'N',dx:18,dy:40,lo:18,ld:0}],
       props:{voltage:220,wattage:60},
-      image:'images/lamp_off.png',
-      imageOn:'images/lamp_on.png' },
+      image:'images/lamp_off.webp',
+      imageOn:'images/lamp_on.webp' },
 
     // --- 测量仪表 ---
     // 电压表：内阻极大（≥1MΩ），并联在电路中测量电压，几乎不分流
@@ -744,8 +744,8 @@ const Registry = {
     // 用途: 必须搭配 dry_relay (433MHz干接点控制器) 使用, 按下A键发射433MHz无线信号
     { type:'rf_remote', name:'433MHz遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz无线遥控器A键（433MHz信号发射器, 配433MHz控制器使用）',
       w:100, h:134,
-      image:'images/rf_remote_关闭.png',
-      imageOn:'images/rf_remote_打开.png',
+      image:'images/rf_remote_关闭.webp',
+      imageOn:'images/rf_remote_打开.webp',
       pins:[],
       props:{freq:433,channel:'A',pressed:false} },
     // --- 直流电铃 (电磁锤式，通电即响，内部触点自动通断) ---
