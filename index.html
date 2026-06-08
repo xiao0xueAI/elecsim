@@ -534,9 +534,9 @@ const Registry = {
       pins:[{id:'p',label:'+',dx:60,dy:0},{id:'n',label:'-',dx:-60,dy:0}],
       props:{voltage:9} },
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
-      w:130, h:180,
+      w:130, h:210,
       image:'images/ac_plug.png',
-      pins:[{id:'p',label:'L',dx:-18,dy:50},{id:'n',label:'N',dx:18,dy:50}],
+      pins:[{id:'p',label:'L',dx:-18,dy:95},{id:'n',label:'N',dx:18,dy:95}],
       props:{voltage:220,freq:50} },
     { type:'dc_dc', name:'DC-DC模块', cat:'电源', icon:'🔌', desc:'降压/升压',
       w:120, h:80,
@@ -1076,7 +1076,7 @@ const Renderer = {
 
       // === AC SOURCE: custom layout (plug image at top, lead wires + pins at bottom) ===
       if (c.type === 'ac_source' && c.image) {
-        const imgAR = 879 / 839;  // source image aspect ratio (plug head only)
+        const imgAR = 1651 / 2540;  // source image aspect ratio (full image)
         const plugW = bw;                      // full component width
         const plugH = plugW / imgAR;            // preserve aspect
         const plugTopY = -bh / 2;                // image at top
@@ -1100,18 +1100,7 @@ const Renderer = {
             ctx.globalAlpha = 1;
           }
         } catch(e) {}
-        // Draw lead wires L (red) and N (blue) from image bottom to pin dots
-        for (const pin of c.pins) {
-          const isL = pin.label === 'L';
-          const color = isL ? '#e53935' : '#1e88e5';
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 3.5;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(pin.dx, wireTopY);
-          ctx.lineTo(pin.dx, pin.dy - 6);
-          ctx.stroke();
-        }
+        // Pins are at the bottom of the cable (no separate lead wire needed)
         ctx.restore();
         this._drawPinsForComponent(c);
         return;
