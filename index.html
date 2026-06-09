@@ -1575,6 +1575,9 @@ const Renderer = {
             } else {
               ctx.fillStyle = '#58a6ff'; ctx.strokeStyle = '#2266cc';
             }
+          } else if (lbl === 'NO' || lbl === 'COM' || lbl === 'NC') {
+            // 干接点输出端子 → 黄色，匹配PCB黄圈
+            ctx.fillStyle = '#f0c040'; ctx.strokeStyle = '#c09020';
           } else {
             const grd = ctx.createRadialGradient(px - 1, py - 1, 0, px, py, pinR);
             grd.addColorStop(0, '#484f58');
