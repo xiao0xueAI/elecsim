@@ -647,14 +647,14 @@ const Registry = {
     { type:'dry_relay', name:'433MHz干接点继电器', cat:'继电器/接触器', icon:'📡',
       desc:'KR2201-COM | 433MHz无线10A干接点1CH AC110V/220V（实物照片）',
       model:'KR2201-COM',
-      w:240, h:160,
+      w:280, h:200,
       image:'images/dry_relay.png',
-      // 坐标基于600x600 PNG端子实物位置等比缩放至240x160
-      pins:[{id:'l',label:'L',dx:56,dy:-32,lo:16,ld:0,type:'coil'},
-            {id:'n',label:'N',dx:56,dy:32,lo:16,ld:0,type:'coil'},
-            {id:'no',label:'NO',dx:-56,dy:-32,lo:-16,ld:0,type:'contact'},
-            {id:'com',label:'COM',dx:-56,dy:0,lo:-16,ld:0,type:'contact'},
-            {id:'nc',label:'NC',dx:-56,dy:32,lo:-16,ld:0,type:'contact'}],
+      // 坐标基于600x600 PNG螺丝端子实物位置等比缩放至280x200
+      pins:[{id:'l',label:'L',dx:78,dy:-44,lo:22,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:78,dy:44,lo:22,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-78,dy:-44,lo:-22,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-78,dy:0,lo:-22,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-78,dy:44,lo:-22,ld:0,type:'contact'}],
       props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
 
     // --- 传感器 ---
