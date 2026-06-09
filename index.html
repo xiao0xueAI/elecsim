@@ -1088,7 +1088,15 @@ const BellAudio = {
     this._activeBellId = bellId;
     // 重新从头播放
     this.audio.currentTime = 0;
-    this.audio.play().catch(() => {});
+    this.audio.play().catch(async () => {
+      // 如果音频上下文未解锁，尝试先解锁再播放
+      const ok = await this.resume();
+      if (ok) {
+        this.audio.currentTime = 0;
+        this.audio.loop = true;
+        this.audio.play().catch(() => {});
+      }
+    });
   },
 
   // 停止响铃
@@ -2179,6 +2187,23 @@ const WireRouter = {
     return 'live';
   },
 
+  // Resolve best wire type considering both start and end pin labels
+  // Priority: dc_pos/dc_neg > neutral > live (DC-aware inference)
+  resolveWireType(startLabel, endLabel, startType) {
+    const endType = this.detectWireType(endLabel);
+    // If both ends agree on a specific type, use it
+    if (startType === endType && startType !== 'live') return startType;
+    // If one end is DC positive and the other is DC or live, use DC positive
+    if (startType === 'dc_pos' || endType === 'dc_pos') return 'dc_pos';
+    if (startType === 'dc_neg' || endType === 'dc_neg') return 'dc_neg';
+    // If either end is neutral, use neutral
+    if (startType === 'neutral' || endType === 'neutral') return 'neutral';
+    // If either end is ground, use ground
+    if (startType === 'ground' || endType === 'ground') return 'ground';
+    // Fallback: keep original type
+    return startType;
+  },
+
   // Get the position of the current "drawing head" (last waypoint or start pin)
   _getHeadPos() {
     if (this.routeWaypoints.length > 0) {
@@ -2307,12 +2332,21 @@ const WireRouter = {
       !(Math.abs(wp.x - p2.x) < 2 && Math.abs(wp.y - p2.y) < 2)
     );
 
+    // Resolve wire type from BOTH pins (not just start pin)
+    const startPinDef = c1 ? c1.pins.find(p => p.id === sp.pin) : null;
+    const endPinDef = c2 ? c2.pins.find(p => p.id === endPin.pin) : null;
+    const resolvedType = this.resolveWireType(
+      startPinDef ? startPinDef.label : '',
+      endPinDef ? endPinDef.label : '',
+      this.wireType
+    );
+
     const wire = {
       id: S.nextWireId++,
       from: { ...sp },
       to: { ...endPin },
       waypoints: waypoints,
-      wireType: this.wireType,
+      wireType: resolvedType,
       current: 0
     };
     S.wires.push(wire);
@@ -2818,6 +2852,8 @@ const Engine = {
       status.style.color = 'var(--green)';
       hint.textContent = '电路仿真已启动...';
       S.simTime = 0;
+      // 解锁音频上下文（浏览器自动播放策略要求用户手势）
+      BellAudio.resume();
       this.simLoop = requestAnimationFrame(() => this.loop());
     } else {
       btn.innerHTML = '&#9654; 运行仿真';
