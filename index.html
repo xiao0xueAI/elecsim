@@ -1050,70 +1050,75 @@ const QIACHIP = {
 
 // ==================== Section 5: Canvas & Rendering ====================
 // --- 直流电铃音效模块 (HTML5 Audio 真实铃声音频) ---
-// ==================== BellAudio: Web Audio API 实现 ====================
-// 用 Web Audio API 替代 HTML5 Audio，从根本上避免浏览器的 autoplay 策略拦截。
-// AudioContext.resume() 在用户手势内可可靠解锁，之后 BufferSource.start() 永不失败。
+// ==================== BellAudio: HTML5 Audio 实现 ====================
+// 关键：在 Engine.toggle() 的用户手势中直接 play→pause bell.mp3 解锁 Audio 元素。
+// 解锁后，仿真循环中 ring() 的 play() 不再受 autoplay 限制。
 const BellAudio = {
-  ctx: null,
-  source: null,
-  buffer: null,
+  audio: null,
   _activeBellId: null,
 
-  // 页面加载时预加载：创建 AudioContext + 加载铃声文件
   preload() {
-    if (this.ctx) return;
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    fetch('images/bell.mp3')
-      .then(r => r.arrayBuffer())
-      .then(buf => this.ctx.decodeAudioData(buf))
-      .then(audioBuf => { this.buffer = audioBuf; })
-      .catch(() => {});
+    if (this.audio) return;
+    this.audio = new Audio('images/bell.mp3');
+    this.audio.loop = true;
+    this.audio.volume = 0.7;
+    this.audio.preload = 'auto';
+    this.audio.load();
   },
 
   init() { this.preload(); },
 
-  // 解锁 AudioContext —— 必须在用户手势内同步调用（ctx.resume() 是同步触发）
-  resume() {
-    if (!this.ctx) this.preload();
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
+  // 在用户手势内调用，用内联静音WAV解锁页面音频权限（不依赖 bell.mp3 加载状态）
+  unlock() {
+    this.preload();
+    // 内联 WAV 保证 0ms 就绪，play() 在用户手势内 100% 成功
+    const tmp = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQEAAACA');
+    tmp.play().then(() => tmp.remove()).catch(() => tmp.remove());
   },
 
-  // 开始响铃（通电即响，循环不停；buffer 未就绪则稍等重试）
+  resume() { this.unlock(); },
+
+  // 开始响铃（通电即一直循环响）
   ring(bellId) {
-    if (!this.ctx) { this.preload(); setTimeout(() => this.ring(bellId), 80); return; }
-    if (!this.buffer) { setTimeout(() => this.ring(bellId), 80); return; }
-    // 停掉之前的源（如果有）
-    if (this.source) { try { this.source.stop(0); } catch(e) {} this.source = null; }
+    this.preload();
+    if (!this.audio) return;
     this._activeBellId = bellId;
-    const src = this.ctx.createBufferSource();
-    src.buffer = this.buffer;
-    src.loop = true;
-    src.connect(this.ctx.destination);
-    src.start(0);
-    this.source = src;
+    this.audio.pause();
+    this.audio.currentTime = 0;
+    this.audio.loop = true;
+    // bell.mp3 还没加载完则稍等重试
+    if (this.audio.readyState < 2) {
+      const retry = () => {
+        if (this._activeBellId !== bellId) return; // 已断电
+        if (this.audio.readyState >= 2) {
+          this.audio.play().catch(() => {});
+        } else {
+          setTimeout(retry, 100);
+        }
+      };
+      setTimeout(retry, 100);
+      return;
+    }
+    this.audio.play().catch(() => {});
   },
 
   // 停止响铃（断电即停）
   stop() {
     this._activeBellId = null;
-    if (this.source) {
-      try { this.source.stop(0); } catch(e) {}
-      this.source = null;
-    }
+    if (!this.audio) return;
+    this.audio.pause();
+    this.audio.currentTime = 0;
   },
 
-  // 测试音（点击电铃触发，不循环）
+  // 测试音（点击电铃触发，用户手势内必然成功）
   playTestTone() {
-    this.resume();
-    if (!this.ctx || !this.buffer) return;
-    if (this.source) { try { this.source.stop(0); } catch(e) {} this.source = null; }
-    const src = this.ctx.createBufferSource();
-    src.buffer = this.buffer;
-    src.loop = false;
-    src.connect(this.ctx.destination);
-    src.start(0);
+    this.unlock();
+    this.preload();
+    if (!this.audio) return;
+    this.audio.pause();
+    this.audio.currentTime = 0;
+    this.audio.loop = false;
+    this.audio.play().catch(() => {});
   }
 };
 const canvas = document.getElementById('canvas');
