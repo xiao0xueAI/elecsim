@@ -1054,26 +1054,30 @@ const BellAudio = {
   audio: null,
   _ready: false,
   _activeBellId: null,
+  // 45 字节内联静音 WAV（8-bit mono 8000Hz），用于可靠解锁浏览器音频上下文
+  // 数据 URI 无需网络加载，用户手势期间 play() 瞬间成功
+  _UNLOCK_WAV: 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQEAAACA',
 
-  init() {
+  // 预加载真实铃声文件（页面加载时尽早调用）
+  preload() {
     if (this.audio) return;
     this.audio = new Audio('images/bell.mp3');
     this.audio.loop = true;
     this.audio.volume = 0.7;
     this.audio.preload = 'auto';
-    // 标记为可被用户手势唤醒
     this.audio.load();
   },
 
-  // 在用户手势回调中调用，解锁浏览器自动播放
+  init() { this.preload(); },
+
+  // 用内联静音WAV解锁浏览器音频上下文（不依赖bell.mp3文件加载）
   async resume() {
-    this.init();
-    if (!this.audio) return false;
+    if (this._ready) return true;
     try {
-      // 尝试播放然后立即暂停，用于解锁自动播放策略
-      await this.audio.play();
-      this.audio.pause();
-      this.audio.currentTime = 0;
+      const ua = new Audio(this._UNLOCK_WAV);
+      await ua.play();
+      ua.pause();
+      ua.remove();
       this._ready = true;
       return true;
     } catch(e) {
@@ -1083,17 +1087,16 @@ const BellAudio = {
 
   // 开始响铃（有电即一直循环响）
   ring(bellId) {
-    this.init();
+    this.preload();
     if (!this.audio) return;
     this._activeBellId = bellId;
-    // 重新从头播放
     this.audio.currentTime = 0;
+    this.audio.loop = true;
+    // 尝试播放；失败则先用内联WAV解锁再重试
     this.audio.play().catch(async () => {
-      // 如果音频上下文未解锁，尝试先解锁再播放
       const ok = await this.resume();
       if (ok) {
         this.audio.currentTime = 0;
-        this.audio.loop = true;
         this.audio.play().catch(() => {});
       }
     });
@@ -1109,13 +1112,12 @@ const BellAudio = {
 
   // 在用户手势中播放测试音
   async playTestTone() {
-    const ok = await this.resume();
-    if (!ok) return;
+    await this.resume();
+    this.preload();
+    if (!this.audio) return;
     this.audio.currentTime = 0;
-    // 测试音只播一次（不循环）
     this.audio.loop = false;
     this.audio.play().catch(() => {});
-    // 播放结束后恢复 loop 模式
     const onEnd = () => {
       this.audio.loop = true;
       this.audio.removeEventListener('ended', onEnd);
@@ -4875,6 +4877,8 @@ class UnionFind {
 
 // ==================== Section 15: Init ====================
 function init() {
+  // Preload bell audio early so it's ready when simulation starts
+  BellAudio.preload();
   // Preload all component images into shared cache (no per-component reload)
   Registry.preloadAllImages();
 
