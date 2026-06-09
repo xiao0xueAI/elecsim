@@ -2591,19 +2591,28 @@ const WireRouter = {
   // (i.e., if positive terminal of power source is at the wire's `to` end)
   _isWireFlowReversed(wire) {
     if (!wire) return false;
+    // Primary: use path-determined direction (most accurate)
+    if (wire._flowDir !== undefined && wire._flowDir !== 0) {
+      return wire._flowDir === -1; // -1 = current flows opposite to wire draw direction
+    }
+    // Fallback: pin-based terminal detection
     const { from, to } = wire;
     const fromComp = getComp(from.comp), toComp = getComp(to.comp);
     if (!fromComp || !toComp) return false;
 
-    // Check if the positive terminal of a power source is at the 'to' end
-    // AC source: L=hot/positive, N=neutral/negative
-    // Battery: + = positive, - = negative
     const fromIsPos = this._isPositiveTerminal(fromComp, from.pin);
     const toIsPos = this._isPositiveTerminal(toComp, to.pin);
+    const fromIsNeg = this._isNegativeTerminal(fromComp, from.pin);
+    const toIsNeg = this._isNegativeTerminal(toComp, to.pin);
 
-    // If from is positive → flow is from-from (correct direction)
-    // If to is positive → flow is from-to (reversed)
-    return toIsPos && !fromIsPos;
+    // Conventional current: + → -
+    // Wire draws from → to; if current opposite → reverse
+    // Wire ends at positive → current flows TO positive (reversed)
+    if (toIsPos && !fromIsPos) return true;
+    // Wire starts at negative → current flows INTO negative (reversed)
+    if (fromIsNeg && !toIsNeg) return true;
+
+    return false;
   },
 
   // Check if a pin is the positive terminal of a power source
@@ -2617,6 +2626,21 @@ const WireRouter = {
     if (t === 'ac_source') {
       const pin = comp.pins.find(p => p.id === pinId);
       return pin && pin.label === 'L'; // L = Line/hot = positive in AC context
+    }
+    return false;
+  },
+
+  // Check if a pin is the negative terminal of a power source
+  _isNegativeTerminal(comp, pinId) {
+    if (!comp) return false;
+    const t = comp.type;
+    if (t === 'battery' || t === 'battery_12v' || t === 'dc_dc') {
+      const pin = comp.pins.find(p => p.id === pinId);
+      return pin && (pin.label === '-' || pin.label === 'NEG' || pin.id === 'n');
+    }
+    if (t === 'ac_source') {
+      const pin = comp.pins.find(p => p.id === pinId);
+      return pin && (pin.label === 'N'); // N = neutral/return in AC context
     }
     return false;
   },
@@ -2804,7 +2828,7 @@ const Engine = {
       hint.textContent = '点击"运行仿真"重新启动';
       cancelAnimationFrame(this.simLoop);
       S.components.forEach(c => { c.simCurrent = 0; c.simVoltage = 0; c._fault = null; });
-      S.wires.forEach(w => { w.current = 0; w._fault = false; });
+      S.wires.forEach(w => { w.current = 0; w._fault = false; w._flowDir = undefined; });
       document.getElementById('simTime').textContent = '0.00 s';
       document.getElementById('simCurrent').textContent = '0.00 mA';
       document.getElementById('simVoltage').textContent = '0.00 V';
@@ -2828,7 +2852,7 @@ const Engine = {
   solve() {
     // Clear previous simulation state
     S.components.forEach(c => { c.simCurrent = 0; c.simVoltage = 0; c._fault = null; });
-    S.wires.forEach(w => { w.current = 0; w._fault = false; });
+    S.wires.forEach(w => { w.current = 0; w._fault = false; w._flowDir = undefined; });
 
     const faults = [];
     const mkKey = (compId, pinId) => compId + '_' + pinId;
@@ -2890,6 +2914,7 @@ const Engine = {
         const noPin = pins.find(p => p.id === 'no');
         const comPin = pins.find(p => p.id === 'com');
         const ncPin = pins.find(p => p.id === 'nc');
+        const contactPins = pins.filter(p => p.type === 'contact');
         if (comPin && noPin && ncPin) {
           if (c.props.energized) {
             // 吸合: COM连接到NO
@@ -3071,7 +3096,8 @@ const Engine = {
       // (Cannot hardcode 'p'/'n' because different power sources use different pin names)
       let posPin, negPin;
       if (bat.type === 'battery') { posPin = 'p'; negPin = 'n'; }
-      else if (bat.type === 'ac_source') { posPin = 'p'; negPin = 'n'; } // AC Source: L=active(p), N=neutral(n)
+      else if (bat.type === 'battery_12v') { posPin = 'p'; negPin = 'n'; } // 12V电池：p=正极(+), n=负极(−)
+      else if (bat.type === 'ac_source') { posPin = 'p'; negPin = 'n'; } // AC Source: L=hot(p), N=neutral(n)
       else if (bat.type === 'dc_dc') { posPin = 'vout'; negPin = 'gnd_out'; }
       else { posPin = 'p'; negPin = 'n'; } // fallback
 
@@ -3185,6 +3211,23 @@ const Engine = {
           const V_drop = I_path * R_comp;
           compVoltages.set(compId, (compVoltages.get(compId) || 0) + V_drop);
         });
+
+        // ==================== Determine wire current direction from DFS path ====================
+        // Walk the ordered pins of this path to set correct flow direction on each wire
+        for (let i = 0; i < p.pins.length - 1; i++) {
+          const pinA = p.pins[i], pinB = p.pins[i + 1];
+          for (const wId of p.wires) {
+            const w = wireMap.get(wId);
+            if (!w || w._flowDir) continue; // already set by another path
+            const wKeyA = mkKey(w.from.comp, w.from.pin);
+            const wKeyB = mkKey(w.to.comp, w.to.pin);
+            if ((wKeyA === pinA && wKeyB === pinB)) {
+              w._flowDir = 1;  // wire direction matches current direction
+            } else if ((wKeyB === pinA && wKeyA === pinB)) {
+              w._flowDir = -1; // wire direction opposite to current direction
+            }
+          }
+        }
 
         // Set wire currents
         p.wires.forEach(wId => {
