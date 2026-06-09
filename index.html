@@ -636,16 +636,17 @@ const Registry = {
             {id:'l1',label:'L1',dx:80,dy:-20,type:'contact'},{id:'t1',label:'T1',dx:80,dy:0,type:'contact'},
             {id:'l2',label:'L2',dx:80,dy:20,type:'contact'}],
       props:{coilVoltage:220,contactR:0.02,maxCurrent:25,energized:false} },
-    // 433MHz 干接点继电器模块 (GuoKE GK3FF-5VDC-S-C)
-    // 规格: 433MHz 干接点 10A 1CH, 5VDC 线圈供电
+    // 433MHz 干接点继电器模块 (Wireless RF Dry Contact Relay)
+    // 型号: KR2201-COM
+    // 规格: 433MHz 干接点 10A 1CH AC110V/220V
     // 特点: 433MHz 无线射频控制 (1路) + SPDT干接点输出(NO/COM/NC)
-    //       5VDC 直接供电, 触点容量 10A
-    // 新板: GuoKE GK3FF-5VDC-S-C | 5VDC线圈 | 433MHz无线接收
-    // 右侧（红+/蓝-）: L(DC+)、N(DC-) - 5V直流供电
-    // 左侧OUT端子排（黄色螺丝）: NO(上)、COM(中)、NC(下) - 干接点输出
+    //       AC110V/220V 市电直接供电 (内置降压电源)
+    //       触点容量 10A (可用于控制灯具/插座/电机)
+    // 右侧（从上到下）: L红、N蓝 - 市电AC供电
+    // 左侧（从上到下）: NO常开、COM公共、NC常闭 - 干接点输出
     { type:'dry_relay', name:'433MHz干接点继电器', cat:'继电器/接触器', icon:'📡',
-      desc:'GuoKE GK3FF-5VDC-S-C | 433MHz无线10A干接点1CH（实物照片）',
-      model:'GK3FF-5VDC-S-C',
+      desc:'KR2201-COM | 433MHz无线10A干接点1CH AC110V/220V（实物照片）',
+      model:'KR2201-COM',
       w:200, h:130,
       image:'images/dry_relay.webp',
       // 坐标基于600x600 WebP图像端子位置等比缩放至200x130
@@ -654,7 +655,7 @@ const Registry = {
             {id:'no',label:'NO',dx:-50,dy:-20,lo:-15,ld:0,type:'contact'},
             {id:'com',label:'COM',dx:-50,dy:0,lo:-15,ld:0,type:'contact'},
             {id:'nc',label:'NC',dx:-50,dy:20,lo:-15,ld:0,type:'contact'}],
-      props:{coilVoltage:5,coilResistance:70,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
+      props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
 
     // --- 传感器 ---
     { type:'thermistor', name:'温度传感器', cat:'传感器', icon:'🌡️', desc:'NTC热敏',
