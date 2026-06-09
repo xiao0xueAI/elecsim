@@ -1950,77 +1950,124 @@ const Renderer = {
         if (BellAudio._timer) { clearTimeout(BellAudio._timer); BellAudio._timer = null; }
       }
     } else if (c.type === 'rf_remote') {
-      // 433MHz 无线遥控器：渲染中央按钮和指示灯
-      // 实物图 200x268 中央按钮大致在 (100, 95) → 缩放到元件局部坐标
+      // 433MHz 无线遥控器：中央大按钮 + 信号发射动画
       const btnImgY = 95;  // 实物图上按钮中心的y
       const imgH = 268;
-      const localBtnY = (btnImgY / imgH - 0.5) * c.h;  // = (95/268 - 0.5) * 134 ≈ -22
+      const localBtnY = (btnImgY / imgH - 0.5) * c.h;  // ≈ -22
       const cx = 0, cy = localBtnY;
-      const btnR = 16;
-      // 按钮光晕
-      if (S.simRunning && c.props.pressed) {
+      const btnR = 24; // 大按钮
+      const isPressed = S.simRunning && c.props.pressed;
+      // 按压光晕（强）
+      if (isPressed) {
         ctx.beginPath();
-        ctx.arc(cx, cy, btnR + 6, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 80, 80, 0.35)';
+        ctx.arc(cx, cy, btnR + 20, 0, Math.PI * 2);
+        const glowGrad = ctx.createRadialGradient(cx, cy, btnR, cx, cy, btnR + 20);
+        glowGrad.addColorStop(0, 'rgba(255, 120, 40, 0.6)');
+        glowGrad.addColorStop(1, 'rgba(255, 80, 40, 0)');
+        ctx.fillStyle = glowGrad;
         ctx.fill();
       }
+      // 按钮外圈（金属环）
+      ctx.beginPath();
+      ctx.arc(cx, cy, btnR + 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fill();
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
       // 按钮本体
+      const btnGrad = ctx.createRadialGradient(cx - 5, cy - 5, 3, cx, cy, btnR);
+      if (isPressed) {
+        btnGrad.addColorStop(0, '#ff6040');
+        btnGrad.addColorStop(0.7, '#cc3020');
+        btnGrad.addColorStop(1, '#8a1a0a');
+      } else {
+        btnGrad.addColorStop(0, '#5a5a5a');
+        btnGrad.addColorStop(0.7, '#3a3a3a');
+        btnGrad.addColorStop(1, '#1a1a1a');
+      }
       ctx.beginPath();
       ctx.arc(cx, cy, btnR, 0, Math.PI * 2);
-      ctx.fillStyle = S.simRunning && c.props.pressed ? '#ff4040' : '#2a2a2a';
+      ctx.fillStyle = btnGrad;
       ctx.fill();
-      ctx.strokeStyle = '#555';
+      ctx.strokeStyle = isPressed ? '#ffaa44' : '#555';
       ctx.lineWidth = 2;
       ctx.stroke();
-      // A 字母
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 14px sans-serif';
+      // "发射" 文字在按钮内
+      ctx.fillStyle = isPressed ? '#fff' : '#ccc';
+      ctx.font = 'bold 13px "PingFang SC","Microsoft YaHei",sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('A', cx, cy);
-      // 433MHz 无线波纹（按下时扩散）
-      if (S.simRunning && c.props.pressed) {
-        const t = (Date.now() % 800) / 800;
-        for (let i = 0; i < 3; i++) {
-          const phase = (t + i * 0.33) % 1;
-          const r = 25 + phase * 30;
-          const alpha = (1 - phase) * 0.5;
+      ctx.fillText(isPressed ? '发射中' : '发射', cx, cy);
+      // 按钮下方提示文字
+      ctx.fillStyle = '#999';
+      ctx.font = '10px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.fillText('按下发射', cx, cy + btnR + 14);
+      // 无线波纹（按下时扩散）
+      if (isPressed) {
+        const t = (Date.now() % 900) / 900;
+        for (let i = 0; i < 4; i++) {
+          const phase = (t + i * 0.25) % 1;
+          const r = btnR + 10 + phase * 45;
+          const alpha = (1 - phase) * 0.6;
           ctx.beginPath();
           ctx.arc(cx, cy, r, 0, Math.PI * 2);
           ctx.strokeStyle = `rgba(255, 168, 0, ${alpha})`;
-          ctx.lineWidth = 1.5;
+          ctx.lineWidth = 2;
           ctx.stroke();
         }
       }
       // 底部小字 "433MHz"
       ctx.fillStyle = '#888';
       ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
       ctx.fillText('433MHz', 0, bh / 2 - 12);
     } else if (c.type === 'dry_relay') {
-      // 干接点控制器：模式文字标识（顶部）+ 模式小按钮（底部）
-      const modeText = c.props.mode === 'momentary' ? '点动'
-                     : c.props.mode === 'toggle' ? '自锁'
-                     : c.props.mode === 'interlock' ? '互锁' : '未设模式';
-      const modeColor = c.props.mode === 'none' ? '#ff5252' : '#4caf50';
+      // 干接点控制器：模式文字（顶部大号）+ 模式按钮（底部矩形）
+      const mode = c.props.mode || 'none';
+      const modeText = mode === 'momentary' ? '点动' : mode === 'toggle' ? '自锁' : mode === 'interlock' ? '互锁' : '纯线圈';
+      const nextMode = mode === 'none' ? '点动' : mode === 'momentary' ? '自锁' : mode === 'toggle' ? '互锁' : '纯线圈';
+      const isPowered = c.simCurrent > 0;
+      // 顶部大号模式文字
+      const modeColor = mode === 'none' ? '#ff5252' : '#4caf50';
       ctx.fillStyle = modeColor;
-      ctx.font = 'bold 10px sans-serif';
+      ctx.font = 'bold 24px "PingFang SC","Microsoft YaHei",sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(modeText, 0, -bh / 2 + 4);
-      // 模式切换按钮（元件底部小圆点，鼠标可点）
-      const btnX = 0, btnY = bh / 2 - 8, btnR = 6;
-      const isPowered = c.simCurrent > 0;
+      ctx.fillText('模式: ' + modeText, 0, -bh / 2 + 2);
+      // 底部矩形模式切换按钮
+      const btnW = 90, btnH = 28;
+      const btnX = 0, btnY = bh / 2 - btnH - 6;
+      const rx = 6; // 圆角
+      // 按钮背景
       ctx.beginPath();
-      ctx.arc(btnX, btnY, btnR, 0, Math.PI * 2);
-      ctx.fillStyle = isPowered ? '#ffa800' : '#666';
+      ctx.moveTo(btnX - btnW/2 + rx, btnY);
+      ctx.lineTo(btnX + btnW/2 - rx, btnY);
+      ctx.arcTo(btnX + btnW/2, btnY, btnX + btnW/2, btnY + rx, rx);
+      ctx.lineTo(btnX + btnW/2, btnY + btnH - rx);
+      ctx.arcTo(btnX + btnW/2, btnY + btnH, btnX + btnW/2 - rx, btnY + btnH, rx);
+      ctx.lineTo(btnX - btnW/2 + rx, btnY + btnH);
+      ctx.arcTo(btnX - btnW/2, btnY + btnH, btnX - btnW/2, btnY + btnH - rx, rx);
+      ctx.lineTo(btnX - btnW/2, btnY + rx);
+      ctx.arcTo(btnX - btnW/2, btnY, btnX - btnW/2 + rx, btnY, rx);
+      ctx.closePath();
+      ctx.fillStyle = isPowered ? '#ffa800' : '#555';
       ctx.fill();
-      ctx.strokeStyle = '#222';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = isPowered ? '#ffd000' : '#444';
+      ctx.lineWidth = 1.5;
       ctx.stroke();
-      // 保存按钮位置供点击事件用
+      // 按钮文字: 点击切换为 XXX
+      ctx.fillStyle = isPowered ? '#1a1a1a' : '#aaa';
+      ctx.font = 'bold 13px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('切换:' + nextMode, btnX, btnY + btnH / 2);
+      // 保存按钮包围盒供点击检测
       c._modeBtnX = btnX;
       c._modeBtnY = btnY;
-      c._modeBtnR = btnR;
+      c._modeBtnR = Math.max(btnW / 2, btnH / 2); // 检测半径用对角线一半
+      c._modeBtnW = btnW;
+      c._modeBtnH = btnH;
     }
     ctx.globalAlpha = 1;
   },
@@ -4092,11 +4139,11 @@ const UI = {
       makeRow('线圈电压 (V)', 'coilVoltage', comp.props.coilVoltage);
       // 干接点控制器专用：模式选择（循环切换）
       if (comp.type === 'dry_relay') {
-        const modeLabels = { 'none':'未设模式', 'momentary':'点动', 'toggle':'自锁', 'interlock':'互锁' };
+        const modeLabels = { 'none':'纯线圈', 'momentary':'点动', 'toggle':'自锁', 'interlock':'互锁' };
         const modeRow = document.createElement('div'); modeRow.className = 'prop-row';
         const powered = comp.simCurrent > 0;
         const nextMode = { 'none':'momentary', 'momentary':'toggle', 'toggle':'interlock', 'interlock':'momentary' }[comp.props.mode] || 'momentary';
-        modeRow.innerHTML = `<span class="label">控制模式</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${!powered ? 'opacity:0.4;' : ''}" ${!powered ? 'disabled' : ''} title="${!powered ? '需先通电' : '点击切换：' + modeLabels[nextMode]}">${modeLabels[comp.props.mode] || '未设模式'}</button>`;
+        modeRow.innerHTML = `<span class="label">控制模式</span><button class="tbtn" style="font-size:13px;padding:4px 14px;font-weight:bold;${!powered ? 'opacity:0.4;' : ''}" ${!powered ? 'disabled' : ''} title="${!powered ? '需先通电' : '点击切换：' + modeLabels[nextMode]}">${modeLabels[comp.props.mode] || '未设模式'}</button>`;
         modeRow.querySelector('button').addEventListener('click', () => {
           comp.props.mode = nextMode;
           S.dirty = true; this.showProps(comp); render();
@@ -4235,29 +4282,32 @@ function onMouseDown(e) {
   // Close context menu
   document.getElementById('ctxMenu').style.display = 'none';
 
-  // 干接点控制器模式按钮点击
+  // 干接点控制器模式按钮点击（矩形按钮检测）
   for (const c of S.components) {
     if (c.type === 'dry_relay' && c._modeBtnX !== undefined) {
       const localX = pos.x - c.x, localY = pos.y - c.y;
-      if (Math.hypot(localX - c._modeBtnX, localY - c._modeBtnY) < c._modeBtnR + 4) {
+      const hw = (c._modeBtnW || 90) / 2 + 6, hh = (c._modeBtnH || 28) / 2 + 6;
+      if (localX >= c._modeBtnX - hw && localX <= c._modeBtnX + hw &&
+          localY >= c._modeBtnY - hh && localY <= c._modeBtnY + hh) {
         if (c.simCurrent <= 0) { UI.toast('请先通电！', 'warning'); return; }
-        const order = ['momentary', 'toggle', 'interlock'];
-        const idx = order.indexOf(c.props.mode);
-        c.props.mode = order[(idx + 1) % 3];
+        const order = ['none', 'momentary', 'toggle', 'interlock'];
+        const idx = order.indexOf(c.props.mode || 'none');
+        c.props.mode = order[(idx + 1) % 4];
+        const modeLabels = { none:'纯线圈', momentary:'点动', toggle:'自锁', interlock:'互锁' };
         S.dirty = true;
-        UI.toast('干接点模式：' + (c.props.mode === 'momentary' ? '点动' : c.props.mode === 'toggle' ? '自锁' : '互锁'), 'success');
+        UI.toast('干接点模式：' + modeLabels[c.props.mode], 'success');
         render();
         return;
       }
     }
   }
 
-  // 433MHz 遥控器按钮按下（按图片中按钮位置 95/268）
+  // 433MHz 遥控器按钮按下
   for (const c of S.components) {
     if (c.type === 'rf_remote') {
       const localX = pos.x - c.x, localY = pos.y - c.y;
       const btnLocalY = (95 / 268 - 0.5) * c.h;  // ≈ -22
-      if (Math.hypot(localX - 0, localY - btnLocalY) < 20) {  // 按钮半径约16+容差
+      if (Math.hypot(localX - 0, localY - btnLocalY) < 34) {  // 大按钮24 + 金属环5 + 容差5
         c.props.pressed = true;
         S._pressRemote = c.id;
         S.dragging = null;  // 不要触发拖动
