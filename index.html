@@ -2814,7 +2814,7 @@ const Engine = {
             addEdge(mkKey(c.id, contactPins[0].id), mkKey(c.id, contactPins[1].id), null, c.id);
           }
         }
-      } else if (pins.length >= 2 && !['battery', 'ac_source', 'dc_dc'].includes(t)) {
+      } else if (pins.length >= 2 && !['battery', 'battery_12v', 'ac_source', 'dc_dc'].includes(t)) {
         // Default: adjacent pins connected (for 2-pin pass-through components)
         for (let i = 0; i < pins.length - 1; i++) {
           addEdge(mkKey(c.id, pins[i].id), mkKey(c.id, pins[i + 1].id), null, c.id);
@@ -2966,7 +2966,7 @@ const Engine = {
 
     // ==================== Process each battery ====================
     const batteries = S.components.filter(c =>
-      c.type === 'battery' || c.type === 'ac_source' || c.type === 'dc_dc'
+      c.type === 'battery' || c.type === 'battery_12v' || c.type === 'ac_source' || c.type === 'dc_dc'
     );
 
     if (batteries.length === 0) {
@@ -3038,7 +3038,7 @@ const Engine = {
         if (!comp) return false;
         const t = comp.type;
         // Load components that consume power (not just conduct)
-        return ['resistor', 'led', 'diode', 'motor_dc', 'buzzer', 'solenoid', 'lamp',
+        return ['resistor', 'led', 'diode', 'motor_dc', 'buzzer', 'solenoid', 'lamp', 'bell_dc',
                 'capacitor', 'inductor', 'thermistor', 'photoresistor', 'npn',
                 'relay5', 'relay8', 'contactor', 'ac_source', 'dc_dc'].includes(t);
       };
