@@ -650,11 +650,11 @@ const Registry = {
       w:200, h:130,
       image:'images/dry_relay.webp',
       // 坐标基于600x600 WebP图像端子位置等比缩放至200x130
-      pins:[{id:'l',label:'L',dx:50,dy:-20,lo:15,ld:0,type:'coil'},
-            {id:'n',label:'N',dx:50,dy:20,lo:15,ld:0,type:'coil'},
-            {id:'no',label:'NO',dx:-50,dy:-20,lo:-15,ld:0,type:'contact'},
-            {id:'com',label:'COM',dx:-50,dy:0,lo:-15,ld:0,type:'contact'},
-            {id:'nc',label:'NC',dx:-50,dy:20,lo:-15,ld:0,type:'contact'}],
+      pins:[{id:'l',label:'L',dx:38,dy:-22,lo:12,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:38,dy:22,lo:12,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-38,dy:-22,lo:-12,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-38,dy:0,lo:-12,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-38,dy:22,lo:-12,ld:0,type:'contact'}],
       props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
 
     // --- 传感器 ---
