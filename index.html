@@ -1048,51 +1048,72 @@ const QIACHIP = {
 const BellAudio = {
   ctx: null,
   active: false,
+  _ready: false,  // 用户已交互过，AudioContext 可放音
 
   init() {
     if (this.ctx) return;
     try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
   },
 
-  // 确保 AudioContext 被唤醒（浏览器自动播放策略要求用户交互后才能放音）
-  async ensureAlive() {
+  // 在用户手势回调中调用，确保 AudioContext 被唤醒
+  async resume() {
     this.init();
     if (!this.ctx) return false;
     if (this.ctx.state === 'suspended') {
-      try { await this.ctx.resume(); } catch(e) { return false; }
+      try { await this.ctx.resume(); this._ready = true; return true; }
+      catch(e) { return false; }
     }
-    return this.ctx.state === 'running';
+    this._ready = true;
+    return true;
   },
 
-  resume() {
-    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  // 确保 AudioContext 被唤醒（异步，用于非手势回调）
+  async ensureAlive() {
+    if (this._ready && this.ctx && this.ctx.state === 'running') return true;
+    return await this.resume();
   },
 
-  // 产生一个"叮-叮"电铃音调
+  // 产生一个"叮-叮"电铃音调（增益足够大，波形更响亮）
   ding() {
     if (!this.ctx) return;
     const c = this.ctx;
     const now = c.currentTime;
-    // 叮 (高频)
+    // 叮 (高频，三角波更响)
     const o1 = c.createOscillator();
     const g1 = c.createGain();
     o1.connect(g1); g1.connect(c.destination);
-    o1.type = 'sine';
-    o1.frequency.setValueAtTime(880, now);
-    o1.frequency.exponentialRampToValueAtTime(660, now + 0.08);
-    g1.gain.setValueAtTime(0.35, now);
-    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-    o1.start(now); o1.stop(now + 0.25);
+    o1.type = 'triangle';
+    o1.frequency.setValueAtTime(1200, now);
+    o1.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+    g1.gain.setValueAtTime(0.55, now);
+    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    o1.start(now); o1.stop(now + 0.3);
     // 咚 (低频，稍后)
     const o2 = c.createOscillator();
     const g2 = c.createGain();
     o2.connect(g2); g2.connect(c.destination);
-    o2.type = 'sine';
-    o2.frequency.setValueAtTime(440, now + 0.15);
-    o2.frequency.exponentialRampToValueAtTime(330, now + 0.25);
-    g2.gain.setValueAtTime(0.3, now + 0.15);
-    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-    o2.start(now + 0.15); o2.stop(now + 0.45);
+    o2.type = 'triangle';
+    o2.frequency.setValueAtTime(600, now + 0.12);
+    o2.frequency.exponentialRampToValueAtTime(400, now + 0.28);
+    g2.gain.setValueAtTime(0.5, now + 0.12);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    o2.start(now + 0.12); o2.stop(now + 0.5);
+    // 第三声（更长的余音）
+    const o3 = c.createOscillator();
+    const g3 = c.createGain();
+    o3.connect(g3); g3.connect(c.destination);
+    o3.type = 'sine';
+    o3.frequency.setValueAtTime(880, now + 0.3);
+    o3.frequency.exponentialRampToValueAtTime(600, now + 0.5);
+    g3.gain.setValueAtTime(0.25, now + 0.3);
+    g3.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    o3.start(now + 0.3); o3.stop(now + 0.7);
+  },
+
+  // 在用户手势中直接播放测试音（绕过自动播放限制）
+  async playTestTone() {
+    const ok = await this.resume();
+    if (ok) this.ding();
   },
 
   // 持续响铃：在延迟后再次调用ding()
@@ -4414,6 +4435,11 @@ function onMouseDown(e) {
     UI.showProps(comp);
     S.clickCompId = comp.id; // Track clicked component for toggle on mouseup
     S.clickPos = { x: e.offsetX, y: e.offsetY }; // Record mouse down position for drag detection
+
+    // 点击电铃时播放测试音（在用户手势中，绕过自动播放限制）
+    if (comp.type === 'bell_dc' && S.simRunning) {
+      BellAudio.playTestTone();
+    }
   } else {
     S.selected = null;
     UI.hideProps();
