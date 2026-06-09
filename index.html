@@ -3110,13 +3110,14 @@ const Engine = {
         relay.props.energized = relay.simCurrent > 1; // 1mA threshold
       });
 
-      // 干接点控制器：仅在通电状态下，由遥控器按模式驱动
+      // 干接点控制器：线圈通电即可吸合；模式用于遥控器
       S.components.filter(c => c.type === 'dry_relay').forEach(relay => {
         const powered = relay.simCurrent > 1;
         if (!powered) { relay.props.energized = false; return; }
         const mode = relay.props.mode;
-        if (mode === 'none' || mode === undefined) { relay.props.energized = false; return; }
-        // 找画布上所有遥控器（实际应按配对码，但目前用最近的或全部）
+        // mode='none' → 纯线圈驱动，通电即吸合（普通继电器行为）
+        if (mode === 'none' || mode === undefined) { relay.props.energized = true; return; }
+        // 以下为遥控器模式：找画布上所有遥控器
         const remotes = S.components.filter(c => c.type === 'rf_remote');
         let signalOn = false, signalPulse = false;
         for (const r of remotes) {
