@@ -1050,99 +1050,70 @@ const QIACHIP = {
 
 // ==================== Section 5: Canvas & Rendering ====================
 // --- 直流电铃音效模块 (HTML5 Audio 真实铃声音频) ---
+// ==================== BellAudio: Web Audio API 实现 ====================
+// 用 Web Audio API 替代 HTML5 Audio，从根本上避免浏览器的 autoplay 策略拦截。
+// AudioContext.resume() 在用户手势内可可靠解锁，之后 BufferSource.start() 永不失败。
 const BellAudio = {
-  audio: null,
-  _ready: false,
+  ctx: null,
+  source: null,
+  buffer: null,
   _activeBellId: null,
 
-  // 预加载真实铃声文件（页面加载时尽早调用）
+  // 页面加载时预加载：创建 AudioContext + 加载铃声文件
   preload() {
-    if (this.audio) return;
-    this.audio = new Audio('images/bell.mp3');
-    this.audio.loop = true;
-    this.audio.volume = 0.7;
-    this.audio.preload = 'auto';
-    this.audio.load();
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    fetch('images/bell.mp3')
+      .then(r => r.arrayBuffer())
+      .then(buf => this.ctx.decodeAudioData(buf))
+      .then(audioBuf => { this.buffer = audioBuf; })
+      .catch(() => {});
   },
 
   init() { this.preload(); },
 
-  // 解锁浏览器音频——必须在用户手势内调用
-  // 直接用 bell.mp3 的 play() 来解锁（页面加载后几秒已预加载完毕）
-  // 此函数必须同步触发 play()，不能 await，否则用户手势窗口可能过期
+  // 解锁 AudioContext —— 必须在用户手势内同步调用（ctx.resume() 是同步触发）
   resume() {
-    if (this._ready) return;
-    this.preload();
-    if (!this.audio) return;
-
-    // 策略1：bell.mp3 已加载 → 直接用它解锁（最可靠，同元素后续播放畅通）
-    if (this.audio.readyState >= 2) {
-      this.audio.play().then(() => {
-        this.audio.pause();
-        this.audio.currentTime = 0;
-      }).catch(() => {});
-      this._ready = true;
-      return;
-    }
-
-    // 策略2：bell.mp3 未就绪 → 用 Web Audio API 生成静音脉冲解锁
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      if (ctx.state === 'suspended') ctx.resume();
-      const buf = ctx.createBuffer(1, 1, 8000);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start(0);
-      src.stop(ctx.currentTime + 0.001);
-      this._ready = true;
-    } catch(e) {
-      this._ready = true; // 乐观标记，让 ring() 至少尝试
+    if (!this.ctx) this.preload();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
     }
   },
 
-  // 开始响铃（有电即一直循环响）
+  // 开始响铃（通电即响，循环不停；buffer 未就绪则稍等重试）
   ring(bellId) {
-    this.preload();
-    if (!this.audio) return;
+    if (!this.ctx) { this.preload(); setTimeout(() => this.ring(bellId), 80); return; }
+    if (!this.buffer) { setTimeout(() => this.ring(bellId), 80); return; }
+    // 停掉之前的源（如果有）
+    if (this.source) { try { this.source.stop(0); } catch(e) {} this.source = null; }
     this._activeBellId = bellId;
-    // 先停掉之前的铃声，确保干净状态
-    this.audio.pause();
-    this.audio.currentTime = 0;
-    this.audio.loop = true;
-
-    const tryPlay = (attempts) => {
-      // 如果在重试期间断电了（activeBellId 被清空），放弃重试
-      if (attempts <= 0 || this._activeBellId !== bellId) return;
-      this.audio.play().catch(() => {
-        // 播放被阻止，延迟重试（给浏览器一点时间处理音频解锁）
-        setTimeout(() => tryPlay(attempts - 1), 150);
-      });
-    };
-    tryPlay(3); // 最多重试 3 次
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.buffer;
+    src.loop = true;
+    src.connect(this.ctx.destination);
+    src.start(0);
+    this.source = src;
   },
 
-  // 停止响铃
+  // 停止响铃（断电即停）
   stop() {
-    this._activeBellId = null; // 清掉 activeBellId，阻止任何 pending 重试
-    if (!this.audio) return;
-    this.audio.pause();
-    this.audio.currentTime = 0;
+    this._activeBellId = null;
+    if (this.source) {
+      try { this.source.stop(0); } catch(e) {}
+      this.source = null;
+    }
   },
 
-  // 在用户手势中播放测试音（点击电铃触发）
+  // 测试音（点击电铃触发，不循环）
   playTestTone() {
-    this.resume(); // 用户手势内，确保解锁
-    this.preload();
-    if (!this.audio) return;
-    this.audio.currentTime = 0;
-    this.audio.loop = false;
-    this.audio.play().catch(() => {});
-    const onEnd = () => {
-      this.audio.loop = true;
-      this.audio.removeEventListener('ended', onEnd);
-    };
-    this.audio.addEventListener('ended', onEnd);
+    this.resume();
+    if (!this.ctx || !this.buffer) return;
+    if (this.source) { try { this.source.stop(0); } catch(e) {} this.source = null; }
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.buffer;
+    src.loop = false;
+    src.connect(this.ctx.destination);
+    src.start(0);
   }
 };
 const canvas = document.getElementById('canvas');
