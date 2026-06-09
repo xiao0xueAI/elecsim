@@ -1054,9 +1054,6 @@ const BellAudio = {
   audio: null,
   _ready: false,
   _activeBellId: null,
-  // 45 字节内联静音 WAV（8-bit mono 8000Hz），用于可靠解锁浏览器音频上下文
-  // 数据 URI 无需网络加载，用户手势期间 play() 瞬间成功
-  _UNLOCK_WAV: 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQEAAACA',
 
   // 预加载真实铃声文件（页面加载时尽早调用）
   preload() {
@@ -1070,18 +1067,37 @@ const BellAudio = {
 
   init() { this.preload(); },
 
-  // 用内联静音WAV解锁浏览器音频上下文（不依赖bell.mp3文件加载）
-  async resume() {
-    if (this._ready) return true;
-    try {
-      const ua = new Audio(this._UNLOCK_WAV);
-      await ua.play();
-      ua.pause();
-      ua.remove();
+  // 解锁浏览器音频——必须在用户手势内调用
+  // 直接用 bell.mp3 的 play() 来解锁（页面加载后几秒已预加载完毕）
+  // 此函数必须同步触发 play()，不能 await，否则用户手势窗口可能过期
+  resume() {
+    if (this._ready) return;
+    this.preload();
+    if (!this.audio) return;
+
+    // 策略1：bell.mp3 已加载 → 直接用它解锁（最可靠，同元素后续播放畅通）
+    if (this.audio.readyState >= 2) {
+      this.audio.play().then(() => {
+        this.audio.pause();
+        this.audio.currentTime = 0;
+      }).catch(() => {});
       this._ready = true;
-      return true;
+      return;
+    }
+
+    // 策略2：bell.mp3 未就绪 → 用 Web Audio API 生成静音脉冲解锁
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      const buf = ctx.createBuffer(1, 1, 8000);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+      src.stop(ctx.currentTime + 0.001);
+      this._ready = true;
     } catch(e) {
-      return false;
+      this._ready = true; // 乐观标记，让 ring() 至少尝试
     }
   },
 
@@ -1090,29 +1106,33 @@ const BellAudio = {
     this.preload();
     if (!this.audio) return;
     this._activeBellId = bellId;
+    // 先停掉之前的铃声，确保干净状态
+    this.audio.pause();
     this.audio.currentTime = 0;
     this.audio.loop = true;
-    // 尝试播放；失败则先用内联WAV解锁再重试
-    this.audio.play().catch(async () => {
-      const ok = await this.resume();
-      if (ok) {
-        this.audio.currentTime = 0;
-        this.audio.play().catch(() => {});
-      }
-    });
+
+    const tryPlay = (attempts) => {
+      // 如果在重试期间断电了（activeBellId 被清空），放弃重试
+      if (attempts <= 0 || this._activeBellId !== bellId) return;
+      this.audio.play().catch(() => {
+        // 播放被阻止，延迟重试（给浏览器一点时间处理音频解锁）
+        setTimeout(() => tryPlay(attempts - 1), 150);
+      });
+    };
+    tryPlay(3); // 最多重试 3 次
   },
 
   // 停止响铃
   stop() {
+    this._activeBellId = null; // 清掉 activeBellId，阻止任何 pending 重试
     if (!this.audio) return;
     this.audio.pause();
     this.audio.currentTime = 0;
-    this._activeBellId = null;
   },
 
-  // 在用户手势中播放测试音
-  async playTestTone() {
-    await this.resume();
+  // 在用户手势中播放测试音（点击电铃触发）
+  playTestTone() {
+    this.resume(); // 用户手势内，确保解锁
     this.preload();
     if (!this.audio) return;
     this.audio.currentTime = 0;
