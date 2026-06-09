@@ -1592,7 +1592,7 @@ const Renderer = {
       }
 
       if (pin.label) {
-        ctx.font = 'bold 16px Arial';
+        ctx.font = (c.type === 'battery_12v') ? 'bold 28px Arial' : 'bold 16px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const lbl = pin.label.toUpperCase();
