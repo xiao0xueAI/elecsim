@@ -746,7 +746,6 @@ const Registry = {
     { type:'rf_remote', name:'433MHz遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz无线遥控器A键（433MHz信号发射器, 配433MHz控制器使用）',
       w:100, h:134,
       image:'images/rf_remote_关闭.webp',
-      imageOn:'images/rf_remote_打开.webp',
       pins:[],
       props:{freq:433,channel:'A',pressed:false} },
     // --- 直流电铃 (电磁锤式，通电即响，内部触点自动通断) ---
@@ -1973,6 +1972,43 @@ const Renderer = {
       const cx = 0, cy = localBtnY;
       const btnR = 24; // 大按钮
       const isPressed = S.simRunning && c.props.pressed;
+
+      // === LED 指示灯（图片上方叠加亮灯效果）===
+      // 图片坐标(100,60) → 本地坐标(0, -37)
+      const ledX = 0, ledY = -37, ledR = 5;
+      if (isPressed) {
+        // 外圈光晕（3层扩散）
+        for (let i = 3; i >= 1; i--) {
+          ctx.beginPath();
+          ctx.arc(ledX, ledY, ledR + i * 5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 60, 20, ${0.12 * (4 - i) / 3})`;
+          ctx.fill();
+        }
+        // LED 本体（红橙色发光）
+        const ledGrad = ctx.createRadialGradient(ledX - 1, ledY - 1, 0, ledX, ledY, ledR);
+        ledGrad.addColorStop(0, 'rgba(255,200,160,1)');
+        ledGrad.addColorStop(0.4, 'rgba(255,80,20,1)');
+        ledGrad.addColorStop(1, 'rgba(180,10,0,1)');
+        ctx.beginPath();
+        ctx.arc(ledX, ledY, ledR, 0, Math.PI * 2);
+        ctx.fillStyle = ledGrad;
+        ctx.fill();
+        // 内部高光
+        ctx.beginPath();
+        ctx.arc(ledX - 1.5, ledY - 1.5, ledR * 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,220,200,0.9)';
+        ctx.fill();
+      } else {
+        // 未按下：LED 暗色
+        ctx.beginPath();
+        ctx.arc(ledX, ledY, ledR, 0, Math.PI * 2);
+        ctx.fillStyle = '#2a1208';
+        ctx.fill();
+        ctx.strokeStyle = '#4a2010';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+
       // 按压光晕（强）
       if (isPressed) {
         ctx.beginPath();
