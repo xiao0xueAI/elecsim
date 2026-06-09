@@ -2852,6 +2852,9 @@ const Engine = {
       status.style.color = 'var(--green)';
       hint.textContent = '电路仿真已启动...';
       S.simTime = 0;
+      // 清理上轮残留的铃声状态
+      BellAudio.stop();
+      S.components.forEach(c => { c._ringing = false; });
       // 解锁音频上下文（浏览器自动播放策略要求用户手势）
       BellAudio.resume();
       this.simLoop = requestAnimationFrame(() => this.loop());
@@ -2863,7 +2866,8 @@ const Engine = {
       status.style.color = 'var(--yellow)';
       hint.textContent = '点击"运行仿真"重新启动';
       cancelAnimationFrame(this.simLoop);
-      S.components.forEach(c => { c.simCurrent = 0; c.simVoltage = 0; c._fault = null; });
+      BellAudio.stop();
+      S.components.forEach(c => { c.simCurrent = 0; c.simVoltage = 0; c._fault = null; c._ringing = false; });
       S.wires.forEach(w => { w.current = 0; w._fault = false; w._flowDir = undefined; });
       document.getElementById('simTime').textContent = '0.00 s';
       document.getElementById('simCurrent').textContent = '0.00 mA';
