@@ -287,11 +287,14 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
     <div class="canvas-area" id="canvasArea">
       <canvas id="canvas"></canvas>
       <div class="canvas-overlay" id="wireHint" style="display:none;">
-        <div style="display:flex;gap:3px;margin-right:8px;" id="wireTypeBar">
+        <div style="display:flex;gap:3px;margin-right:8px;flex-wrap:wrap;" id="wireTypeBar">
           <button class="wire-type-btn active" data-wtype="live" onclick="ElecSim.WireRouter.setWireType('live')" style="color:#e53935;border-color:#e53935">火线 L</button>
           <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#1e88e5;border-color:#1e88e5">零线 N</button>
           <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#43a047;border-color:#43a047">地线 PE</button>
-          <button class="wire-type-btn" data-wtype="signal" onclick="ElecSim.WireRouter.setWireType('signal')" style="color:#ffa800;border-color:#ffa800">信号/干接点</button>
+          <button class="wire-type-btn" data-wtype="signal" onclick="ElecSim.WireRouter.setWireType('signal')" style="color:#ffa800;border-color:#ffa800">信号</button>
+          <span style="color:#666;font-size:11px;line-height:24px;margin:0 2px;">|</span>
+          <button class="wire-type-btn" data-wtype="dc_pos" onclick="ElecSim.WireRouter.setWireType('dc_pos')" style="color:#c62828;border-color:#c62828">DC正极 +</button>
+          <button class="wire-type-btn" data-wtype="dc_neg" onclick="ElecSim.WireRouter.setWireType('dc_neg')" style="color:#1565c0;border-color:#1565c0">DC负极 −</button>
         </div>
         <span id="wireHintText" style="color:var(--yellow);">点击画布布线，点击端子完成连接</span>
         <button onclick="ElecSim.WireRouter.undoSegment()" style="color:var(--yellow);font-size:11px;">撤销段</button>
@@ -1044,97 +1047,70 @@ const QIACHIP = {
 };
 
 // ==================== Section 5: Canvas & Rendering ====================
-// --- 直流电铃音效模块 (Web Audio API 程序生成) ---
+// --- 直流电铃音效模块 (HTML5 Audio 真实铃声音频) ---
 const BellAudio = {
-  ctx: null,
-  active: false,
-  _ready: false,  // 用户已交互过，AudioContext 可放音
+  audio: null,
+  _ready: false,
+  _activeBellId: null,
 
   init() {
-    if (this.ctx) return;
-    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    if (this.audio) return;
+    this.audio = new Audio('images/bell.mp3');
+    this.audio.loop = true;
+    this.audio.volume = 0.7;
+    this.audio.preload = 'auto';
+    // 标记为可被用户手势唤醒
+    this.audio.load();
   },
 
-  // 在用户手势回调中调用，确保 AudioContext 被唤醒
+  // 在用户手势回调中调用，解锁浏览器自动播放
   async resume() {
     this.init();
-    if (!this.ctx) return false;
-    if (this.ctx.state === 'suspended') {
-      try { await this.ctx.resume(); this._ready = true; return true; }
-      catch(e) { return false; }
+    if (!this.audio) return false;
+    try {
+      // 尝试播放然后立即暂停，用于解锁自动播放策略
+      await this.audio.play();
+      this.audio.pause();
+      this.audio.currentTime = 0;
+      this._ready = true;
+      return true;
+    } catch(e) {
+      return false;
     }
-    this._ready = true;
-    return true;
   },
 
-  // 确保 AudioContext 被唤醒（异步，用于非手势回调）
-  async ensureAlive() {
-    if (this._ready && this.ctx && this.ctx.state === 'running') return true;
-    return await this.resume();
+  // 开始响铃（有电即一直循环响）
+  ring(bellId) {
+    this.init();
+    if (!this.audio) return;
+    this._activeBellId = bellId;
+    // 重新从头播放
+    this.audio.currentTime = 0;
+    this.audio.play().catch(() => {});
   },
 
-  // 产生一个"叮-叮"电铃音调（增益足够大，波形更响亮）
-  ding() {
-    if (!this.ctx) return;
-    const c = this.ctx;
-    const now = c.currentTime;
-    // 叮 (高频，三角波更响)
-    const o1 = c.createOscillator();
-    const g1 = c.createGain();
-    o1.connect(g1); g1.connect(c.destination);
-    o1.type = 'triangle';
-    o1.frequency.setValueAtTime(1200, now);
-    o1.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-    g1.gain.setValueAtTime(0.55, now);
-    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-    o1.start(now); o1.stop(now + 0.3);
-    // 咚 (低频，稍后)
-    const o2 = c.createOscillator();
-    const g2 = c.createGain();
-    o2.connect(g2); g2.connect(c.destination);
-    o2.type = 'triangle';
-    o2.frequency.setValueAtTime(600, now + 0.12);
-    o2.frequency.exponentialRampToValueAtTime(400, now + 0.28);
-    g2.gain.setValueAtTime(0.5, now + 0.12);
-    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-    o2.start(now + 0.12); o2.stop(now + 0.5);
-    // 第三声（更长的余音）
-    const o3 = c.createOscillator();
-    const g3 = c.createGain();
-    o3.connect(g3); g3.connect(c.destination);
-    o3.type = 'sine';
-    o3.frequency.setValueAtTime(880, now + 0.3);
-    o3.frequency.exponentialRampToValueAtTime(600, now + 0.5);
-    g3.gain.setValueAtTime(0.25, now + 0.3);
-    g3.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
-    o3.start(now + 0.3); o3.stop(now + 0.7);
+  // 停止响铃
+  stop() {
+    if (!this.audio) return;
+    this.audio.pause();
+    this.audio.currentTime = 0;
+    this._activeBellId = null;
   },
 
-  // 在用户手势中直接播放测试音（绕过自动播放限制）
+  // 在用户手势中播放测试音
   async playTestTone() {
     const ok = await this.resume();
-    if (ok) this.ding();
-  },
-
-  // 持续响铃：在延迟后再次调用ding()
-  async ring(bellId) {
-    this.init();
-    // 等待 AudioContext 就绪（浏览器自动播放策略）
-    const alive = await this.ensureAlive();
-    if (!alive) {
-      // 还未获得用户交互，60ms 后重试
-      this._timer = setTimeout(() => this.ring(bellId), 60);
-      return;
-    }
-    this.ding();
-    // 约500ms后再次敲击（电铃特性：电磁锤持续往复敲击）
-    if (this._timer) clearTimeout(this._timer);
-    this._timer = setTimeout(() => {
-      const bell = S.components.find(c => c.id === bellId && c.type === 'bell_dc');
-      if (bell && S.simRunning && bell.simCurrent > 0) {
-        this.ring(bellId);
-      }
-    }, 480);
+    if (!ok) return;
+    this.audio.currentTime = 0;
+    // 测试音只播一次（不循环）
+    this.audio.loop = false;
+    this.audio.play().catch(() => {});
+    // 播放结束后恢复 loop 模式
+    const onEnd = () => {
+      this.audio.loop = true;
+      this.audio.removeEventListener('ended', onEnd);
+    };
+    this.audio.addEventListener('ended', onEnd);
   }
 };
 const canvas = document.getElementById('canvas');
@@ -1983,7 +1959,7 @@ const Renderer = {
         BellAudio.ring(c.id);
       } else if (!isRinging && c._ringing) {
         c._ringing = false;
-        if (BellAudio._timer) { clearTimeout(BellAudio._timer); BellAudio._timer = null; }
+        BellAudio.stop();
       }
     } else if (c.type === 'rf_remote') {
       // 433MHz 无线遥控器：中央大按钮 + 信号发射动画
@@ -2179,14 +2155,14 @@ const WireRouter = {
   lastDir: null,         // 'h' | 'v' - direction of last committed segment
   deleteMode: false,     // wire deletion mode
 
-  WireColors: { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800' },
+  WireColors: { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#c62828', dc_neg:'#1565c0' },
   WireWidth: 5,
 
   isActive() { return this.active; },
 
   setWireType(type) {
     this.wireType = type;
-    const colorMap = { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800' };
+    const colorMap = { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#c62828', dc_neg:'#1565c0' };
     document.querySelectorAll('#wireTypeBar .wire-type-btn').forEach(b => {
       const isActive = b.dataset.wtype === type;
       b.classList.toggle('active', isActive);
@@ -2201,6 +2177,8 @@ const WireRouter = {
     const l = (pinLabel || '').toUpperCase();
     if (l.includes('GND') || l === 'PE' || l === 'E') return 'ground';
     if (l === 'N' || l.includes('NEUTRAL')) return 'neutral';
+    if (l === '+' || l.includes('POS') || l === 'P') return 'dc_pos';
+    if (l === '-' || l.includes('NEG')) return 'dc_neg';
     return 'live';
   },
 
@@ -2543,7 +2521,10 @@ const WireRouter = {
     if (!points || points.length < 2) return;
     const speed = Math.min(Math.abs(current) / 4, 5);
     const isXray = S.viewMode === 'xray';
-    const flowColor = isXray ? '#39d2c0' : '#FFD700';
+    const wt = wire ? (wire.wireType || 'live') : 'live';
+    const isDC = wt === 'dc_pos' || wt === 'dc_neg';
+    // AC: gold流动箭头  DC: 白色单向流动箭头
+    const flowColor = isXray ? '#39d2c0' : (isDC ? '#e8e8e8' : '#FFD700');
 
     // Determine actual current direction from positive terminal to negative terminal
     let flowPoints = points;
@@ -2562,10 +2543,10 @@ const WireRouter = {
     // === Layer 1: Ambient glow (wide, soft) ===
     ctx.save();
     ctx.shadowColor = flowColor;
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = isDC ? 12 : 18;
     ctx.strokeStyle = flowColor;
-    ctx.globalAlpha = 0.2;
-    ctx.lineWidth = 8;
+    ctx.globalAlpha = isDC ? 0.15 : 0.2;
+    ctx.lineWidth = isDC ? 6 : 8;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -2575,22 +2556,38 @@ const WireRouter = {
     ctx.restore();
 
     // === Layer 2: Animated dashed flow (base) ===
+    // DC: 实线短段（电流连续单向）  AC: 虚线闪烁
     ctx.save();
     ctx.lineCap = 'butt';
     ctx.lineWidth = 3;
-    const dashLen = 12, gapLen = 20;
-    ctx.beginPath();
-    ctx.moveTo(flowPoints[0].x, flowPoints[0].y);
-    for (let i = 1; i < flowPoints.length; i++) ctx.lineTo(flowPoints[i].x, flowPoints[i].y);
-    ctx.strokeStyle = flowColor;
-    ctx.setLineDash([dashLen, gapLen]);
-    ctx.lineDashOffset = -(S.animTick * speed * 0.18);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (isDC) {
+      // DC: shorter dash, tighter gap, faster flow feel
+      const dashLen = 8, gapLen = 12;
+      ctx.beginPath();
+      ctx.moveTo(flowPoints[0].x, flowPoints[0].y);
+      for (let i = 1; i < flowPoints.length; i++) ctx.lineTo(flowPoints[i].x, flowPoints[i].y);
+      ctx.strokeStyle = flowColor;
+      ctx.setLineDash([dashLen, gapLen]);
+      ctx.lineDashOffset = -(S.animTick * speed * 0.25);
+      ctx.globalAlpha = 0.8;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      const dashLen = 12, gapLen = 20;
+      ctx.beginPath();
+      ctx.moveTo(flowPoints[0].x, flowPoints[0].y);
+      for (let i = 1; i < flowPoints.length; i++) ctx.lineTo(flowPoints[i].x, flowPoints[i].y);
+      ctx.strokeStyle = flowColor;
+      ctx.setLineDash([dashLen, gapLen]);
+      ctx.lineDashOffset = -(S.animTick * speed * 0.18);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     ctx.restore();
 
     // === Layer 3: Flowing arrows (moving along wire path) ===
-    this._drawFlowingArrows(flowPoints, flowColor, r, g, b, speed);
+    // DC: 白色小箭头, AC: 金色箭头
+    this._drawFlowingArrows(flowPoints, flowColor, r, g, b, speed, isDC);
   },
 
   // Determine if current in wire actually flows from points[last] to points[0]
@@ -2616,9 +2613,9 @@ const WireRouter = {
   _isPositiveTerminal(comp, pinId) {
     if (!comp) return false;
     const t = comp.type;
-    if (t === 'battery') {
+    if (t === 'battery' || t === 'battery_12v' || t === 'dc_dc') {
       const pin = comp.pins.find(p => p.id === pinId);
-      return pin && pin.label === '+';
+      return pin && (pin.label === '+' || pin.label === 'P' || pin.id === 'p');
     }
     if (t === 'ac_source') {
       const pin = comp.pins.find(p => p.id === pinId);
@@ -2653,17 +2650,17 @@ const WireRouter = {
   },
 
   // Draw arrows that continuously flow/move along the wire path
-  _drawFlowingArrows(points, flowColor, r, g, b, speed) {
+  _drawFlowingArrows(points, flowColor, r, g, b, speed, isDC) {
     const totalLen = this._calcPathLength(points);
     if (totalLen < 30) return;
 
     // Number of arrows based on wire length; each arrow travels full path
-    const arrowSpacing = 35; // px between arrows
+    const arrowSpacing = isDC ? 25 : 35; // px between arrows (DC denser)
     const numArrows = Math.max(2, Math.floor(totalLen / arrowSpacing));
 
     // All arrows move at the same speed as the dashed line (matching lineDashOffset)
     const cycleLen = totalLen + arrowSpacing; // full cycle (start→end + reset gap)
-    const t = (S.animTick * speed * 0.18) % cycleLen; // same speed as dashed line
+    const t = (S.animTick * speed * (isDC ? 0.25 : 0.18)) % cycleLen;
 
     ctx.save();
     ctx.lineCap = 'round';
@@ -2689,31 +2686,54 @@ const WireRouter = {
       // Find tangent direction at this point
       const dirAngle = this._getTangentAngle(points, dist);
 
-      const arrowSize = 5;
+      // DC: smaller, sharper arrows; AC: larger, rounded arrows
+      const arrowSize = isDC ? 3.5 : 5;
 
-      // Arrow shaft (short line in flow direction)
-      ctx.beginPath();
-      ctx.moveTo(pos.x - Math.cos(dirAngle) * arrowSize * 0.8, pos.y - Math.sin(dirAngle) * arrowSize * 0.8);
-      ctx.lineTo(pos.x + Math.cos(dirAngle) * arrowSize * 0.4, pos.y + Math.sin(dirAngle) * arrowSize * 0.4);
-      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
-      ctx.lineWidth = 1.8;
-      ctx.stroke();
+      if (isDC) {
+        // DC: simple white line + triangle pointer (clean, one-directional)
+        const tipX = pos.x + Math.cos(dirAngle) * arrowSize;
+        const tipY = pos.y + Math.sin(dirAngle) * arrowSize;
+        const baseX1 = pos.x + Math.cos(dirAngle - 2.6) * arrowSize * 0.7;
+        const baseY1 = pos.y + Math.sin(dirAngle - 2.6) * arrowSize * 0.7;
+        const baseX2 = pos.x + Math.cos(dirAngle + 2.6) * arrowSize * 0.7;
+        const baseY2 = pos.y + Math.sin(dirAngle + 2.6) * arrowSize * 0.7;
 
-      // Arrow head (triangle)
-      const ax1 = pos.x + Math.cos(dirAngle) * arrowSize * 0.5;
-      const ay1 = pos.y + Math.sin(dirAngle) * arrowSize * 0.5;
-      const ax2 = pos.x + Math.cos(dirAngle - 2.4) * arrowSize * 0.6;
-      const ay2 = pos.y + Math.sin(dirAngle - 2.4) * arrowSize * 0.6;
-      const ax3 = pos.x + Math.cos(dirAngle + 2.4) * arrowSize * 0.6;
-      const ay3 = pos.y + Math.sin(dirAngle + 2.4) * arrowSize * 0.6;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(baseX1, baseY1);
+        ctx.lineTo(baseX2, baseY2);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(200, 200, 200, ${alpha * 0.5})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      } else {
+        // AC: gold arrow with shaft + triangle head
+        // Arrow shaft (short line in flow direction)
+        ctx.beginPath();
+        ctx.moveTo(pos.x - Math.cos(dirAngle) * arrowSize * 0.8, pos.y - Math.sin(dirAngle) * arrowSize * 0.8);
+        ctx.lineTo(pos.x + Math.cos(dirAngle) * arrowSize * 0.4, pos.y + Math.sin(dirAngle) * arrowSize * 0.4);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
 
-      ctx.beginPath();
-      ctx.moveTo(ax1, ay1);
-      ctx.lineTo(ax2, ay2);
-      ctx.lineTo(ax3, ay3);
-      ctx.closePath();
-      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-      ctx.fill();
+        // Arrow head (triangle)
+        const ax1 = pos.x + Math.cos(dirAngle) * arrowSize * 0.5;
+        const ay1 = pos.y + Math.sin(dirAngle) * arrowSize * 0.5;
+        const ax2 = pos.x + Math.cos(dirAngle - 2.4) * arrowSize * 0.6;
+        const ay2 = pos.y + Math.sin(dirAngle - 2.4) * arrowSize * 0.6;
+        const ax3 = pos.x + Math.cos(dirAngle + 2.4) * arrowSize * 0.6;
+        const ay3 = pos.y + Math.sin(dirAngle + 2.4) * arrowSize * 0.6;
+
+        ctx.beginPath();
+        ctx.moveTo(ax1, ay1);
+        ctx.lineTo(ax2, ay2);
+        ctx.lineTo(ax3, ay3);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fill();
+      }
     }
     ctx.restore();
   },
