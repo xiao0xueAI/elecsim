@@ -1055,6 +1055,16 @@ const BellAudio = {
     try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
   },
 
+  // 确保 AudioContext 被唤醒（浏览器自动播放策略要求用户交互后才能放音）
+  async ensureAlive() {
+    this.init();
+    if (!this.ctx) return false;
+    if (this.ctx.state === 'suspended') {
+      try { await this.ctx.resume(); } catch(e) { return false; }
+    }
+    return this.ctx.state === 'running';
+  },
+
   resume() {
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
   },
@@ -1087,9 +1097,15 @@ const BellAudio = {
   },
 
   // 持续响铃：在延迟后再次调用ding()
-  ring(bellId) {
+  async ring(bellId) {
     this.init();
-    this.resume();
+    // 等待 AudioContext 就绪（浏览器自动播放策略）
+    const alive = await this.ensureAlive();
+    if (!alive) {
+      // 还未获得用户交互，60ms 后重试
+      this._timer = setTimeout(() => this.ring(bellId), 60);
+      return;
+    }
     this.ding();
     // 约500ms后再次敲击（电铃特性：电磁锤持续往复敲击）
     if (this._timer) clearTimeout(this._timer);
@@ -1239,7 +1255,7 @@ const Renderer = {
 
         // Draw image full-bleed (no dark box, no padding) — with SHARED image cache
         try {
-          const wantOn = c.props.closed && c.imageOn;
+          const wantOn = (c.props.closed || c.props.pressed) && c.imageOn;
           const imgSrc = wantOn ? c.imageOn : c.image;
           const cacheKey = wantOn ? '_imgOnCache' : '_imgCache';
           let img = c[cacheKey];
@@ -4269,6 +4285,9 @@ function initEvents() {
 }
 
 function onMouseDown(e) {
+  // 用户交互时唤醒 AudioContext（浏览器自动播放策略）
+  BellAudio.resume();
+
   const pos = screenToCanvas(e.offsetX, e.offsetY);
 
   // Middle button or Alt+left for panning
