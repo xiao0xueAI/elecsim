@@ -481,7 +481,7 @@ const ElecSim = (() => {
 
 // ==================== Section 1: Config ====================
 const Config = {
-  grid: 2,
+  grid: 20,
   zoomMin: 0.2,
   zoomMax: 4,
   zoomStep: 0.1,
@@ -2461,7 +2461,7 @@ const WireRouter = {
         }
       });
     });
-    const ALIGN_SNAP = 10;
+    const ALIGN_SNAP = 15;
     const isHoriz = Math.abs(constrained.y - head.y) < 2;
     allPins.forEach(pp => {
       if (isHoriz && Math.abs(canvasPos.x - pp.x) < ALIGN_SNAP) constrained.x = pp.x;
@@ -2916,8 +2916,8 @@ const WireRouter = {
           }
         });
       });
-      const ALIGN_SNAP = 10;
-      const ALIGN_SHOW = 100;
+      const ALIGN_SNAP = 15;
+      const ALIGN_SHOW = 120;
       // Only snap the FREE axis — the orthogonal axis is already locked to head.
       // Horizontal segment (Y locked to head): snap X only.
       // Vertical segment (X locked to head): snap Y only.
