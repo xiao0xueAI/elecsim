@@ -521,6 +521,7 @@ const S = {
   nextWireId: 1,
   grid: Config.grid,
   mouse: { x: 0, y: 0 },
+  hoverWireId: null,
   dirty: false,
   recording: false,
   exportOpts: { res: '1080p', dur: '10秒' }
@@ -2448,6 +2449,25 @@ const WireRouter = {
 
     // Clicked on blank space → add a waypoint
     const constrained = this._constrainOrtho(head, canvasPos);
+
+    // Alignment snap to nearby pin axes
+    const allPins = [];
+    S.components.forEach(comp => {
+      (comp.pins || []).forEach(pd => {
+        const pp = getPinPos(comp, pd.id);
+        if (pp && !(Math.abs(pp.x - head.x) < 3 && Math.abs(pp.y - head.y) < 3)) {
+          allPins.push(pp);
+        }
+      });
+    });
+    const ALIGN_SNAP = 10;
+    allPins.forEach(pp => {
+      const xDist = Math.abs(canvasPos.x - pp.x);
+      const yDist = Math.abs(canvasPos.y - pp.y);
+      if (xDist < ALIGN_SNAP) constrained.x = pp.x;
+      if (yDist < ALIGN_SNAP) constrained.y = pp.y;
+    });
+
     // Only add waypoint if it actually moves from head
     if (Math.abs(constrained.x - head.x) > 1 || Math.abs(constrained.y - head.y) > 1) {
       this.routeWaypoints.push({ x: constrained.x, y: constrained.y });
@@ -2547,7 +2567,7 @@ const WireRouter = {
 
       S.wires.push(branchWire);
       S.dirty = true;
-      History.push({ type: 'addWire', wire: branchWire });
+      History.push({ type: 'wire', wire: branchWire });
       UI.toast('并联分支已连接', 'success');
       this.cancel();
       return;
@@ -2877,6 +2897,34 @@ const WireRouter = {
       constrained = this._constrainOrtho(head, m);
     }
 
+    // ===== Alignment Guides (标尺线) — snap to pin X/Y axes =====
+    let _alignGuides = []; // { axis:'v'|'h', pos, dist, isSnap }
+    if (!snapTarget) {
+      const allPins = [];
+      S.components.forEach(comp => {
+        (comp.pins || []).forEach(pd => {
+          const pp = getPinPos(comp, pd.id);
+          if (pp && !(Math.abs(pp.x - head.x) < 3 && Math.abs(pp.y - head.y) < 3)) {
+            allPins.push(pp);
+          }
+        });
+      });
+      const ALIGN_SNAP = 10;
+      const ALIGN_SHOW = 100;
+      allPins.forEach(pp => {
+        const xDist = Math.abs(m.x - pp.x);
+        const yDist = Math.abs(m.y - pp.y);
+        if (xDist < ALIGN_SHOW) {
+          _alignGuides.push({ axis: 'v', pos: pp.x, dist: xDist, isSnap: xDist < ALIGN_SNAP });
+          if (xDist < ALIGN_SNAP) constrained.x = pp.x;
+        }
+        if (yDist < ALIGN_SHOW) {
+          _alignGuides.push({ axis: 'h', pos: pp.y, dist: yDist, isSnap: yDist < ALIGN_SNAP });
+          if (yDist < ALIGN_SNAP) constrained.y = pp.y;
+        }
+      });
+    }
+
     // Draw all committed segments (3D pipe, full opacity)
     const c = this.junctionRef ? null : getComp(this.startPin ? this.startPin.comp : null);
     const startPos = (c && this.startPin) ? getPinPos(c, this.startPin.pin) : head;
@@ -2905,6 +2953,20 @@ const WireRouter = {
     // Draw current preview segment (more opaque when snapped to pin)
     const previewPoints = [head, constrained];
     drawPipe3D(previewPoints, color, this.WireWidth, snapTarget ? 0.8 : 0.4);
+
+    // Distance label on preview segment
+    const segLen = Math.round(Math.sqrt((constrained.x - head.x) ** 2 + (constrained.y - head.y) ** 2));
+    if (segLen > 20) {
+      const midX = (head.x + constrained.x) / 2;
+      const midY = (head.y + constrained.y) / 2;
+      ctx.save();
+      ctx.font = 'bold 11px monospace';
+      ctx.fillStyle = '#a0ffd0';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(segLen + 'px', midX, midY - 8);
+      ctx.restore();
+    }
 
     // Crimp at head
     drawCrimp3D(head.x, head.y, color, 3.5);
@@ -2939,6 +3001,39 @@ const WireRouter = {
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.restore();
+    }
+
+    // Draw alignment guide lines (标尺)
+    if (_alignGuides.length > 0) {
+      _alignGuides.forEach(g => {
+        const isSnap = g.isSnap;
+        ctx.save();
+        ctx.globalAlpha = isSnap ? 0.55 : 0.1;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = isSnap ? 1.5 : 0.8;
+        ctx.setLineDash(isSnap ? [4, 4] : [8, 10]);
+        ctx.beginPath();
+        if (g.axis === 'v') {
+          ctx.moveTo(g.pos, g.pos < head.y ? Math.min(head.y, constrained.y) - 30 : Math.max(head.y, constrained.y) + 30);
+          ctx.lineTo(g.pos, g.pos < head.y ? Math.max(head.y, constrained.y) + 30 : Math.min(head.y, constrained.y) - 30);
+        } else {
+          ctx.moveTo(g.pos < head.x ? Math.min(head.x, constrained.x) - 30 : Math.max(head.x, constrained.x) + 30, g.pos);
+          ctx.lineTo(g.pos < head.x ? Math.max(head.x, constrained.x) + 30 : Math.min(head.x, constrained.x) - 30, g.pos);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Distance label on snap
+        if (isSnap) {
+          const dist = g.axis === 'v' ? Math.abs(head.y - g.pos) : Math.abs(head.x - g.pos);
+          const labelX = g.axis === 'v' ? g.pos + 6 : Math.min(head.x, constrained.x) + 4;
+          const labelY = g.axis === 'v' ? Math.min(head.y, constrained.y) - 10 : g.pos - 8;
+          ctx.font = 'bold 11px monospace';
+          ctx.fillStyle = '#a0ffd0';
+          ctx.textAlign = g.axis === 'v' ? 'left' : 'center';
+          ctx.fillText(dist + 'px', labelX, labelY);
+        }
+        ctx.restore();
+      });
     }
   },
 
@@ -3289,6 +3384,7 @@ const Engine = {
   },
 
   solve() {
+    try {
     // Clear previous simulation state
     S.components.forEach(c => { c.simCurrent = 0; c.simVoltage = 0; c._fault = null; });
     S.wires.forEach(w => { w.current = 0; w._fault = false; w._flowDir = undefined; });
@@ -3512,7 +3608,7 @@ const Engine = {
     const findAllPaths = (startKey, endKey, maxPaths = 50) => {
       const paths = [];
       const visitedEdges = new Set(); // to avoid duplicate paths
-      const _deadline = Date.now() + 2000; // 2-second timeout to prevent UI freeze
+      const _deadline = Date.now() + 500; // 500ms 超时，防止 UI 假死
       let _timedOut = false;
 
       const dfs = (current, entryComp, entryPin, visitedPins, pathComps, pathWires, pathPins) => {
@@ -3876,6 +3972,13 @@ const Engine = {
     });
 
     this.showFaults(faults);
+    } catch(err) {
+      console.error('[ElecSim] solve() error:', err);
+      S.wires.forEach(w => { w.current = 0; w._flowDir = undefined; });
+      S.components.forEach(c => { c.simCurrent = 0; c._fault = 'error'; });
+      faults.push({ type: 'warn', msg: '仿真计算出错，已停止：' + err.message });
+      this.showFaults(faults);
+    }
   },
 
   showFaults(faults) {
@@ -5003,8 +5106,14 @@ function onMouseDown(e) {
     }
   }
 
-  // Wiring mode
-  const pin = findPinAt(pos.x, pos.y);
+  // Wiring mode — handle wire tap detection FIRST (before pin detection)
+  // This ensures clicking on a wire near a pin still triggers T-junction, not a new wire from pin
+  let wireTap = null;
+  if (!WireRouter.isActive() && !WireRouter.deleteMode) {
+    wireTap = WireRouter.findWirePointAt(pos.x, pos.y, 22);
+  }
+
+  const pin = wireTap ? null : findPinAt(pos.x, pos.y);
 
   if (WireRouter.isActive()) {
     if (pin) {
@@ -5014,6 +5123,12 @@ function onMouseDown(e) {
       // Clicked on blank space → add waypoint (fix current segment)
       WireRouter.routeClick(pos);
     }
+    return;
+  }
+
+  // Wire tap: click on existing wire to create a T-junction (parallel branch)
+  if (wireTap) {
+    WireRouter.startAtJunction(wireTap.point.x, wireTap.point.y, wireTap.wire.id);
     return;
   }
 
@@ -5027,15 +5142,6 @@ function onMouseDown(e) {
       WireRouter.toggleDeleteMode();
     }
     return;
-  }
-
-  // Wire tap: click on existing wire to create a T-junction (parallel branch)
-  if (!pin && !WireRouter.isActive() && !WireRouter.deleteMode) {
-    const wireTap = WireRouter.findWirePointAt(pos.x, pos.y, 22);
-    if (wireTap) {
-      WireRouter.startAtJunction(wireTap.point.x, wireTap.point.y, wireTap.wire.id);
-      return;
-    }
   }
 
   if (pin && !WireRouter.isActive()) {
