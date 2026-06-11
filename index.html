@@ -1562,30 +1562,9 @@ const Renderer = {
           }
         }
 
-        // === bell_dc: hammer animation + auto-ring on image-based bell ===
+        // === bell_dc: auto-ring when powered (sound only, no overlay animation on photo) ===
         if (c.type === 'bell_dc') {
           const isRinging = S.simRunning && c.simCurrent > 0;
-          const strikePhase = isRinging ? Math.sin(Date.now() / 240 * Math.PI) : 0;
-          const hammerX = 15 + strikePhase * 10;
-          const hammerY = 15 + Math.abs(strikePhase) * 5;
-          ctx.beginPath();
-          ctx.moveTo(-5, 20); ctx.lineTo(hammerX, hammerY);
-          ctx.strokeStyle = '#666'; ctx.lineWidth = 2; ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(hammerX, hammerY, 4, 0, Math.PI * 2);
-          ctx.fillStyle = isRinging ? '#ff6666' : '#aaa';
-          ctx.fill();
-          ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
-          if (isRinging) {
-            ctx.globalCompositeOperation = 'screen';
-            const grd = ctx.createRadialGradient(hammerX, hammerY, 2, hammerX, hammerY, 20);
-            grd.addColorStop(0, 'rgba(255,215,0,0.4)');
-            grd.addColorStop(1, 'transparent');
-            ctx.fillStyle = grd;
-            ctx.fillRect(hammerX-20, hammerY-20, 40, 40);
-            ctx.globalCompositeOperation = 'source-over';
-          }
-          // 触发音效：通电自动响，断电自动停
           if (isRinging && !c._ringing) {
             c._ringing = true;
             BellAudio.ring(c.id);
