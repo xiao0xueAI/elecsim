@@ -704,7 +704,7 @@ const Registry = {
       w:80, h:40,
       pins:[{id:'a',label:'A',dx:-40,dy:0},{id:'b',label:'K',dx:40,dy:0}],
       props:{forwardV:2.2,color:'#3fb950'} },  // forwardV=正向压降(V), 与LED同为二极管模型
-    { type:'lamp', name:'灯泡', cat:'输出器件', icon:'💡', desc:'白炽灯/卤素灯（交直流均可）',
+    { type:'lamp', name:'灯泡', cat:'输出器件', icon:'💡', desc:'白炽灯/卤素灯（交流）',
       w:220, h:220,
       pins:[{id:'l',label:'L',dx:0,dy:70,lo:0,ld:22},{id:'n',label:'N',dx:18,dy:40,lo:18,ld:0}],
       props:{voltage:220,wattage:60},
@@ -3068,6 +3068,22 @@ const Engine = {
                              (comp.type === 'diode') ? (comp.props.forwardV || 0.7) :
                              (comp.type === 'indicator') ? (comp.props.forwardV || 2.2) : 0;
 
+    // ==================== AC/DC power type classification ====================
+    // Returns 'ac', 'dc', or 'both' for a component
+    const getPowerType = (comp) => {
+      const t = comp.type;
+      // DC power sources
+      if (t === 'battery' || t === 'battery_12v' || t === 'dc_dc') return 'dc';
+      // AC power sources
+      if (t === 'ac_source') return 'ac';
+      // AC-only loads (只接受交流电)
+      if (t === 'lamp') return 'ac';
+      // DC-only loads (只接受直流电)
+      if (t === 'led' || t === 'diode' || t === 'motor_dc' || t === 'bell_dc' || t === 'solenoid' || t === 'npn') return 'dc';
+      // Everything else works on both (passive: resistor, capacitor, inductor, switches, meters, etc.)
+      return 'both';
+    };
+
     const isBlocking = (comp) => {
       if (!comp) return false;
       const t = comp.type;
@@ -3211,15 +3227,33 @@ const Engine = {
 
       const pathData = paths.map(p => {
         let R = 0;
+        let typeMismatch = false; // AC/DC 类型不匹配标记
+        let mismatchInfo = null; // 不匹配详情
+        const sourceType = getPowerType(bat);
+        const sourceLabel = sourceType === 'dc' ? '直流' : '交流';
         for (const compId of p.comps) {
           if (compId === bat.id) continue; // Don't count battery internal R
           const comp = S.components.find(c => c.id === compId);
-          if (comp) R += getR(comp);
+          if (!comp) continue;
+          R += getR(comp);
+          // 检查交直流类型匹配：负载的电类型必须与电源兼容
+          const loadType = getPowerType(comp);
+          if (loadType !== 'both' && loadType !== sourceType) {
+            typeMismatch = true;
+            mismatchInfo = { comp: comp.name, loadType: loadType === 'dc' ? '直流' : '交流', sourceType: sourceLabel };
+          }
         }
-        return { ...p, R };
-      }).filter(p => p.R > 0 && p.R < 1e6);
+        return { ...p, R, typeMismatch, mismatchInfo };
+      });
+      // Detect type mismatches for warning
+      const mismatchedPaths = pathData.filter(p => p.typeMismatch);
+      if (mismatchedPaths.length > 0) {
+        const m = mismatchedPaths[0].mismatchInfo;
+        faults.push({ type: 'warn', msg: `${m.comp} 为${m.loadType}设备，不能使用${m.sourceType}电源`, comp: m.comp });
+      }
+      const validPaths = pathData.filter(p => p.R > 0 && p.R < 1e6 && !p.typeMismatch);
 
-      if (pathData.length === 0) {
+      if (validPaths.length === 0) {
         document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
         document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
         document.getElementById('simPower').textContent = '0.00 mW';
@@ -3228,7 +3262,7 @@ const Engine = {
 
       // Calculate equivalent resistance (parallel combination)
       let G_eq = 0; // total conductance
-      pathData.forEach(p => { G_eq += 1 / p.R; });
+      validPaths.forEach(p => { G_eq += 1 / p.R; });
       const R_eq = 1 / G_eq;
 
       // Short circuit detection: only when a path has NO significant load (only wire/switch/conductive elements)
@@ -3246,7 +3280,7 @@ const Engine = {
       // Check each path: if a path has only wire/switch elements (no load), it's a direct short
       let hasDirectShort = false;
       let shortPathCount = 0;
-      pathData.forEach(p => {
+      validPaths.forEach(p => {
         const loadComps = p.comps.filter(id => id !== bat.id && isLoadComp(id));
         if (loadComps.length === 0 && p.R < 0.5) {
           // Path has no load components and very low resistance → direct short
@@ -3279,7 +3313,7 @@ const Engine = {
       const compCurrents = new Map();
       const compVoltages = new Map();
 
-      pathData.forEach(p => {
+      validPaths.forEach(p => {
         const I_path = V / p.R; // current through this parallel path
         const compsOnly = p.comps.filter(id => id !== bat.id);
 
