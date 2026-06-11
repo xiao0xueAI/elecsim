@@ -2253,6 +2253,8 @@ const WireRouter = {
   active: false,
   phase: 'idle',        // 'idle' | 'routing'
   startPin: null,        // { comp, pin } - the pin where routing started
+  junctionRef: null,     // { x, y } - route started from a wire tap junction
+  tapWireId: null,       // wire ID being tapped (when junctionRef is set)
   wireType: 'live',
   routeWaypoints: [],    // accumulated waypoints during routing (snapped to grid)
   lastDir: null,         // 'h' | 'v' - direction of last committed segment
@@ -2302,11 +2304,12 @@ const WireRouter = {
     return startType;
   },
 
-  // Get the position of the current "drawing head" (last waypoint or start pin)
+  // Get the position of the current "drawing head" (last waypoint or start pin/junction)
   _getHeadPos() {
     if (this.routeWaypoints.length > 0) {
       return this.routeWaypoints[this.routeWaypoints.length - 1];
     }
+    if (this.junctionRef) return { x: this.junctionRef.x, y: this.junctionRef.y };
     if (!this.startPin) return null;
     const c = getComp(this.startPin.comp);
     const pin = c ? c.pins.find(p => p.id === this.startPin.pin) : null;
@@ -2338,6 +2341,8 @@ const WireRouter = {
     this.active = true;
     this.phase = 'routing';
     this.startPin = { comp: pin.comp, pin: pin.pin };
+    this.junctionRef = null;
+    this.tapWireId = null;
     this.routeWaypoints = [];
     this.lastDir = null;
     this.pinNaturalDir = null; // will be set below
@@ -2357,6 +2362,71 @@ const WireRouter = {
     document.getElementById('wireHint').style.display = 'flex';
   },
 
+  // Start routing from a wire tap point (for parallel branch/T-junction)
+  startAtJunction(x, y, wireId) {
+    this.active = true;
+    this.phase = 'routing';
+    this.startPin = null;
+    this.junctionRef = { x, y };
+    this.tapWireId = wireId;
+    this.routeWaypoints = [];
+    this.lastDir = null;
+    this.pinNaturalDir = 'h'; // default for junction
+    this.wireType = 'live';
+    // Try to inherit wire type from tapped wire
+    const tapWire = S.wires.find(w => w.id === wireId);
+    if (tapWire) {
+      this.wireType = tapWire.wireType || 'live';
+    }
+    this.setWireType(this.wireType);
+    document.getElementById('wireHint').style.display = 'flex';
+    render();
+  },
+
+  // Find the closest point on any wire to (x, y)
+  // Returns { wire, point: {x, y} } or null
+  findWirePointAt(x, y, threshold = 18) {
+    let best = null, bestDist = Infinity;
+    S.wires.forEach(w => {
+      const c1 = getComp(w.from.comp), c2 = getComp(w.to.comp);
+      if (!c1 || !c2) return;
+      // Skip junction-only wires (they only reference junctions, not components)
+      if (w.from.junction && w.to.junction) return;
+      // Get wire endpoints
+      let p1, p2;
+      if (w.from.junction) {
+        p1 = w.from.junction;
+        const c2p = getPinPos(c2, w.to.pin);
+        if (!c2p) return;
+        p2 = c2p;
+      } else if (w.to.junction) {
+        const c1p = getPinPos(c1, w.from.pin);
+        if (!c1p) return;
+        p1 = c1p;
+        p2 = w.to.junction;
+      } else {
+        p1 = getPinPos(c1, w.from.pin);
+        p2 = getPinPos(c2, w.to.pin);
+        if (!p1 || !p2) return;
+      }
+      const allPoints = [p1, ...(w.waypoints || []), p2];
+      for (let i = 0; i < allPoints.length - 1; i++) {
+        const a = allPoints[i], b = allPoints[i + 1];
+        const dist = this._pointToSegmentDist(x, y, a.x, a.y, b.x, b.y);
+        if (dist < threshold && dist < bestDist) {
+          // Project onto segment
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const lenSq = dx * dx + dy * dy;
+          let t = lenSq === 0 ? 0 : ((x - a.x) * dx + (y - a.y) * dy) / lenSq;
+          t = Math.max(0.05, Math.min(0.95, t)); // avoid exact endpoints
+          bestDist = dist;
+          best = { wire: w, point: { x: a.x + t * dx, y: a.y + t * dy } };
+        }
+      }
+    });
+    return best;
+  },
+
   // Click during routing: either add waypoint or complete wire
   routeClick(canvasPos) {
     const pin = findPinAt(canvasPos.x, canvasPos.y);
@@ -2366,7 +2436,7 @@ const WireRouter = {
     if (pin) {
       // Clicked on a pin → complete the wire
       // But don't complete if it's the start pin itself
-      if (pin.comp === this.startPin.comp && pin.pin === this.startPin.pin) return;
+      if (this.startPin && pin.comp === this.startPin.comp && pin.pin === this.startPin.pin) return;
       this.complete({ comp: pin.comp, pin: pin.pin });
       return;
     }
@@ -2405,6 +2475,8 @@ const WireRouter = {
     this.active = false;
     this.phase = 'idle';
     this.startPin = null;
+    this.junctionRef = null;
+    this.tapWireId = null;
     this.routeWaypoints = [];
     this.lastDir = null;
     this.pinNaturalDir = null;
@@ -2413,6 +2485,70 @@ const WireRouter = {
   },
 
   complete(endPin) {
+    // ==================== Junction → Pin (T-branch from existing wire) ====================
+    if (this.junctionRef) {
+      const jRef = this.junctionRef;
+      const c2 = getComp(endPin.comp);
+      const p2 = getPinPos(c2, endPin.pin);
+      if (!p2) { this.cancel(); return; }
+
+      // Build waypoints from junction to target
+      let waypoints = this.routeWaypoints.filter(wp =>
+        !(Math.abs(wp.x - p2.x) < 2 && Math.abs(wp.y - p2.y) < 2)
+      );
+      // Auto-orthogonal from junction
+      if (waypoints.length === 0 && Math.abs(jRef.x - p2.x) > S.grid && Math.abs(jRef.y - p2.y) > S.grid) {
+        const corner = this._snap({ x: p2.x, y: jRef.y });
+        if (Math.abs(corner.x - jRef.x) > 1 && Math.abs(corner.y - jRef.y) > 1) {
+          waypoints.push(corner);
+        }
+      }
+
+      // Determine wire type from target pin
+      const endPinDef = c2 ? c2.pins.find(p => p.id === endPin.pin) : null;
+      const endType = this.detectWireType(endPinDef ? endPinDef.label : '');
+      const resolvedType = endType !== 'live' ? endType : this.wireType;
+
+      const branchWire = {
+        id: S.nextWireId++,
+        from: { junction: { x: jRef.x, y: jRef.y } },
+        to: { comp: endPin.comp, pin: endPin.pin },
+        waypoints: waypoints,
+        wireType: resolvedType,
+      };
+
+      // Insert junction as waypoint in the tapped wire (if not already there)
+      const tapWire = S.wires.find(w => w.id === this.tapWireId);
+      if (tapWire) {
+        const c1 = getComp(tapWire.from.comp);
+        const c2 = getComp(tapWire.to.comp);
+        if (c1 && c2) {
+          let p1, p2w;
+          if (tapWire.from.junction) { p1 = tapWire.from.junction; } else { p1 = getPinPos(c1, tapWire.from.pin); }
+          if (tapWire.to.junction) { p2w = tapWire.to.junction; } else { p2w = getPinPos(c2, tapWire.to.pin); }
+          if (p1 && p2w) {
+            const allPts = [p1, ...(tapWire.waypoints || []), p2w];
+            let insertIdx = 0;
+            let minDist = Infinity;
+            for (let i = 1; i < allPts.length; i++) {
+              const segDist = this._pointToSegmentDist(jRef.x, jRef.y, allPts[i-1].x, allPts[i-1].y, allPts[i].x, allPts[i].y);
+              if (segDist < minDist) { minDist = segDist; insertIdx = i; }
+            }
+            if (!tapWire.waypoints) tapWire.waypoints = [];
+            tapWire.waypoints.splice(insertIdx - 1, 0, { x: jRef.x, y: jRef.y });
+          }
+        }
+      }
+
+      S.wires.push(branchWire);
+      S.dirty = true;
+      History.push({ type: 'addWire', wire: branchWire });
+      UI.toast('并联分支已连接', 'success');
+      this.cancel();
+      return;
+    }
+
+    // ==================== Pin → Pin (normal wiring) ====================
     if (!this.startPin) return;
     const sp = this.startPin;
 
@@ -2516,9 +2652,22 @@ const WireRouter = {
     let minDist = Infinity;
 
     S.wires.forEach(w => {
-      const c1 = getComp(w.from.comp), c2 = getComp(w.to.comp);
-      if (!c1 || !c2) return;
-      const p1 = getPinPos(c1, w.from.pin), p2 = getPinPos(c2, w.to.pin);
+      // Get wire endpoints, supporting both pin-based and junction-based
+      let p1, p2;
+      if (w.from.junction) {
+        p1 = w.from.junction;
+      } else {
+        const c = getComp(w.from.comp);
+        if (!c) return;
+        p1 = getPinPos(c, w.from.pin);
+      }
+      if (w.to.junction) {
+        p2 = w.to.junction;
+      } else {
+        const c = getComp(w.to.comp);
+        if (!c) return;
+        p2 = getPinPos(c, w.to.pin);
+      }
       if (!p1 || !p2) return;
 
       // Build all segments: start->waypoints->end
@@ -2548,6 +2697,34 @@ const WireRouter = {
   // Delete a wire by id
   deleteWire(wire) {
     if (!wire) return;
+
+    // If deleting a junction-based wire, clean up orphan junction waypoints in the tapped wire
+    if (wire.from.junction || wire.to.junction) {
+      const jPos = wire.from.junction || wire.to.junction;
+      // Count how many other wires reference this junction position
+      const jxR = Math.round(jPos.x), jyR = Math.round(jPos.y);
+      const refCount = S.wires.filter(w => {
+        if (w === wire) return false;
+        if (w.from.junction) {
+          return Math.round(w.from.junction.x) === jxR && Math.round(w.from.junction.y) === jyR;
+        }
+        if (w.to.junction) {
+          return Math.round(w.to.junction.x) === jxR && Math.round(w.to.junction.y) === jyR;
+        }
+        return false;
+      }).length;
+
+      if (refCount === 0) {
+        // No other wires reference this junction → remove it from the tapped wire's waypoints
+        S.wires.forEach(w2 => {
+          if (w2 === wire || !w2.waypoints) return;
+          w2.waypoints = w2.waypoints.filter(wp =>
+            !(Math.round(wp.x) === jxR && Math.round(wp.y) === jyR)
+          );
+        });
+      }
+    }
+
     const idx = S.wires.indexOf(wire);
     if (idx !== -1) {
       S.wires.splice(idx, 1);
@@ -2560,38 +2737,63 @@ const WireRouter = {
 
   drawWires() {
     const isXray = S.viewMode === 'xray';
-    S.wires.forEach(w => {
-      const c1 = getComp(w.from.comp), c2 = getComp(w.to.comp);
-      if (!c1 || !c2) return;
-      const p1 = getPinPos(c1, w.from.pin), p2 = getPinPos(c2, w.to.pin);
-      if (!p1 || !p2) return;
+    const junctionPositions = new Map(); // "x,y" → Set of wire IDs
 
+    // Helper: get wire endpoints as [p1, p2], returns null if invalid
+    const getWireEndpoints = (w) => {
+      let p1, p2;
+      if (w.from.junction) {
+        p1 = w.from.junction;
+      } else {
+        const c = getComp(w.from.comp);
+        if (!c) return null;
+        p1 = getPinPos(c, w.from.pin);
+      }
+      if (w.to.junction) {
+        p2 = w.to.junction;
+      } else {
+        const c = getComp(w.to.comp);
+        if (!c) return null;
+        p2 = getPinPos(c, w.to.pin);
+      }
+      if (!p1 || !p2) return null;
+      return [p1, p2];
+    };
+
+    S.wires.forEach(w => {
+      const eps = getWireEndpoints(w);
+      if (!eps) return;
+      const [p1, p2] = eps;
       const allPoints = [p1, ...(w.waypoints || []), p2];
       const wt = w.wireType || 'live';
 
+      // Collect junction candidates: any waypoint position that has 2+ wires
+      if (!isXray && w.waypoints) {
+        w.waypoints.forEach(wp => {
+          const key = `${Math.round(wp.x)},${Math.round(wp.y)}`;
+          if (!junctionPositions.has(key)) junctionPositions.set(key, new Set());
+          junctionPositions.get(key).add(w.id);
+        });
+      }
+
       if (isXray) {
-        // X-ray mode: simple semi-transparent line
         ctx.strokeStyle = 'rgba(57,210,192,0.5)';
-        ctx.lineWidth = 2;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
+        ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(allPoints[0].x, allPoints[0].y);
         for (let i = 1; i < allPoints.length; i++) ctx.lineTo(allPoints[i].x, allPoints[i].y);
         ctx.stroke();
       } else if (w._fault) {
-        // Fault wire: red pulsing
         drawPipe3D(allPoints, '#ff1744', 5, 0.9);
       } else {
-        // Normal: 3D pipe effect
         drawPipe3D(allPoints, this.WireColors[wt], this.WireWidth, 1);
       }
 
-      // Crimp connectors at endpoints
+      // Crimp only at real pin endpoints (not junctions)
       if (!isXray) {
         const crimpColor = w._fault ? '#ff1744' : this.WireColors[wt];
-        drawCrimp3D(p1.x, p1.y, crimpColor, 4.5);
-        drawCrimp3D(p2.x, p2.y, crimpColor, 4.5);
+        if (!w.from.junction) drawCrimp3D(p1.x, p1.y, crimpColor, 4.5);
+        if (!w.to.junction) drawCrimp3D(p2.x, p2.y, crimpColor, 4.5);
       }
 
       // Corner joints at waypoints
@@ -2607,8 +2809,7 @@ const WireRouter = {
           grad.addColorStop(1, jtColor);
           ctx.beginPath();
           ctx.arc(wp.x, wp.y, 3.5, 0, Math.PI * 2);
-          ctx.fillStyle = grad;
-          ctx.fill();
+          ctx.fillStyle = grad; ctx.fill();
           ctx.restore();
         });
       }
@@ -2619,6 +2820,35 @@ const WireRouter = {
         this.drawCurrentFlow(allPoints, w.current, flowColor, w);
       }
     });
+
+    // ========== Draw junction dots (solid filled circles at multi-wire connections) ==========
+    if (!isXray) {
+      // Collect all junction positions from wire junctions
+      S.wires.forEach(w => {
+        [w.from, w.to].forEach(end => {
+          if (end.junction) {
+            const key = `${Math.round(end.junction.x)},${Math.round(end.junction.y)}`;
+            if (!junctionPositions.has(key)) junctionPositions.set(key, new Set());
+            junctionPositions.get(key).add(w.id);
+          }
+        });
+      });
+
+      junctionPositions.forEach((wireIds, key) => {
+        if (wireIds.size < 2) return; // only show dots where 2+ wires meet
+        const [sx, sy] = key.split(',').map(Number);
+        ctx.save();
+        // Outer glow ring
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#1a1a2e'; ctx.fill();
+        // Solid inner dot
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#39d2c0'; ctx.fill();
+        ctx.restore();
+      });
+    }
   },
 
   drawTempWire() {
@@ -2643,8 +2873,8 @@ const WireRouter = {
     }
 
     // Draw all committed segments (3D pipe, full opacity)
-    const c = getComp(this.startPin.comp);
-    const startPos = c ? getPinPos(c, this.startPin.pin) : head;
+    const c = this.junctionRef ? null : getComp(this.startPin ? this.startPin.comp : null);
+    const startPos = (c && this.startPin) ? getPinPos(c, this.startPin.pin) : head;
     const allCommitted = [startPos, ...this.routeWaypoints];
 
     if (allCommitted.length > 1) {
@@ -2653,6 +2883,18 @@ const WireRouter = {
       this.routeWaypoints.forEach(wp => {
         drawCrimp3D(wp.x, wp.y, color, 3);
       });
+    }
+
+    // Draw junction dot at start point when routing from wire tap
+    if (this.junctionRef) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#1a1a2e'; ctx.fill();
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#39d2c0'; ctx.fill();
+      ctx.restore();
     }
 
     // Draw current preview segment (more opaque when snapped to pin)
@@ -2965,13 +3207,18 @@ const WireRouter = {
   },
 
   removeWiresForComp(compId) {
-    S.wires = S.wires.filter(w => w.from.comp !== compId && w.to.comp !== compId);
+    S.wires = S.wires.filter(w => {
+      if (w.from.comp === compId || w.to.comp === compId) return false;
+      return true;
+    });
   },
 
   getWirePoints(wire) {
-    const c1 = getComp(wire.from.comp), c2 = getComp(wire.to.comp);
-    if (!c1 || !c2) return [];
-    const p1 = getPinPos(c1, wire.from.pin), p2 = getPinPos(c2, wire.to.pin);
+    let p1, p2;
+    if (wire.from.junction) { p1 = wire.from.junction; }
+    else { const c = getComp(wire.from.comp); if (!c) return []; p1 = getPinPos(c, wire.from.pin); }
+    if (wire.to.junction) { p2 = wire.to.junction; }
+    else { const c = getComp(wire.to.comp); if (!c) return []; p2 = getPinPos(c, wire.to.pin); }
     if (!p1 || !p2) return [];
     return [p1, ...(wire.waypoints || []), p2];
   }
@@ -3126,11 +3373,55 @@ const Engine = {
 
     // Add wire connections
     const wireMap = new Map();
+    // First pass: handle regular pin-to-pin wires
     S.wires.forEach(w => {
-      const a = mkKey(w.from.comp, w.from.pin);
-      const b = mkKey(w.to.comp, w.to.pin);
-      addEdge(a, b, w.id, null);
       wireMap.set(w.id, w);
+      if (!w.from.junction && !w.to.junction) {
+        const a = mkKey(w.from.comp, w.from.pin);
+        const b = mkKey(w.to.comp, w.to.pin);
+        addEdge(a, b, w.id, null);
+      }
+    });
+
+    // Second pass: process junction-based wires (T-branches for parallel circuits)
+    // Build a junction map: { "x,y": [wireIds touching this point] }
+    const jxMap = new Map();
+    S.wires.forEach(w => {
+      // Collect all points on this wire that could be junction sites
+      const eps = [];
+      if (w.from.junction) eps.push({ x: w.from.junction.x, y: w.from.junction.y });
+      else { const c = getComp(w.from.comp); if (c) { const p = getPinPos(c, w.from.pin); if (p) eps.push(p); } }
+      if (w.to.junction) eps.push({ x: w.to.junction.x, y: w.to.junction.y });
+      else { const c = getComp(w.to.comp); if (c) { const p = getPinPos(c, w.to.pin); if (p) eps.push(p); } }
+      (w.waypoints || []).forEach(wp => eps.push(wp));
+
+      eps.forEach(ep => {
+        const key = `${Math.round(ep.x)},${Math.round(ep.y)}`;
+        if (!jxMap.has(key)) jxMap.set(key, []);
+        jxMap.get(key).push({ wire: w, pos: ep });
+      });
+    });
+
+    // For each junction, connect all pin nodes that are connected through it
+    jxMap.forEach((entries, key) => {
+      const pinKeys = []; // all pin keys reachable through this junction
+      entries.forEach(entry => {
+        const w = entry.wire;
+        // Collect both endpoint pin keys for regular wires, or the non-junction end for junction wires
+        if (!w.from.junction) pinKeys.push(mkKey(w.from.comp, w.from.pin));
+        if (!w.to.junction) pinKeys.push(mkKey(w.to.comp, w.to.pin));
+      });
+      // If this junction connects 2+ pin nodes, add edges between all of them
+      if (pinKeys.length >= 2) {
+        for (let i = 0; i < pinKeys.length; i++) {
+          for (let j = i + 1; j < pinKeys.length; j++) {
+            // Check bidirectional — add edges both ways with the wire that passes through the junction
+            const connectingWire = entries.find(e => !e.wire.from.junction && !e.wire.to.junction);
+            const wireId = connectingWire ? connectingWire.wire.id : null;
+            addEdge(pinKeys[i], pinKeys[j], wireId, null);
+          }
+        }
+      }
     });
 
     // Build adjacency list for graph traversal
@@ -3440,12 +3731,21 @@ const Engine = {
           for (const wId of p.wires) {
             const w = wireMap.get(wId);
             if (!w || w._flowDir) continue; // already set by another path
-            const wKeyA = mkKey(w.from.comp, w.from.pin);
-            const wKeyB = mkKey(w.to.comp, w.to.pin);
+            const wKeyA = w.from.junction ? null : mkKey(w.from.comp, w.from.pin);
+            const wKeyB = w.to.junction ? null : mkKey(w.to.comp, w.to.pin);
             if ((wKeyA === pinA && wKeyB === pinB)) {
-              w._flowDir = 1;  // wire direction matches current direction
+              w._flowDir = 1;
             } else if ((wKeyB === pinA && wKeyA === pinB)) {
-              w._flowDir = -1; // wire direction opposite to current direction
+              w._flowDir = -1;
+            } else if (w.from.junction && wKeyB === pinB) {
+              // Junction→pin: current flows toward the pin
+              w._flowDir = 1;
+            } else if (w.from.junction && wKeyB === pinA) {
+              w._flowDir = -1;
+            } else if (w.to.junction && wKeyA === pinA) {
+              w._flowDir = 1;
+            } else if (w.to.junction && wKeyA === pinB) {
+              w._flowDir = -1;
             }
           }
         }
@@ -4700,6 +5000,15 @@ function onMouseDown(e) {
       WireRouter.toggleDeleteMode();
     }
     return;
+  }
+
+  // Wire tap: click on existing wire to create a T-junction (parallel branch)
+  if (!pin && !WireRouter.isActive() && !WireRouter.deleteMode) {
+    const wireTap = WireRouter.findWirePointAt(pos.x, pos.y, 16);
+    if (wireTap) {
+      WireRouter.startAtJunction(wireTap.point.x, wireTap.point.y, wireTap.wire.id);
+      return;
+    }
   }
 
   if (pin && !WireRouter.isActive()) {
