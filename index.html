@@ -1133,6 +1133,10 @@ const BellAudio = {
   ring(bellId) {
     this.preload();
     if (!this.ctx) { setTimeout(() => this.ring(bellId), 80); return; }
+    // 确保 AudioContext 处于 running 状态
+    if (this.ctx.state !== 'running') {
+      try { this.ctx.resume(); } catch(e) {}
+    }
     this._activeBellId = bellId;
     if (this._useFallback || !this.buffer) {
       // fallback：OscillatorNode 生成电铃声
@@ -1558,6 +1562,39 @@ const Renderer = {
           }
         }
 
+        // === bell_dc: hammer animation + auto-ring on image-based bell ===
+        if (c.type === 'bell_dc') {
+          const isRinging = S.simRunning && c.simCurrent > 0;
+          const strikePhase = isRinging ? Math.sin(Date.now() / 240 * Math.PI) : 0;
+          const hammerX = 15 + strikePhase * 10;
+          const hammerY = 15 + Math.abs(strikePhase) * 5;
+          ctx.beginPath();
+          ctx.moveTo(-5, 20); ctx.lineTo(hammerX, hammerY);
+          ctx.strokeStyle = '#666'; ctx.lineWidth = 2; ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(hammerX, hammerY, 4, 0, Math.PI * 2);
+          ctx.fillStyle = isRinging ? '#ff6666' : '#aaa';
+          ctx.fill();
+          ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
+          if (isRinging) {
+            ctx.globalCompositeOperation = 'screen';
+            const grd = ctx.createRadialGradient(hammerX, hammerY, 2, hammerX, hammerY, 20);
+            grd.addColorStop(0, 'rgba(255,215,0,0.4)');
+            grd.addColorStop(1, 'transparent');
+            ctx.fillStyle = grd;
+            ctx.fillRect(hammerX-20, hammerY-20, 40, 40);
+            ctx.globalCompositeOperation = 'source-over';
+          }
+          // 触发音效：通电自动响，断电自动停
+          if (isRinging && !c._ringing) {
+            c._ringing = true;
+            BellAudio.ring(c.id);
+          } else if (!isRinging && c._ringing) {
+            c._ringing = false;
+            BellAudio.stop();
+          }
+        }
+
         ctx.restore();  // restore outer save (back to global coords)
 
         // Draw floating pins for other image-based components
@@ -1975,47 +2012,23 @@ const Renderer = {
       ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(-10, 12); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-12, 10); ctx.lineTo(-12, 15); ctx.stroke();
     } else if (c.type === 'bell_dc') {
+      // 无实物图时绘制完整电铃（兜底）
       const isRinging = S.simRunning && c.simCurrent > 0;
-      if (!c.image) {
-        // 无实物图时绘制完整电铃（备用）
-        const hammerX = 10, hammerY = -18;
-        ctx.beginPath();
-        ctx.arc(0, -5, 28, Math.PI, 0, false);
-        ctx.lineTo(28, 8); ctx.lineTo(-28, 8);
-        ctx.closePath();
-        ctx.fillStyle = '#c9a800'; ctx.fill();
-        ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-28, 8); ctx.lineTo(28, 8);
-        ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(10, -18); ctx.lineTo(hammerX, hammerY);
-        ctx.strokeStyle = '#666'; ctx.lineWidth = 2.5; ctx.stroke();
-        ctx.beginPath(); ctx.arc(hammerX, hammerY, 4, 0, Math.PI*2);
-        ctx.fillStyle = '#888'; ctx.fill();
-        ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
-      } else {
-        // 有实物图时只绘制敲击锤动画覆盖
-        const strikePhase = isRinging ? Math.sin(Date.now() / 240 * Math.PI) : 0;
-        const hammerX = 15 + strikePhase * 10;
-        const hammerY = 15 + Math.abs(strikePhase) * 5;
-        ctx.beginPath();
-        ctx.moveTo(-5, 20); ctx.lineTo(hammerX, hammerY);
-        ctx.strokeStyle = '#666'; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(hammerX, hammerY, 4, 0, Math.PI * 2);
-        ctx.fillStyle = isRinging ? '#ff6666' : '#aaa';
-        ctx.fill();
-        ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
-        if (isRinging) {
-          ctx.globalCompositeOperation = 'screen';
-          const grd = ctx.createRadialGradient(hammerX, hammerY, 2, hammerX, hammerY, 20);
-          grd.addColorStop(0, 'rgba(255,215,0,0.4)');
-          grd.addColorStop(1, 'transparent');
-          ctx.fillStyle = grd;
-          ctx.fillRect(hammerX-20, hammerY-20, 40, 40);
-          ctx.globalCompositeOperation = 'source-over';
-        }
-      }
-      // 触发音效
+      const hammerX = 10, hammerY = -18;
+      ctx.beginPath();
+      ctx.arc(0, -5, 28, Math.PI, 0, false);
+      ctx.lineTo(28, 8); ctx.lineTo(-28, 8);
+      ctx.closePath();
+      ctx.fillStyle = '#c9a800'; ctx.fill();
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-28, 8); ctx.lineTo(28, 8);
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(10, -18); ctx.lineTo(hammerX, hammerY);
+      ctx.strokeStyle = '#666'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(hammerX, hammerY, 4, 0, Math.PI*2);
+      ctx.fillStyle = '#888'; ctx.fill();
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
+      // 触发音效（兜底路径）
       if (isRinging && !c._ringing) {
         c._ringing = true;
         BellAudio.ring(c.id);
