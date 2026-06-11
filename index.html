@@ -3054,8 +3054,8 @@ const WireRouter = {
     const isXray = S.viewMode === 'xray';
     const wt = wire ? (wire.wireType || 'live') : 'live';
     const isDC = wt === 'dc_pos' || wt === 'dc_neg';
-    // AC: gold流动箭头  DC: 白色单向流动箭头
-    const flowColor = isXray ? '#39d2c0' : (isDC ? '#e8e8e8' : '#FFD700');
+    // Flow animation uses the wire's own color (not hardcoded gold/white)
+    const flowColor = isXray ? '#39d2c0' : wireColor;
 
     // Determine actual current direction from positive terminal to negative terminal
     let flowPoints = points;
@@ -3221,6 +3221,11 @@ const WireRouter = {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
+    // Brighten wire color for arrow visibility against the wire background
+    const br = Math.min(255, r + 80);
+    const bg = Math.min(255, g + 80);
+    const bb = Math.min(255, b + 80);
+
     for (let i = 0; i < numArrows; i++) {
       // Each arrow is offset by its index * spacing
       const offset = i * arrowSpacing;
@@ -3245,7 +3250,7 @@ const WireRouter = {
       const arrowSize = isDC ? 3.5 : 5;
 
       if (isDC) {
-        // DC: simple white line + triangle pointer (clean, one-directional)
+        // DC: simple triangle pointer using wire color (brightened)
         const tipX = pos.x + Math.cos(dirAngle) * arrowSize;
         const tipY = pos.y + Math.sin(dirAngle) * arrowSize;
         const baseX1 = pos.x + Math.cos(dirAngle - 2.6) * arrowSize * 0.7;
@@ -3258,18 +3263,18 @@ const WireRouter = {
         ctx.lineTo(baseX1, baseY1);
         ctx.lineTo(baseX2, baseY2);
         ctx.closePath();
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fillStyle = `rgba(${br}, ${bg}, ${bb}, ${alpha})`;
         ctx.fill();
-        ctx.strokeStyle = `rgba(200, 200, 200, ${alpha * 0.5})`;
+        ctx.strokeStyle = `rgba(${br}, ${bg}, ${bb}, ${alpha * 0.5})`;
         ctx.lineWidth = 0.8;
         ctx.stroke();
       } else {
-        // AC: gold arrow with shaft + triangle head
+        // AC: arrow with shaft + triangle head using wire color (brightened)
         // Arrow shaft (short line in flow direction)
         ctx.beginPath();
         ctx.moveTo(pos.x - Math.cos(dirAngle) * arrowSize * 0.8, pos.y - Math.sin(dirAngle) * arrowSize * 0.8);
         ctx.lineTo(pos.x + Math.cos(dirAngle) * arrowSize * 0.4, pos.y + Math.sin(dirAngle) * arrowSize * 0.4);
-        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
+        ctx.strokeStyle = `rgba(${br}, ${bg}, ${bb}, ${alpha * 0.9})`;
         ctx.lineWidth = 1.8;
         ctx.stroke();
 
@@ -3286,7 +3291,7 @@ const WireRouter = {
         ctx.lineTo(ax2, ay2);
         ctx.lineTo(ax3, ay3);
         ctx.closePath();
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fillStyle = `rgba(${br}, ${bg}, ${bb}, ${alpha})`;
         ctx.fill();
       }
     }
