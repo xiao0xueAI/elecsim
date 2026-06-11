@@ -291,10 +291,15 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
           <button class="wire-type-btn active" data-wtype="live" onclick="ElecSim.WireRouter.setWireType('live')" style="color:#e53935;border-color:#e53935">火线 L</button>
           <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#1e88e5;border-color:#1e88e5">零线 N</button>
           <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#43a047;border-color:#43a047">地线 PE</button>
+          <span style="color:#555;font-size:11px;line-height:24px;margin:0 2px;">|</span>
+          <button class="wire-type-btn" data-wtype="dc_pos" onclick="ElecSim.WireRouter.setWireType('dc_pos')" style="color:#ff6d00;border-color:#ff6d00">DC+</button>
+          <button class="wire-type-btn" data-wtype="dc_neg" onclick="ElecSim.WireRouter.setWireType('dc_neg')" style="color:#546e7a;border-color:#546e7a">DC−</button>
+          <span style="color:#555;font-size:11px;line-height:24px;margin:0 2px;">|</span>
           <button class="wire-type-btn" data-wtype="signal" onclick="ElecSim.WireRouter.setWireType('signal')" style="color:#ffa800;border-color:#ffa800">信号</button>
-          <span style="color:#666;font-size:11px;line-height:24px;margin:0 2px;">|</span>
-          <button class="wire-type-btn" data-wtype="dc_pos" onclick="ElecSim.WireRouter.setWireType('dc_pos')" style="color:#c62828;border-color:#c62828">DC正极 +</button>
-          <button class="wire-type-btn" data-wtype="dc_neg" onclick="ElecSim.WireRouter.setWireType('dc_neg')" style="color:#1565c0;border-color:#1565c0">DC负极 −</button>
+          <button class="wire-type-btn" data-wtype="purple" onclick="ElecSim.WireRouter.setWireType('purple')" style="color:#ab47bc;border-color:#ab47bc">紫</button>
+          <button class="wire-type-btn" data-wtype="cyan" onclick="ElecSim.WireRouter.setWireType('cyan')" style="color:#00bcd4;border-color:#00bcd4">青</button>
+          <button class="wire-type-btn" data-wtype="pink" onclick="ElecSim.WireRouter.setWireType('pink')" style="color:#ec407a;border-color:#ec407a">粉</button>
+          <button class="wire-type-btn" data-wtype="gold" onclick="ElecSim.WireRouter.setWireType('gold')" style="color:#ffc107;border-color:#ffc107">金</button>
         </div>
         <span id="wireHintText" style="color:var(--yellow);">点击画布布线，点击端子完成连接</span>
         <button onclick="ElecSim.WireRouter.undoSegment()" style="color:var(--yellow);font-size:11px;">撤销段</button>
@@ -2260,14 +2265,14 @@ const WireRouter = {
   lastDir: null,         // 'h' | 'v' - direction of last committed segment
   deleteMode: false,     // wire deletion mode
 
-  WireColors: { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#c62828', dc_neg:'#1565c0' },
+  WireColors: { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#ff6d00', dc_neg:'#546e7a', purple:'#ab47bc', cyan:'#00bcd4', pink:'#ec407a', gold:'#ffc107' },
   WireWidth: 5,
 
   isActive() { return this.active; },
 
   setWireType(type) {
     this.wireType = type;
-    const colorMap = { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#c62828', dc_neg:'#1565c0' };
+    const colorMap = { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#ff6d00', dc_neg:'#546e7a', purple:'#ab47bc', cyan:'#00bcd4', pink:'#ec407a', gold:'#ffc107' };
     document.querySelectorAll('#wireTypeBar .wire-type-btn').forEach(b => {
       const isActive = b.dataset.wtype === type;
       b.classList.toggle('active', isActive);
