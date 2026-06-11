@@ -4601,8 +4601,8 @@ function onMouseDown(e) {
     S.clickCompId = comp.id; // Track clicked component for toggle on mouseup
     S.clickPos = { x: e.offsetX, y: e.offsetY }; // Record mouse down position for drag detection
 
-    // 点击电铃时播放测试音（在用户手势中，绕过自动播放限制）
-    if (comp.type === 'bell_dc' && S.simRunning) {
+    // 点击电铃时播放测试音（仅在通电状态下，模拟真实电铃行为）
+    if (comp.type === 'bell_dc' && S.simRunning && comp.simCurrent > 0) {
       BellAudio.playTestTone();
     }
   } else {
