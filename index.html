@@ -1579,6 +1579,28 @@ const Renderer = {
         // Draw floating pins for other image-based components
         if (c.type !== 'spst') {
           this._drawPinsForComponent(c);
+        } else if (!isXray && WireRouter.isActive() && WireRouter.startPin) {
+          // SPST routing pin highlights (drawn manually since spst bypasses _drawPinsForComponent)
+          for (const pin of c.pins) {
+            const px = c.x + pin.dx, py = c.y + pin.dy;
+            const pinR = 7;
+            const isStart = (WireRouter.startPin.comp === c.id && WireRouter.startPin.pin === pin.id);
+            const wp = WireRouter.wireType || 'live';
+            const hc = WireRouter.WireColors[wp] || '#e53935';
+            const pulse = isStart
+              ? (0.35 + Math.sin(Date.now() / 400) * 0.25)
+              : (0.18 + Math.sin(Date.now() / 500) * 0.12);
+            ctx.save();
+            ctx.globalAlpha = pulse;
+            ctx.beginPath();
+            ctx.arc(px, py, pinR + 5, 0, Math.PI * 2);
+            ctx.strokeStyle = hc;
+            ctx.lineWidth = isStart ? 3 : 2.5;
+            ctx.setLineDash(isStart ? [] : [3, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+          }
         }
         return;
       }
@@ -1719,6 +1741,38 @@ const Renderer = {
           }
         }
         ctx.fillText(pin.label, lx, ly);
+      }
+
+      // === Highlight valid target pins during routing ===
+      if (!isXray && WireRouter.isActive() && WireRouter.startPin) {
+        const isStart = (WireRouter.startPin.comp === c.id && WireRouter.startPin.pin === pin.id);
+        if (isStart) {
+          // Bright pulsing ring on start pin
+          const pulse = 0.35 + Math.sin(Date.now() / 400) * 0.25;
+          ctx.save();
+          ctx.globalAlpha = pulse;
+          ctx.beginPath();
+          ctx.arc(px, py, pinR + 6, 0, Math.PI * 2);
+          const wp = WireRouter.wireType || 'live';
+          ctx.strokeStyle = WireRouter.WireColors[wp] || '#e53935';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          const wp = WireRouter.wireType || 'live';
+          const hc = WireRouter.WireColors[wp] || '#e53935';
+          const pulse = 0.18 + Math.sin(Date.now() / 500) * 0.12;
+          ctx.save();
+          ctx.globalAlpha = pulse;
+          ctx.beginPath();
+          ctx.arc(px, py, pinR + 5, 0, Math.PI * 2);
+          ctx.strokeStyle = hc;
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([3, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
       }
     });
 
@@ -2572,8 +2626,21 @@ const WireRouter = {
     const head = this._getHeadPos();
     if (!head) return;
     const m = screenToCanvas(S.mouse.x, S.mouse.y);
-    const constrained = this._constrainOrtho(head, m);
     const color = this.WireColors[this.wireType] || this.WireColors.live;
+
+    // Auto-snap to valid end pin when mouse is close
+    const nearPin = findPinAt(m.x, m.y);
+    const isValidEndPin = nearPin &&
+      !(nearPin.comp === this.startPin.comp && nearPin.pin === this.startPin.pin);
+    let constrained, snapTarget = null;
+    if (isValidEndPin) {
+      const ec = getComp(nearPin.comp);
+      const ep = ec ? getPinPos(ec, nearPin.pin) : null;
+      if (ep) { constrained = { x: ep.x, y: ep.y }; snapTarget = ep; }
+    }
+    if (!constrained) {
+      constrained = this._constrainOrtho(head, m);
+    }
 
     // Draw all committed segments (3D pipe, full opacity)
     const c = getComp(this.startPin.comp);
@@ -2588,24 +2655,44 @@ const WireRouter = {
       });
     }
 
-    // Draw current preview segment (3D pipe, semi-transparent dashed)
+    // Draw current preview segment (more opaque when snapped to pin)
     const previewPoints = [head, constrained];
-    drawPipe3D(previewPoints, color, this.WireWidth, 0.4);
+    drawPipe3D(previewPoints, color, this.WireWidth, snapTarget ? 0.8 : 0.4);
 
     // Crimp at head
     drawCrimp3D(head.x, head.y, color, 3.5);
 
-    // Preview endpoint indicator
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.beginPath();
-    ctx.arc(constrained.x, constrained.y, 4, 0, Math.PI * 2);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([3, 3]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
+    // Endpoint indicator — highlighted ring when snapped to pin, subtle dot otherwise
+    if (snapTarget) {
+      ctx.save();
+      // Glow ring
+      ctx.beginPath();
+      ctx.arc(snapTarget.x, snapTarget.y, 13, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(57,210,192,0.2)';
+      ctx.fill();
+      // Pulsing dashed ring
+      const phase = Date.now() / 600;
+      ctx.beginPath();
+      ctx.arc(snapTarget.x, snapTarget.y, 11, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.5 + Math.sin(phase) * 0.3;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.arc(constrained.x, constrained.y, 4, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
   },
 
   drawCurrentFlow(points, current, wireColor, wire) {
