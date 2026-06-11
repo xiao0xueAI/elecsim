@@ -2450,7 +2450,7 @@ const WireRouter = {
     // Clicked on blank space → add a waypoint
     const constrained = this._constrainOrtho(head, canvasPos);
 
-    // Alignment snap to nearby pin axes
+    // Alignment snap to nearby pin axes (only free axis, stay orthogonal)
     const allPins = [];
     S.components.forEach(comp => {
       (comp.pins || []).forEach(pd => {
@@ -2461,11 +2461,10 @@ const WireRouter = {
       });
     });
     const ALIGN_SNAP = 10;
+    const isHoriz = Math.abs(constrained.y - head.y) < 2;
     allPins.forEach(pp => {
-      const xDist = Math.abs(canvasPos.x - pp.x);
-      const yDist = Math.abs(canvasPos.y - pp.y);
-      if (xDist < ALIGN_SNAP) constrained.x = pp.x;
-      if (yDist < ALIGN_SNAP) constrained.y = pp.y;
+      if (isHoriz && Math.abs(canvasPos.x - pp.x) < ALIGN_SNAP) constrained.x = pp.x;
+      if (!isHoriz && Math.abs(canvasPos.y - pp.y) < ALIGN_SNAP) constrained.y = pp.y;
     });
 
     // Only add waypoint if it actually moves from head
@@ -2911,14 +2910,18 @@ const WireRouter = {
       });
       const ALIGN_SNAP = 10;
       const ALIGN_SHOW = 100;
+      // Only snap the FREE axis — the orthogonal axis is already locked to head.
+      // Horizontal segment (Y locked to head): snap X only.
+      // Vertical segment (X locked to head): snap Y only.
+      const isHoriz = Math.abs(constrained.y - head.y) < 2;
       allPins.forEach(pp => {
         const xDist = Math.abs(m.x - pp.x);
         const yDist = Math.abs(m.y - pp.y);
-        if (xDist < ALIGN_SHOW) {
+        if (isHoriz && xDist < ALIGN_SHOW) {
           _alignGuides.push({ axis: 'v', pos: pp.x, dist: xDist, isSnap: xDist < ALIGN_SNAP });
           if (xDist < ALIGN_SNAP) constrained.x = pp.x;
         }
-        if (yDist < ALIGN_SHOW) {
+        if (!isHoriz && yDist < ALIGN_SHOW) {
           _alignGuides.push({ axis: 'h', pos: pp.y, dist: yDist, isSnap: yDist < ALIGN_SNAP });
           if (yDist < ALIGN_SNAP) constrained.y = pp.y;
         }
