@@ -2394,8 +2394,9 @@ const WireRouter = {
   findWirePointAt(x, y, threshold = 18) {
     let best = null, bestDist = Infinity;
     S.wires.forEach(w => {
-      const c1 = getComp(w.from.comp), c2 = getComp(w.to.comp);
-      if (!c1 || !c2) return;
+      const c1 = w.from.junction ? null : getComp(w.from.comp);
+      const c2 = w.to.junction ? null : getComp(w.to.comp);
+      if ((!c1 && !w.from.junction) || (!c2 && !w.to.junction)) return;
       // Skip junction-only wires (they only reference junctions, not components)
       if (w.from.junction && w.to.junction) return;
       // Get wire endpoints
@@ -2544,9 +2545,11 @@ const WireRouter = {
       // Insert junction as waypoint in the tapped wire (if not already there)
       const tapWire = S.wires.find(w => w.id === this.tapWireId);
       if (tapWire) {
-        const c1 = getComp(tapWire.from.comp);
-        const c2 = getComp(tapWire.to.comp);
-        if (c1 && c2) {
+        const c1 = tapWire.from.junction ? null : getComp(tapWire.from.comp);
+        const c2 = tapWire.to.junction ? null : getComp(tapWire.to.comp);
+        const hasFrom = !!c1 || !!tapWire.from.junction;
+        const hasTo = !!c2 || !!tapWire.to.junction;
+        if (hasFrom && hasTo) {
           let p1, p2w;
           if (tapWire.from.junction) { p1 = tapWire.from.junction; } else { p1 = getPinPos(c1, tapWire.from.pin); }
           if (tapWire.to.junction) { p2w = tapWire.to.junction; } else { p2w = getPinPos(c2, tapWire.to.pin); }
@@ -2559,7 +2562,12 @@ const WireRouter = {
               if (segDist < minDist) { minDist = segDist; insertIdx = i; }
             }
             if (!tapWire.waypoints) tapWire.waypoints = [];
-            tapWire.waypoints.splice(insertIdx - 1, 0, { x: jRef.x, y: jRef.y });
+            // Avoid inserting duplicate waypoint at same position
+            const jxR = Math.round(jRef.x), jyR = Math.round(jRef.y);
+            const exists = tapWire.waypoints.some(wp => Math.round(wp.x) === jxR && Math.round(wp.y) === jyR);
+            if (!exists) {
+              tapWire.waypoints.splice(insertIdx - 1, 0, { x: jRef.x, y: jRef.y });
+            }
           }
         }
       }
@@ -2885,7 +2893,7 @@ const WireRouter = {
     // Auto-snap to valid end pin when mouse is close
     const nearPin = findPinAt(m.x, m.y);
     const isValidEndPin = nearPin &&
-      !(nearPin.comp === this.startPin.comp && nearPin.pin === this.startPin.pin);
+      !(this.startPin && nearPin.comp === this.startPin.comp && nearPin.pin === this.startPin.pin);
     let constrained, snapTarget = null;
     if (isValidEndPin) {
       const ec = getComp(nearPin.comp);
