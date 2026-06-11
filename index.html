@@ -3431,9 +3431,17 @@ const Engine = {
       }
     });
 
+    // Deduplicate adj to prevent edge explosion (same from/to/wireId/compId)
+    const _seenAdj = new Set();
+    const uniqueAdj = [];
+    adj.forEach(e => {
+      const ek = `${e.from}|${e.to}|${e.wireId || ''}|${e.compId || ''}`;
+      if (!_seenAdj.has(ek)) { _seenAdj.add(ek); uniqueAdj.push(e); }
+    });
+
     // Build adjacency list for graph traversal
     const graph = new Map();
-    adj.forEach(e => {
+    uniqueAdj.forEach(e => {
       if (!graph.has(e.from)) graph.set(e.from, []);
       graph.get(e.from).push(e);
     });
@@ -3499,8 +3507,12 @@ const Engine = {
     const findAllPaths = (startKey, endKey, maxPaths = 50) => {
       const paths = [];
       const visitedEdges = new Set(); // to avoid duplicate paths
+      const _deadline = Date.now() + 2000; // 2-second timeout to prevent UI freeze
+      let _timedOut = false;
 
       const dfs = (current, entryComp, entryPin, visitedPins, pathComps, pathWires, pathPins) => {
+        if (_timedOut) return;
+        if (Date.now() > _deadline) { _timedOut = true; paths._timedOut = true; return; }
         if (paths.length >= maxPaths) return;
 
         if (current === endKey) {
@@ -3614,6 +3626,9 @@ const Engine = {
       }
 
       const paths = findAllPaths(posKey, negKey);
+      if (paths._timedOut) {
+        faults.push({ type: 'warn', msg: '仿真计算超时（电路过于复杂），已停止计算', comp: bat.name });
+      }
 
       if (paths.length === 0) {
         document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
@@ -5011,7 +5026,7 @@ function onMouseDown(e) {
 
   // Wire tap: click on existing wire to create a T-junction (parallel branch)
   if (!pin && !WireRouter.isActive() && !WireRouter.deleteMode) {
-    const wireTap = WireRouter.findWirePointAt(pos.x, pos.y, 16);
+    const wireTap = WireRouter.findWirePointAt(pos.x, pos.y, 22);
     if (wireTap) {
       WireRouter.startAtJunction(wireTap.point.x, wireTap.point.y, wireTap.wire.id);
       return;
