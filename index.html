@@ -3405,11 +3405,18 @@ const Engine = {
     // For each junction, connect all pin nodes that are connected through it
     jxMap.forEach((entries, key) => {
       const pinKeys = []; // all pin keys reachable through this junction
+      const _seenKeys = new Set();
       entries.forEach(entry => {
         const w = entry.wire;
         // Collect both endpoint pin keys for regular wires, or the non-junction end for junction wires
-        if (!w.from.junction) pinKeys.push(mkKey(w.from.comp, w.from.pin));
-        if (!w.to.junction) pinKeys.push(mkKey(w.to.comp, w.to.pin));
+        if (!w.from.junction) {
+          const k = mkKey(w.from.comp, w.from.pin);
+          if (!_seenKeys.has(k)) { _seenKeys.add(k); pinKeys.push(k); }
+        }
+        if (!w.to.junction) {
+          const k = mkKey(w.to.comp, w.to.pin);
+          if (!_seenKeys.has(k)) { _seenKeys.add(k); pinKeys.push(k); }
+        }
       });
       // If this junction connects 2+ pin nodes, add edges between all of them
       if (pinKeys.length >= 2) {
