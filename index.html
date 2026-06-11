@@ -2372,9 +2372,25 @@ const WireRouter = {
     const p1 = getPinPos(c1, sp.pin), p2 = getPinPos(c2, endPin.pin);
     const head = this._getHeadPos();
     // Build final waypoints: existing route waypoints only
-    const waypoints = this.routeWaypoints.filter(wp =>
+    let waypoints = this.routeWaypoints.filter(wp =>
       !(Math.abs(wp.x - p2.x) < 2 && Math.abs(wp.y - p2.y) < 2)
     );
+
+    // Auto-generate orthogonal waypoint when no user waypoints exist
+    // and pins are not aligned (different row AND column → would be diagonal)
+    if (waypoints.length === 0 && Math.abs(p1.x - p2.x) > S.grid && Math.abs(p1.y - p2.y) > S.grid) {
+      // Choose corner based on pin edge direction:
+      // horizontal edge pin → horizontal-first (corner at end.x, start.y)
+      // vertical edge pin → vertical-first (corner at start.x, end.y)
+      const useHorizFirst = this.pinNaturalDir === 'h';
+      const corner = useHorizFirst
+        ? this._snap({ x: p2.x, y: p1.y })
+        : this._snap({ x: p1.x, y: p2.y });
+      // Only add if corner is truly between p1 and p2 (not collinear)
+      if (Math.abs(corner.x - p1.x) > 1 && Math.abs(corner.y - p1.y) > 1) {
+        waypoints.push(corner);
+      }
+    }
 
     // Resolve wire type from BOTH pins (not just start pin)
     const startPinDef = c1 ? c1.pins.find(p => p.id === sp.pin) : null;
