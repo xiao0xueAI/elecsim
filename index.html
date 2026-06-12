@@ -586,6 +586,14 @@ const Registry = {
     },
 
 
+    // --- 自回弹开关（点动/复位按钮，按住导通松手断开） ---
+    { type:'spst_momentary', name:'自回弹开关', cat:'开关/按钮', icon:'🔘', desc:'点动自回弹开关（按住导通松手断开，带指示灯）',
+      w:180, h:180,
+      image:'images/switch_momentary_off.webp',
+      imageOn:'images/switch_momentary_on.webp',
+      pins:[{id:'l',label:'L',dx:0,dy:-60},{id:'l1',label:'L1',dx:0,dy:60}],
+      props:{closed:false} },
+
     // --- 继电器/接触器 ---
     // 433MHz 干接点继电器模块 (Wireless RF Dry Contact Relay)
     // 型号: KR2201-COM
@@ -3578,7 +3586,7 @@ const Engine = {
     const isBlocking = (comp) => {
       if (!comp) return false;
       const t = comp.type;
-      if ((t === 'switch' || t === 'spst' || t === 'breaker') && !comp.props.closed) return true;
+      if ((t === 'switch' || t === 'spst' || t === 'breaker' || t === 'spst_momentary') && !comp.props.closed) return true;
       if (t === 'fuse' && comp.props.blown) return true;
       if (t === 'push_no' && !comp.props.pressed) return true;
       if (t === 'push_nc' && comp.props.pressed) return true;
@@ -4866,7 +4874,7 @@ const UI = {
       row.querySelector('input').addEventListener('input', e => { comp.props.color = e.target.value; render(); });
       content.appendChild(row);
     }
-    else if (comp.type === 'switch' || comp.type === 'spst' || comp.type === 'breaker') {
+    else if (comp.type === 'switch' || comp.type === 'spst' || comp.type === 'breaker' || comp.type === 'spst_momentary') {
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.closed ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.closed ? '闭合 ON' : '断开 OFF'}</button>`;
       row.querySelector('button').addEventListener('click', () => { comp.props.closed = !comp.props.closed; S.dirty = true; this.showProps(comp); render(); });
@@ -5003,6 +5011,16 @@ function initEvents() {
   canvas.addEventListener('mousedown', onMouseDown);
   canvas.addEventListener('mousemove', onMouseMove);
   canvas.addEventListener('mouseup', onMouseUp);
+  // 自回弹开关：鼠标在画布外松开也要释放
+  document.addEventListener('mouseup', () => {
+    if (S._momentaryPress) {
+      const c = getComp(S._momentaryPress);
+      if (c && c.type === 'spst_momentary') c.props.closed = false;
+      S._momentaryPress = null;
+      S.dirty = true;
+      render();
+    }
+  });
   canvas.addEventListener('wheel', onWheel, { passive: false });
   canvas.addEventListener('contextmenu', onContextMenu);
   canvas.addEventListener('dblclick', onDoubleClick);
@@ -5132,6 +5150,14 @@ function onMouseDown(e) {
     UI.showProps(comp);
     S.clickCompId = comp.id; // Track clicked component for toggle on mouseup
     S.clickPos = { x: e.offsetX, y: e.offsetY }; // Record mouse down position for drag detection
+    // 自回弹开关：按住导通
+    if (comp.type === 'spst_momentary') {
+      comp.props.closed = true;
+      S._momentaryPress = comp.id;
+      S.dirty = true;
+      UI.showProps(comp);
+      render();
+    }
 
     // 点击电铃时播放测试音（仅在通电状态下，模拟真实电铃行为）
     if (comp.type === 'bell_dc' && S.simRunning && comp.simCurrent > 0) {
@@ -5186,9 +5212,17 @@ function onMouseUp(e) {
     if (comp && comp.type === 'spst') {
       comp.props.closed = !comp.props.closed;
       S.dirty = true;
-      UI.showProps(comp); // Refresh property panel to show new state
+      UI.showProps(comp);
       render();
     }
+  }
+  // 自回弹开关：松手断开
+  if (S._momentaryPress) {
+    const c = getComp(S._momentaryPress);
+    if (c && c.type === 'spst_momentary') c.props.closed = false;
+    S._momentaryPress = null;
+    S.dirty = true;
+    render();
   }
   // 433MHz 遥控器按钮松开
   if (S._pressRemote) {
