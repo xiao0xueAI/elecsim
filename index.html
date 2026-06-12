@@ -2310,6 +2310,15 @@ const WireRouter = {
       return;
     }
 
+    // Clicked on existing wire while routing from a pin → T-junction (Pin → Wire)
+    if (this.startPin) {
+      const wireTap = this.findWirePointAt(canvasPos.x, canvasPos.y, 22);
+      if (wireTap) {
+        this.complete({ junction: wireTap.point, tapWireId: wireTap.wire.id });
+        return;
+      }
+    }
+
     // Clicked on blank space → add a waypoint
     const constrained = this._constrainOrtho(head, canvasPos);
 
@@ -2429,6 +2438,80 @@ const WireRouter = {
             const exists = tapWire.waypoints.some(wp => Math.round(wp.x) === jxR && Math.round(wp.y) === jyR);
             if (!exists) {
               tapWire.waypoints.splice(insertIdx - 1, 0, { x: jRef.x, y: jRef.y });
+            }
+          }
+        }
+      }
+
+      S.wires.push(branchWire);
+      S.dirty = true;
+      History.push({ type: 'wire', wire: branchWire });
+      UI.toast('并联分支已连接', 'success');
+      this.cancel();
+      return;
+    }
+
+    // ==================== Pin → Junction (T-branch from terminal to existing wire) ====================
+    if (this.startPin && endPin.junction) {
+      const sp = this.startPin;
+      const c1 = getComp(sp.comp);
+      const p1 = getPinPos(c1, sp.pin);
+      if (!p1) { this.cancel(); return; }
+
+      // Build waypoints from pin to junction
+      let waypoints = this.routeWaypoints.filter(wp =>
+        !(Math.abs(wp.x - endPin.junction.x) < 2 && Math.abs(wp.y - endPin.junction.y) < 2)
+      );
+      // Auto-orthogonal from pin
+      if (waypoints.length === 0 && Math.abs(p1.x - endPin.junction.x) > S.grid && Math.abs(p1.y - endPin.junction.y) > S.grid) {
+        const useHorizFirst = this.pinNaturalDir === 'h';
+        const corner = useHorizFirst
+          ? this._snap({ x: endPin.junction.x, y: p1.y })
+          : this._snap({ x: p1.x, y: endPin.junction.y });
+        if (Math.abs(corner.x - p1.x) > 1 && Math.abs(corner.y - p1.y) > 1) {
+          waypoints.push(corner);
+        }
+      }
+
+      // Resolve wire type from start pin
+      const startPinDef = c1 ? c1.pins.find(p => p.id === sp.pin) : null;
+      const resolvedType = this.resolveWireType(
+        startPinDef ? startPinDef.label : '',
+        '',
+        this.wireType
+      );
+
+      const branchWire = {
+        id: S.nextWireId++,
+        from: { comp: sp.comp, pin: sp.pin },
+        to: { junction: { x: endPin.junction.x, y: endPin.junction.y } },
+        waypoints: waypoints,
+        wireType: resolvedType,
+      };
+
+      // Insert junction into tapped wire
+      const tapWire = S.wires.find(w => w.id === endPin.tapWireId);
+      if (tapWire) {
+        const tc1 = tapWire.from.junction ? null : getComp(tapWire.from.comp);
+        const tc2 = tapWire.to.junction ? null : getComp(tapWire.to.comp);
+        const hasFrom = !!tc1 || !!tapWire.from.junction;
+        const hasTo = !!tc2 || !!tapWire.to.junction;
+        if (hasFrom && hasTo) {
+          let tp1, tp2;
+          if (tapWire.from.junction) { tp1 = tapWire.from.junction; } else { tp1 = getPinPos(tc1, tapWire.from.pin); }
+          if (tapWire.to.junction) { tp2 = tapWire.to.junction; } else { tp2 = getPinPos(tc2, tapWire.to.pin); }
+          if (tp1 && tp2) {
+            const allPts = [tp1, ...(tapWire.waypoints || []), tp2];
+            let insertIdx = 0, minDist = Infinity;
+            for (let i = 1; i < allPts.length; i++) {
+              const segDist = this._pointToSegmentDist(endPin.junction.x, endPin.junction.y, allPts[i-1].x, allPts[i-1].y, allPts[i].x, allPts[i].y);
+              if (segDist < minDist) { minDist = segDist; insertIdx = i; }
+            }
+            if (!tapWire.waypoints) tapWire.waypoints = [];
+            const jxR = Math.round(endPin.junction.x), jyR = Math.round(endPin.junction.y);
+            const exists = tapWire.waypoints.some(wp => Math.round(wp.x) === jxR && Math.round(wp.y) === jyR);
+            if (!exists) {
+              tapWire.waypoints.splice(insertIdx - 1, 0, { x: endPin.junction.x, y: endPin.junction.y });
             }
           }
         }
@@ -2756,11 +2839,19 @@ const WireRouter = {
     const nearPin = findPinAt(m.x, m.y);
     const isValidEndPin = nearPin &&
       !(this.startPin && nearPin.comp === this.startPin.comp && nearPin.pin === this.startPin.pin);
-    let constrained, snapTarget = null;
+    let constrained, snapTarget = null, snapWireTap = null;
     if (isValidEndPin) {
       const ec = getComp(nearPin.comp);
       const ep = ec ? getPinPos(ec, nearPin.pin) : null;
       if (ep) { constrained = { x: ep.x, y: ep.y }; snapTarget = ep; }
+    }
+    // When routing from a pin, also snap to existing wires for T-junction
+    if (!snapTarget && this.startPin) {
+      const wireTap = this.findWirePointAt(m.x, m.y, 22);
+      if (wireTap) {
+        constrained = { x: wireTap.point.x, y: wireTap.point.y };
+        snapWireTap = wireTap;
+      }
     }
     if (!constrained) {
       constrained = this._constrainOrtho(head, m);
@@ -2823,9 +2914,21 @@ const WireRouter = {
       ctx.restore();
     }
 
+    // Draw wire snap indicator when routing from pin to existing wire (T-junction)
+    if (snapWireTap) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(constrained.x, constrained.y, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#1a1a2e'; ctx.fill();
+      ctx.beginPath();
+      ctx.arc(constrained.x, constrained.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffa800'; ctx.fill();
+      ctx.restore();
+    }
+
     // Draw current preview segment (more opaque when snapped to pin)
     const previewPoints = [head, constrained];
-    drawPipe3D(previewPoints, color, this.WireWidth, snapTarget ? 0.8 : 0.4);
+    drawPipe3D(previewPoints, color, this.WireWidth, (snapTarget || snapWireTap) ? 0.8 : 0.4);
 
     // Distance label on preview segment
     const segLen = Math.round(Math.sqrt((constrained.x - head.x) ** 2 + (constrained.y - head.y) ** 2));
