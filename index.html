@@ -1533,12 +1533,6 @@ const Renderer = {
             ctx.arc(greenX, greenY, 3, 0, Math.PI * 2);
             ctx.fill();
 
-            // Spring compression indicator (small coil near pivot)
-            ctx.strokeStyle = '#999';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(pivotX + 16, pivotY + 8, 5, Math.PI * 0.7, Math.PI * 1.8);
-            ctx.stroke();
           } else {
             // RELEASED: arm springs away (tilts left, spring-back)
             const angle = -22 * Math.PI / 180;
@@ -1551,13 +1545,6 @@ const Renderer = {
             ctx.beginPath();
             ctx.moveTo(pivotX, pivotY);
             ctx.lineTo(endX, endY);
-            ctx.stroke();
-
-            // Spring indicator: expanded coil
-            ctx.strokeStyle = '#999';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(pivotX + 16, pivotY + 8, 7, Math.PI * 0.7, Math.PI * 2.0);
             ctx.stroke();
           }
         }
