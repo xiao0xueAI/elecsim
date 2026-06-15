@@ -588,10 +588,10 @@ const Registry = {
 
     // --- 自回弹开关（点动/复位按钮，按住导通松手断开） ---
     { type:'spst_momentary', name:'自回弹开关', cat:'开关/按钮', icon:'🔘', desc:'点动自回弹开关（按住导通松手断开，带指示灯）',
-      w:180, h:180,
+      w:160, h:140,
       image:'images/switch_momentary_off.webp',
       imageOn:'images/switch_momentary_on.webp',
-      pins:[{id:'l',label:'L',dx:0,dy:-60},{id:'l1',label:'L1',dx:0,dy:60}],
+      pins:[{id:'l',label:'L',dx:0,dy:-50},{id:'l1',label:'L1',dx:0,dy:50}],
       props:{closed:false} },
 
     // --- 继电器/接触器 ---
