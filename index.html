@@ -1059,7 +1059,16 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let W, H;
 
-function render() { Renderer.render(); }
+let _renderPending = false;
+function requestRender() {
+  if (!_renderPending) {
+    _renderPending = true;
+    requestAnimationFrame(() => {
+      _renderPending = false;
+      _SR_render();
+    });
+  }
+}
 
 function resize() {
   const r = window.devicePixelRatio || 1;
@@ -1068,13 +1077,16 @@ function resize() {
   canvas.width = W * r; canvas.height = H * r;
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.setTransform(r, 0, 0, r, 0, 0);
-  render();
+  requestRender();
 }
 window.addEventListener('resize', resize);
 
 function screenToCanvas(sx, sy) {
   return { x: (sx - S.pan.x) / S.zoom, y: (sy - S.pan.y) / S.zoom };
 }
+
+// _SR_render: direct synchronous render (used by animation loop & recording only)
+function _SR_render() { Renderer.render(); }
 
 const Renderer = {
   render() {
@@ -2109,7 +2121,7 @@ const Renderer = {
     History.push({ type: 'add', comp: { ...comp } });
     UI.showProps(comp);
     UI.toast('已添加: ' + comp.name, 'success');
-    render();
+    requestRender();
   },
 
   addComponentSilent(def, x, y) {
@@ -2151,7 +2163,7 @@ const WireRouter = {
       b.style.background = isActive ? c : 'transparent';
       b.style.color = isActive ? '#fff' : c;
     });
-    render();
+    requestRender();
   },
 
   detectWireType(pinLabel) {
@@ -2256,7 +2268,7 @@ const WireRouter = {
     }
     this.setWireType(this.wireType);
     document.getElementById('wireHint').style.display = 'flex';
-    render();
+    requestRender();
   },
 
   // Find the closest point on any wire to (x, y)
@@ -2371,7 +2383,7 @@ const WireRouter = {
           this.lastDir = Math.abs(last.x - prev.x) > 1 ? 'h' : 'v';
         }
       }
-      render();
+      requestRender();
     }
   },
 
@@ -2385,7 +2397,7 @@ const WireRouter = {
     this.lastDir = null;
     this.pinNaturalDir = null;
     document.getElementById('wireHint').style.display = 'none';
-    render();
+    requestRender();
   },
 
   complete(endPin) {
@@ -2627,7 +2639,7 @@ const WireRouter = {
     } else {
       if (hint) hint.style.display = 'none';
     }
-    render();
+    requestRender();
   },
 
   // Find the closest wire segment to a point (within threshold)
@@ -2716,7 +2728,7 @@ const WireRouter = {
       S.dirty = true;
       History.push({ type: 'deleteWire', wire });
       UI.toast('布线已删除', 'success');
-      render();
+      requestRender();
     }
   },
 
@@ -3357,7 +3369,7 @@ const Engine = {
       document.getElementById('simVoltage').textContent = '0.00 V';
       document.getElementById('simPower').textContent = '0.00 mW';
       document.getElementById('faultPanel').style.display = 'none';
-      render();
+      requestRender();
     }
   },
 
@@ -3368,7 +3380,7 @@ const Engine = {
     // Throttle solve to every 4 frames (~15fps) — electrical quantities don't need 60Hz updates
     this._solveFrame = (this._solveFrame || 0) + 1;
     if (this._solveFrame >= 4) { this._solveFrame = 0; this.solve(); }
-    render();
+    requestRender();
     this.simLoop = requestAnimationFrame(() => this.loop());
   },
 
@@ -4019,7 +4031,7 @@ const History = {
     }
     S.selected = null;
     UI.hideProps();
-    render();
+    requestRender();
   },
 
   applyRedo(action) {
@@ -4034,7 +4046,7 @@ const History = {
       // Redo delete: remove the wire again
       S.wires = S.wires.filter(w => w.id !== action.wire.id);
     }
-    render();
+    requestRender();
   },
 
   updateButtons() {
@@ -4109,7 +4121,7 @@ const Persistence = {
     S.dirty = false;
     if (Engine.running) Engine.toggle();
     UI.hideProps();
-    render();
+    requestRender();
   },
 
   autoSaveInterval: null,
@@ -4825,7 +4837,7 @@ const UI = {
     document.getElementById('btnStandard').classList.toggle('active', mode === 'standard');
     document.getElementById('btnXray').classList.toggle('active', mode === 'xray');
     document.getElementById('canvasArea').classList.toggle('xray-mode', mode === 'xray');
-    render();
+    requestRender();
   },
 
   toggleOpt(el, opt) {
@@ -4833,7 +4845,7 @@ const UI = {
     if (opt === 'internal') S.showInternal = el.classList.contains('on');
     if (opt === 'currentDir') S.showCurrentDir = el.classList.contains('on');
     if (opt === 'pinLabels') S.showPinLabels = el.classList.contains('on');
-    render();
+    requestRender();
   },
 
   setOpt(btn, group) {
@@ -4854,7 +4866,7 @@ const UI = {
       row.innerHTML = `<span class="label">${label}</span><input type="${type}" value="${val}">`;
       row.querySelector('input').addEventListener('change', e => {
         const c = getComp(comp.id);
-        if (c) { c.props[key] = type === 'number' ? parseFloat(e.target.value) : e.target.value; S.dirty = true; render(); }
+        if (c) { c.props[key] = type === 'number' ? parseFloat(e.target.value) : e.target.value; S.dirty = true; requestRender(); }
       });
       content.appendChild(row);
     };
@@ -4871,34 +4883,34 @@ const UI = {
       makeRow('正向压降 (V)', 'forwardV', comp.props.forwardV);
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">颜色</span><input type="color" value="${comp.props.color || '#ff4444'}" style="width:40px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer;">`;
-      row.querySelector('input').addEventListener('input', e => { comp.props.color = e.target.value; render(); });
+      row.querySelector('input').addEventListener('input', e => { comp.props.color = e.target.value; requestRender(); });
       content.appendChild(row);
     }
     else if (comp.type === 'switch' || comp.type === 'spst' || comp.type === 'breaker' || comp.type === 'spst_momentary') {
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.closed ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.closed ? '闭合 ON' : '断开 OFF'}</button>`;
-      row.querySelector('button').addEventListener('click', () => { comp.props.closed = !comp.props.closed; S.dirty = true; this.showProps(comp); render(); });
+      row.querySelector('button').addEventListener('click', () => { comp.props.closed = !comp.props.closed; S.dirty = true; this.showProps(comp); requestRender(); });
       content.appendChild(row);
     }
     else if (comp.type === 'spdt' || comp.type === 'rotary') {
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">拨向</span><div style="display:flex;gap:4px;"><button class="tbtn" style="font-size:10px;padding:2px 10px;${comp.props.position === 1 ? 'border-color:var(--green);color:var(--green);background:rgba(63,185,80,0.1);' : ''}" data-pos="1">触点 1</button><button class="tbtn" style="font-size:10px;padding:2px 10px;${comp.props.position === 2 ? 'border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,0.1);' : ''}" data-pos="2">触点 2</button></div>`;
       row.querySelectorAll('button').forEach(btn => {
-        btn.addEventListener('click', () => { comp.props.position = parseInt(btn.dataset.pos); S.dirty = true; this.showProps(comp); render(); });
+        btn.addEventListener('click', () => { comp.props.position = parseInt(btn.dataset.pos); S.dirty = true; this.showProps(comp); requestRender(); });
       });
       content.appendChild(row);
     }
     else if (comp.type === 'push_no' || comp.type === 'push_nc') {
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.pressed ? 'border-color:var(--yellow);color:var(--yellow);' : ''}">${comp.props.pressed ? '按下' : '释放'}</button>`;
-      row.querySelector('button').addEventListener('click', () => { comp.props.pressed = !comp.props.pressed; S.dirty = true; this.showProps(comp); render(); });
+      row.querySelector('button').addEventListener('click', () => { comp.props.pressed = !comp.props.pressed; S.dirty = true; this.showProps(comp); requestRender(); });
       content.appendChild(row);
     }
     else if (comp.type === 'fuse') {
       makeRow('额定 (A)', 'rating', comp.props.rating);
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.blown ? 'border-color:var(--red);color:var(--red);' : ''}">${comp.props.blown ? '熔断' : '正常'}</button>`;
-      row.querySelector('button').addEventListener('click', () => { comp.props.blown = !comp.props.blown; S.dirty = true; this.showProps(comp); render(); });
+      row.querySelector('button').addEventListener('click', () => { comp.props.blown = !comp.props.blown; S.dirty = true; this.showProps(comp); requestRender(); });
       content.appendChild(row);
     }
     else if (comp.type === 'relay5' || comp.type === 'relay8' || comp.type === 'contactor' || comp.type === 'dry_relay') {
@@ -4912,13 +4924,13 @@ const UI = {
         modeRow.innerHTML = `<span class="label">控制模式</span><button class="tbtn" style="font-size:13px;padding:4px 14px;font-weight:bold;${!powered ? 'opacity:0.4;' : ''}" ${!powered ? 'disabled' : ''} title="${!powered ? '需先通电' : '点击切换：' + modeLabels[nextMode]}">${modeLabels[comp.props.mode] || '未设模式'}</button>`;
         modeRow.querySelector('button').addEventListener('click', () => {
           comp.props.mode = nextMode;
-          S.dirty = true; this.showProps(comp); render();
+          S.dirty = true; this.showProps(comp); requestRender();
         });
         content.appendChild(modeRow);
       }
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">状态</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.energized ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.energized ? '吸合' : '释放'}</button>`;
-      row.querySelector('button').addEventListener('click', () => { comp.props.energized = !comp.props.energized; S.dirty = true; this.showProps(comp); render(); });
+      row.querySelector('button').addEventListener('click', () => { comp.props.energized = !comp.props.energized; S.dirty = true; this.showProps(comp); requestRender(); });
       content.appendChild(row);
     }
     else if (comp.type === 'motor_dc') makeRow('电压 (V)', 'voltage', comp.props.voltage);
@@ -4943,7 +4955,7 @@ const UI = {
     else if (comp.props.behavior === 'relay') {
       const row = document.createElement('div'); row.className = 'prop-row';
       row.innerHTML = `<span class="label">继电器</span><button class="tbtn" style="font-size:10px;padding:2px 8px;${comp.props.energized ? 'border-color:var(--green);color:var(--green);' : ''}">${comp.props.energized ? 'ON' : 'OFF'}</button>`;
-      row.querySelector('button').addEventListener('click', () => { comp.props.energized = !comp.props.energized; S.dirty = true; this.showProps(comp); render(); });
+      row.querySelector('button').addEventListener('click', () => { comp.props.energized = !comp.props.energized; S.dirty = true; this.showProps(comp); requestRender(); });
       content.appendChild(row);
     }
 
@@ -4958,7 +4970,7 @@ const UI = {
       S.selected = null; this.hideProps();
       this.toast('已删除: ' + comp.name, 'success');
       S.dirty = true;
-      render();
+      requestRender();
     });
     content.appendChild(del);
   },
@@ -4988,7 +5000,7 @@ const UI = {
           S.selected = null; UI.hideProps();
           UI.toast('已删除: ' + comp.name, 'success');
           S.dirty = true;
-          render();
+          requestRender();
         }}
       ];
       items.forEach(item => {
@@ -5018,7 +5030,7 @@ function initEvents() {
       if (c && c.type === 'spst_momentary') c.props.closed = false;
       S._momentaryPress = null;
       S.dirty = true;
-      render();
+      requestRender();
     }
   });
   canvas.addEventListener('wheel', onWheel, { passive: false });
@@ -5075,7 +5087,7 @@ function onMouseDown(e) {
         const modeLabels = { none:'纯线圈', momentary:'点动', toggle:'自锁', interlock:'互锁' };
         S.dirty = true;
         UI.toast('干接点模式：' + modeLabels[c.props.mode], 'success');
-        render();
+        requestRender();
         return;
       }
     }
@@ -5091,7 +5103,7 @@ function onMouseDown(e) {
         S._pressRemote = c.id;
         S.dragging = null;  // 不要触发拖动
         S.dirty = true;
-        render();
+        requestRender();
         e.preventDefault();
         return;
       }
@@ -5156,7 +5168,7 @@ function onMouseDown(e) {
       S._momentaryPress = comp.id;
       S.dirty = true;
       UI.showProps(comp);
-      render();
+      requestRender();
     }
 
     // 点击电铃时播放测试音（仅在通电状态下，模拟真实电铃行为）
@@ -5167,7 +5179,7 @@ function onMouseDown(e) {
     S.selected = null;
     UI.hideProps();
   }
-  render();
+  requestRender();
 }
 
 function onMouseMove(e) {
@@ -5176,7 +5188,7 @@ function onMouseMove(e) {
   if (S.panning) {
     S.pan.x = e.offsetX - S.panStart.x;
     S.pan.y = e.offsetY - S.panStart.y;
-    render(); return;
+    requestRender(); return;
   }
 
   if (S.dragging) {
@@ -5187,10 +5199,10 @@ function onMouseMove(e) {
       c.x = Math.round((pos.x - S.dragOff.x) / g) * g;
       c.y = Math.round((pos.y - S.dragOff.y) / g) * g;
     }
-    render(); return;
+    requestRender(); return;
   }
 
-  if (WireRouter.isActive()) render();
+  if (WireRouter.isActive()) requestRender();
 
   // Cursor
   const pos = screenToCanvas(e.offsetX, e.offsetY);
@@ -5213,7 +5225,7 @@ function onMouseUp(e) {
       comp.props.closed = !comp.props.closed;
       S.dirty = true;
       UI.showProps(comp);
-      render();
+      requestRender();
     }
   }
   // 自回弹开关：松手断开
@@ -5222,14 +5234,14 @@ function onMouseUp(e) {
     if (c && c.type === 'spst_momentary') c.props.closed = false;
     S._momentaryPress = null;
     S.dirty = true;
-    render();
+    requestRender();
   }
   // 433MHz 遥控器按钮松开
   if (S._pressRemote) {
     const c = getComp(S._pressRemote);
     if (c && c.type === 'rf_remote') c.props.pressed = false;
     S._pressRemote = null;
-    render();
+    requestRender();
   }
   S.clickCompId = null;
   S.clickPos = null;
@@ -5247,7 +5259,7 @@ function onWheel(e) {
   S.pan.y = my - (my - S.pan.y) * (newZoom / S.zoom);
   S.zoom = newZoom;
   document.getElementById('zoomLevel').textContent = Math.round(S.zoom * 100);
-  render();
+  requestRender();
 }
 
 function onContextMenu(e) {
@@ -5285,7 +5297,7 @@ function onKeyDown(e) {
         S.selected = null; UI.hideProps();
         UI.toast('已删除: ' + comp.name, 'success');
         S.dirty = true;
-        render();
+        requestRender();
       }
     }
   }
@@ -5481,7 +5493,7 @@ function zoomToFit() {
   S.pan.x = W / 2 - (bounds.minX + bounds.maxX) / 2 * S.zoom;
   S.pan.y = H / 2 - (bounds.minY + bounds.maxY) / 2 * S.zoom;
   document.getElementById('zoomLevel').textContent = Math.round(S.zoom * 100);
-  render();
+  requestRender();
 }
 
 // Union-Find data structure
@@ -5592,7 +5604,7 @@ return {
 })();
 
 // Global aliases for onclick handlers in HTML
-const render = () => ElecSim.render();
+const render = () => ElecSim.requestRender();
 
 // Boot
 document.addEventListener('DOMContentLoaded', () => ElecSim.init());
