@@ -1172,14 +1172,16 @@ const Renderer = {
         const plugH = plugW / imgAR;
         const plugTopY = -bh / 2;
         const plugBottomY = plugTopY + plugH;
-        const wireTopY = plugBottomY + 2;        // start lead wire just below cable end
+        // Cable exits at x≈275 in 396-wide image (not image center 198!)
+        // Offset the DRAW so the cable aligns with component center, not the whole image
+        const cableFrac = 275 / 396;  // cable X in image coords (fraction)
+        const cableOffsetX = (cableFrac - 0.5) * plugW;
         // Selection glow
         if (sel) { ctx.shadowColor = catColor; ctx.shadowBlur = 14; }
         try {
           const cacheKey = '_imgCache';
           let img = c[cacheKey];
           if (!img || img.src !== c.image) {
-            // Use shared Registry cache to avoid reloading image on every component placement
             img = Registry.preloadImage(c.image);
             c[cacheKey] = img;
           }
@@ -1187,12 +1189,12 @@ const Renderer = {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             ctx.globalAlpha = isXray ? 0.3 : 1.0;
-            // 插头主体居中(原图主体中心已在x=195,主体宽= 880-324=380 → x=195, y=300~2539, 线缆中心x≈195, 总图宽390)
-            ctx.drawImage(img, -plugW / 2, plugTopY, plugW, plugH);
+            // Shift image LEFT by cableOffsetX so the CABLE lands at x=0 (component center)
+            ctx.drawImage(img, -plugW / 2 - cableOffsetX, plugTopY, plugW, plugH);
             ctx.globalAlpha = 1;
           }
         } catch(e) {}
-        // Pins are at the bottom of the cable (no separate lead wire needed)
+        // Pins centered on cable (now at x=0 after offset)
         ctx.restore();
         this._drawPinsForComponent(c);
         return;
