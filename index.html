@@ -563,9 +563,9 @@ const Registry = {
   defs: [
     // --- 电源 ---
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
-      w:180, h:110,
+      w:150, h:92,
       image:'images/battery_12v.webp',
-      pins:[{id:'p',label:'+',dx:55,dy:-12},{id:'n',label:'-',dx:-55,dy:-12}],
+      pins:[{id:'p',label:'+',dx:46,dy:-10},{id:'n',label:'-',dx:-46,dy:-10}],
       props:{voltage:12} },
 
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
@@ -602,12 +602,12 @@ const Registry = {
       model:'KR2201-COM',
       w:220, h:140,
       image:'images/dry_relay.webp',
-      // 端子基于507×320裁剪图，用户标注颜色定位
-      pins:[{id:'l',label:'L',dx:90,dy:-14,lo:28,ld:0,type:'coil'},
-            {id:'n',label:'N',dx:90,dy:36,lo:28,ld:0,type:'coil'},
-            {id:'no',label:'NO',dx:-88,dy:-28,lo:-28,ld:0,type:'contact'},
-            {id:'com',label:'COM',dx:-88,dy:-6,lo:-28,ld:0,type:'contact'},
-            {id:'nc',label:'NC',dx:-88,dy:16,lo:-28,ld:0,type:'contact'}],
+      // 端子基于507×320裁剪图，Python精确扫描螺丝亮点定位
+      pins:[{id:'l',label:'L',dx:92,dy:-37,lo:55,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:92,dy:-5,lo:55,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-84,dy:-37,lo:-55,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-84,dy:-18,lo:-55,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-84,dy:1,lo:-55,ld:0,type:'contact'}],
       props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
 
 
