@@ -578,8 +578,8 @@ const Registry = {
     // --- 开关/按钮 ---
     // SPST (单开单控): 最简单的开关，L=相线入(红)，L1=相线出，闭合导通断开截止
     { type:'spst', name:'单开单控', cat:'开关/按钮', icon:'🎚', desc:'单刀单掷/单开单控墙壁开关（实物照片）',
-      w:220, h:220,
-      pins:[{id:'l',label:'L',dx:0,dy:-75},{id:'l1',label:'L1',dx:0,dy:82}],
+      w:190, h:190,
+      pins:[{id:'l',label:'L',dx:0,dy:-65},{id:'l1',label:'L1',dx:0,dy:71}],
       props:{closed:false},
       image:'images/spst_off.webp?v=1',
       imageOn:'images/spst_on.webp?v=1',
@@ -588,10 +588,10 @@ const Registry = {
 
     // --- 自回弹开关（点动/复位按钮，按住导通松手断开） ---
     { type:'spst_momentary', name:'自回弹开关', cat:'开关/按钮', icon:'🔘', desc:'点动自回弹开关（按住导通松手断开，带指示灯）',
-      w:220, h:220,
+      w:190, h:190,
       image:'images/switch_momentary_off.webp?v=2',
       imageOn:'images/switch_momentary_on.webp?v=2',
-      pins:[{id:'l',label:'L',dx:0,dy:-75},{id:'l1',label:'L1',dx:0,dy:82}],
+      pins:[{id:'l',label:'L',dx:0,dy:-65},{id:'l1',label:'L1',dx:0,dy:71}],
       props:{closed:false} },
 
     // --- 继电器/接触器 ---
@@ -1355,16 +1355,16 @@ const Renderer = {
         // === SPST: near-vertical wires + offset contacts + seesaw arm ===
         if (c.type === 'spst') {
           const closed = c.props.closed;
-          const halfH = bh / 2;  // 110
+          const halfH = bh / 2;  // 95
           const pinR = 7;
 
           // Terminal positions: disc nearly touching panel edge (2px gap)
-          const termTopY = -75;  // L at -75
-          const termBotY =  82;  // L1 at +82
+          const termTopY = -65;  // L at -65
+          const termBotY =  71;  // L1 at +71
 
           // Contact points inside panel (vertically aligned for straight wires)
-          const redX  = 0,  redY  = -35;   // red: directly below L terminal
-          const greenX = 0,  greenY = +30;  // green: directly above L1 terminal
+          const redX  = 0,  redY  = -30;   // red: directly below L terminal
+          const greenX = 0,  greenY = +26;  // green: directly above L1 terminal
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
@@ -1457,13 +1457,13 @@ const Renderer = {
           const closed = c.props.closed;
           const pinR = 7;
 
-          // Terminal positions: outside the panel edge (220x220, half=110)
-          const termTopY = -75;  // L at -75 (距上边 35px)
-          const termBotY =  82;  // L1 at +82 (距下边 28px)
+          // Terminal positions: outside the panel edge (190x190, half=95)
+          const termTopY = -65;  // L at -65 (距上边 30px)
+          const termBotY =  71;  // L1 at +71 (距下边 24px)
 
           // Contact points inside panel (vertically aligned)
-          const redX  = 0,  redY  = -44;   // red: below L terminal
-          const greenX = 0,  greenY = +50;  // green: above L1 terminal
+          const redX  = 0,  redY  = -38;   // red: below L terminal
+          const greenX = 0,  greenY = +43;  // green: above L1 terminal
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
