@@ -5126,6 +5126,7 @@ function initEvents() {
   document.addEventListener('mouseup', () => {
     if (S._momentaryPress) {
       S._momentaryPress.props.closed = false;
+      UI.showProps(S._momentaryPress);
       S._momentaryPress = null;
       S.dirty = true;
       requestRender();
@@ -5331,6 +5332,7 @@ function onMouseUp(e) {
   // 自回弹开关：松手断开
   if (S._momentaryPress) {
     S._momentaryPress.props.closed = false;
+    UI.showProps(S._momentaryPress);
     S._momentaryPress = null;
     S.dirty = true;
     requestRender();
