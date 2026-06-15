@@ -1356,15 +1356,15 @@ const Renderer = {
         if (c.type === 'spst') {
           const closed = c.props.closed;
           const halfH = bh / 2;  // 95
-          const pinR = 6;
+          const pinR = 8;
 
-          // Terminal positions: outside panel edge (half=95, disc center beyond panel)
-          const termTopY = -98;  // L at -98 (3px outside)
-          const termBotY =  98;  // L1 at +98 (3px outside)
+          // Terminal positions: outside panel edge (half=95)
+          const termTopY = -98;
+          const termBotY =  98;
 
-          // Contact points inside panel — wires from terminals = 36px each (equal length)
-          const redX  = 0,  redY  = termTopY + 6 + 36;   // -56
-          const greenX = 0,  greenY = termBotY - 6 - 36;  // +56
+          // Contacts: wire = arm = 60px each (three equal segments)
+          const redX  = 0,  redY  = -30;
+          const greenX = 0,  greenY =  30;
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
@@ -1389,7 +1389,7 @@ const Renderer = {
 
           // Thick wires (almost vertical, only 3px horizontal offset)
           ctx.lineCap = 'round';
-          ctx.lineWidth = 5;
+          ctx.lineWidth = 7;
 
           ctx.strokeStyle = '#e53e3e';
           ctx.beginPath();
@@ -1406,21 +1406,21 @@ const Renderer = {
           // Contact dots
           ctx.fillStyle = '#c0392b';
           ctx.beginPath();
-          ctx.arc(redX, redY, 3.5, 0, Math.PI * 2);
+          ctx.arc(redX, redY, 4, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#27ae60';
           ctx.beginPath();
-          ctx.arc(greenX, greenY, 3.5, 0, Math.PI * 2);
+          ctx.arc(greenX, greenY, 4, 0, Math.PI * 2);
           ctx.fill();
 
           // Seesaw arm — pivots at RED contact dot
           const pivotX = redX, pivotY = redY;
-          const armWidth = 4;
+          const armWidth = 6;
 
           // Arm length = distance from red dot to green dot
-          const dx = greenX - redX;   // 6
-          const dy = greenY - redY;   // 65
-          const armLen = Math.sqrt(dx*dx + dy*dy);  // ≈ 65.3
+          const dx = greenX - redX;   // 0
+          const dy = greenY - redY;   // 60
+          const armLen = Math.sqrt(dx*dx + dy*dy);  // 60
 
           if (closed) {
             // ON: arm reaches green contact dot
@@ -1455,15 +1455,15 @@ const Renderer = {
         // === 自回弹开关: vertical wires + offset contacts + spring-loaded seesaw arm ===
         if (c.type === 'spst_momentary') {
           const closed = c.props.closed;
-          const pinR = 6;
+          const pinR = 8;
 
-          // Terminal positions: outside panel edge (half=95, disc center beyond panel)
-          const termTopY = -98;  // L at -98 (3px outside)
-          const termBotY =  98;  // L1 at +98 (3px outside)
+          // Terminal positions: outside panel edge (half=95)
+          const termTopY = -98;
+          const termBotY =  98;
 
-          // Contact points inside panel — wires from terminals = 36px each (equal length)
-          const redX  = 0,  redY  = termTopY + 6 + 36;   // -56
-          const greenX = 0,  greenY = termBotY - 6 - 36;  // +56
+          // Contacts: wire = arm = 60px each (three equal segments)
+          const redX  = 0,  redY  = -30;
+          const greenX = 0,  greenY =  30;
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
@@ -1488,7 +1488,7 @@ const Renderer = {
 
           // Vertical wires from terminals to internal contact points
           ctx.lineCap = 'round';
-          ctx.lineWidth = 5;
+          ctx.lineWidth = 7;
 
           ctx.strokeStyle = '#e53e3e';
           ctx.beginPath();
@@ -1505,17 +1505,17 @@ const Renderer = {
           // Contact dots
           ctx.fillStyle = '#c0392b';
           ctx.beginPath();
-          ctx.arc(redX, redY, 3.5, 0, Math.PI * 2);
+          ctx.arc(redX, redY, 4, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#27ae60';
           ctx.beginPath();
-          ctx.arc(greenX, greenY, 3.5, 0, Math.PI * 2);
+          ctx.arc(greenX, greenY, 4, 0, Math.PI * 2);
           ctx.fill();
 
           // Spring-loaded seesaw arm — pivots at RED contact, reaches GREEN when pressed
           const pivotX = redX, pivotY = redY;
-          const armWidth = 4;
-          const dy = greenY - redY;   // 86
+          const armWidth = 6;
+          const dy = greenY - redY;   // 60
           const armLen = dy;          // contacts vertically aligned
 
           if (closed) {
@@ -1570,7 +1570,7 @@ const Renderer = {
           // SPST routing pin highlights (drawn manually since spst bypasses _drawPinsForComponent)
           for (const pin of c.pins) {
             const px = c.x + pin.dx, py = c.y + pin.dy;
-            const pinR = 6;
+            const pinR = 8;
             const isStart = (WireRouter.startPin.comp === c.id && WireRouter.startPin.pin === pin.id);
             const wp = WireRouter.wireType || 'live';
             const hc = WireRouter.WireColors[wp] || '#e53935';
