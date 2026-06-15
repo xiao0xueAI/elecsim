@@ -1356,7 +1356,7 @@ const Renderer = {
         if (c.type === 'spst') {
           const closed = c.props.closed;
           const halfH = bh / 2;  // 95
-          const pinR = 7;
+          const pinR = 6;
 
           // Terminal positions: disc nearly touching panel edge (2px gap)
           const termTopY = -65;  // L at -65
@@ -1389,7 +1389,7 @@ const Renderer = {
 
           // Thick wires (almost vertical, only 3px horizontal offset)
           ctx.lineCap = 'round';
-          ctx.lineWidth = 6;
+          ctx.lineWidth = 5;
 
           ctx.strokeStyle = '#e53e3e';
           ctx.beginPath();
@@ -1415,7 +1415,7 @@ const Renderer = {
 
           // Seesaw arm — pivots at RED contact dot
           const pivotX = redX, pivotY = redY;
-          const armWidth = 5;
+          const armWidth = 4;
 
           // Arm length = distance from red dot to green dot
           const dx = greenX - redX;   // 6
@@ -1455,7 +1455,7 @@ const Renderer = {
         // === 自回弹开关: vertical wires + offset contacts + spring-loaded seesaw arm ===
         if (c.type === 'spst_momentary') {
           const closed = c.props.closed;
-          const pinR = 7;
+          const pinR = 6;
 
           // Terminal positions: outside the panel edge (190x190, half=95)
           const termTopY = -65;  // L at -65 (距上边 30px)
@@ -1488,7 +1488,7 @@ const Renderer = {
 
           // Vertical wires from terminals to internal contact points
           ctx.lineCap = 'round';
-          ctx.lineWidth = 6;
+          ctx.lineWidth = 5;
 
           ctx.strokeStyle = '#e53e3e';
           ctx.beginPath();
@@ -1514,7 +1514,7 @@ const Renderer = {
 
           // Spring-loaded seesaw arm — pivots at RED contact, reaches GREEN when pressed
           const pivotX = redX, pivotY = redY;
-          const armWidth = 5;
+          const armWidth = 4;
           const dy = greenY - redY;   // 86
           const armLen = dy;          // contacts vertically aligned
 
@@ -1570,7 +1570,7 @@ const Renderer = {
           // SPST routing pin highlights (drawn manually since spst bypasses _drawPinsForComponent)
           for (const pin of c.pins) {
             const px = c.x + pin.dx, py = c.y + pin.dy;
-            const pinR = 7;
+            const pinR = 6;
             const isStart = (WireRouter.startPin.comp === c.id && WireRouter.startPin.pin === pin.id);
             const wp = WireRouter.wireType || 'live';
             const hc = WireRouter.WireColors[wp] || '#e53935';
