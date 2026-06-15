@@ -614,7 +614,7 @@ const Registry = {
     // --- 输出器件 ---
     { type:'lamp', name:'灯泡', cat:'输出器件', icon:'💡', desc:'白炽灯/卤素灯（交流）',
       w:120, h:220,
-      pins:[{id:'l',label:'L',dx:0,dy:100,lo:0,ld:18},{id:'n',label:'N',dx:16,dy:68,lo:16,ld:0}],
+      pins:[{id:'l',label:'L',dx:0,dy:100,lo:0,ld:30},{id:'n',label:'N',dx:16,dy:68,lo:28,ld:-8}],
       props:{voltage:220,wattage:60},
       image:'images/lamp_off.webp',
       imageOn:'images/lamp_on.webp' },
@@ -3190,8 +3190,8 @@ const WireRouter = {
     ctx.restore();
 
     // === Layer 3: Flowing arrows (moving along wire path) ===
-    // DC: 白色小箭头, AC: 金色箭头
-    this._drawFlowingArrows(flowPoints, flowColor, r, g, b, speed, isDC);
+    // DC: white small triangles   AC: gold glowing arrows
+    this._drawFlowingArrows(flowPoints, speed, isDC);
   },
 
   // Determine if current in wire actually flows from points[last] to points[0]
@@ -3278,7 +3278,7 @@ const WireRouter = {
   },
 
   // Draw arrows that continuously flow/move along the wire path
-  _drawFlowingArrows(points, flowColor, r, g, b, speed, isDC) {
+  _drawFlowingArrows(points, speed, isDC) {
     const totalLen = this._calcPathLength(points);
     if (totalLen < 30) return;
 
@@ -3293,11 +3293,6 @@ const WireRouter = {
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-
-    // Brighten wire color for arrow visibility against the wire background
-    const br = Math.min(255, r + 80);
-    const bg = Math.min(255, g + 80);
-    const bb = Math.min(255, b + 80);
 
     for (let i = 0; i < numArrows; i++) {
       // Each arrow is offset by its index * spacing
@@ -3319,11 +3314,9 @@ const WireRouter = {
       // Find tangent direction at this point
       const dirAngle = this._getTangentAngle(points, dist);
 
-      // DC: smaller, sharper arrows; AC: larger, rounded arrows
-      const arrowSize = isDC ? 3.5 : 5;
-
       if (isDC) {
-        // DC: simple triangle pointer using wire color (brightened)
+        // DC: small white triangle pointers tightly packed
+        const arrowSize = 3.5;
         const tipX = pos.x + Math.cos(dirAngle) * arrowSize;
         const tipY = pos.y + Math.sin(dirAngle) * arrowSize;
         const baseX1 = pos.x + Math.cos(dirAngle - 2.6) * arrowSize * 0.7;
@@ -3336,36 +3329,60 @@ const WireRouter = {
         ctx.lineTo(baseX1, baseY1);
         ctx.lineTo(baseX2, baseY2);
         ctx.closePath();
-        ctx.fillStyle = `rgba(${br}, ${bg}, ${bb}, ${alpha})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.fill();
-        ctx.strokeStyle = `rgba(${br}, ${bg}, ${bb}, ${alpha * 0.5})`;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
         ctx.lineWidth = 0.8;
         ctx.stroke();
       } else {
-        // AC: arrow with shaft + triangle head using wire color (brightened)
+        // AC: gold glowing arrows — prominent for visibility
+        const arrowSize = 6; // larger than DC for emphasis
+        const goldR = 255, goldG = 210, goldB = 0;
+
+        // Glow halo behind arrow
+        ctx.save();
+        ctx.shadowColor = `rgba(255, 180, 0, ${alpha})`;
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = `rgba(${goldR}, ${goldG}, ${goldB}, ${alpha * 0.7})`;
+        ctx.beginPath();
+        const hx1 = pos.x + Math.cos(dirAngle) * arrowSize;
+        const hy1 = pos.y + Math.sin(dirAngle) * arrowSize;
+        const hx2 = pos.x + Math.cos(dirAngle - 2.4) * arrowSize * 0.8;
+        const hy2 = pos.y + Math.sin(dirAngle - 2.4) * arrowSize * 0.8;
+        const hx3 = pos.x + Math.cos(dirAngle + 2.4) * arrowSize * 0.8;
+        const hy3 = pos.y + Math.sin(dirAngle + 2.4) * arrowSize * 0.8;
+        ctx.moveTo(hx1, hy1);
+        ctx.lineTo(hx2, hy2);
+        ctx.lineTo(hx3, hy3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
         // Arrow shaft (short line in flow direction)
         ctx.beginPath();
-        ctx.moveTo(pos.x - Math.cos(dirAngle) * arrowSize * 0.8, pos.y - Math.sin(dirAngle) * arrowSize * 0.8);
-        ctx.lineTo(pos.x + Math.cos(dirAngle) * arrowSize * 0.4, pos.y + Math.sin(dirAngle) * arrowSize * 0.4);
-        ctx.strokeStyle = `rgba(${br}, ${bg}, ${bb}, ${alpha * 0.9})`;
-        ctx.lineWidth = 1.8;
+        ctx.moveTo(pos.x - Math.cos(dirAngle) * arrowSize, pos.y - Math.sin(dirAngle) * arrowSize);
+        ctx.lineTo(pos.x + Math.cos(dirAngle) * arrowSize * 0.3, pos.y + Math.sin(dirAngle) * arrowSize * 0.3);
+        ctx.strokeStyle = `rgba(${goldR}, ${goldG}, ${goldB}, ${alpha * 0.95})`;
+        ctx.lineWidth = 2.2;
         ctx.stroke();
 
-        // Arrow head (triangle)
-        const ax1 = pos.x + Math.cos(dirAngle) * arrowSize * 0.5;
-        const ay1 = pos.y + Math.sin(dirAngle) * arrowSize * 0.5;
-        const ax2 = pos.x + Math.cos(dirAngle - 2.4) * arrowSize * 0.6;
-        const ay2 = pos.y + Math.sin(dirAngle - 2.4) * arrowSize * 0.6;
-        const ax3 = pos.x + Math.cos(dirAngle + 2.4) * arrowSize * 0.6;
-        const ay3 = pos.y + Math.sin(dirAngle + 2.4) * arrowSize * 0.6;
-
+        // Arrow head (filled triangle)
         ctx.beginPath();
+        const ax1 = pos.x + Math.cos(dirAngle) * arrowSize * 0.4;
+        const ay1 = pos.y + Math.sin(dirAngle) * arrowSize * 0.4;
+        const ax2 = pos.x + Math.cos(dirAngle - 2.4) * arrowSize * 0.7;
+        const ay2 = pos.y + Math.sin(dirAngle - 2.4) * arrowSize * 0.7;
+        const ax3 = pos.x + Math.cos(dirAngle + 2.4) * arrowSize * 0.7;
+        const ay3 = pos.y + Math.sin(dirAngle + 2.4) * arrowSize * 0.7;
         ctx.moveTo(ax1, ay1);
         ctx.lineTo(ax2, ay2);
         ctx.lineTo(ax3, ay3);
         ctx.closePath();
-        ctx.fillStyle = `rgba(${br}, ${bg}, ${bb}, ${alpha})`;
+        ctx.fillStyle = `rgba(${goldR}, ${goldG}, ${goldB}, ${alpha})`;
         ctx.fill();
+        ctx.strokeStyle = `rgba(${goldR}, ${Math.min(255, goldG + 30)}, ${goldB}, ${alpha * 0.6})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
     }
     ctx.restore();
