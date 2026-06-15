@@ -563,9 +563,9 @@ const Registry = {
   defs: [
     // --- 电源 ---
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
-      w:280, h:170,
+      w:220, h:130,
       image:'images/battery_12v.webp',
-      pins:[{id:'p',label:'+',dx:70,dy:-16},{id:'n',label:'-',dx:-70,dy:-16}],
+      pins:[{id:'p',label:'+',dx:70,dy:-14},{id:'n',label:'-',dx:-70,dy:-14}],
       props:{voltage:12} },
 
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
@@ -588,10 +588,10 @@ const Registry = {
 
     // --- 自回弹开关（点动/复位按钮，按住导通松手断开） ---
     { type:'spst_momentary', name:'自回弹开关', cat:'开关/按钮', icon:'🔘', desc:'点动自回弹开关（按住导通松手断开，带指示灯）',
-      w:190, h:190,
+      w:160, h:160,
       image:'images/switch_momentary_off.webp?v=2',
       imageOn:'images/switch_momentary_on.webp?v=2',
-      pins:[{id:'l',label:'L',dx:0,dy:-98},{id:'l1',label:'L1',dx:0,dy:98}],
+      pins:[{id:'l',label:'L',dx:0,dy:-83},{id:'l1',label:'L1',dx:0,dy:83}],
       props:{closed:false} },
 
     // --- 继电器/接触器 ---
@@ -602,20 +602,19 @@ const Registry = {
       model:'KR2201-COM',
       w:280, h:176,
       image:'images/dry_relay.webp',
-      // 端子对准600x600 PNG实物圆圈（Python精确扫描）
-      // render: imgAR=1.0 < boxAR=1.2 → 250×250居中, scale=250/600
-      pins:[{id:'l',label:'L',dx:93,dy:-12,lo:30,ld:0,type:'coil'},
-            {id:'n',label:'N',dx:93,dy:8,lo:30,ld:0,type:'coil'},
-            {id:'no',label:'NO',dx:-88,dy:-22,lo:-30,ld:0,type:'contact'},
-            {id:'com',label:'COM',dx:-88,dy:-2,lo:-30,ld:0,type:'contact'},
-            {id:'nc',label:'NC',dx:-88,dy:18,lo:-30,ld:0,type:'contact'}],
+      // 端子基于507×320裁剪图（实物照片内容bbox），Python精确扫描
+      pins:[{id:'l',label:'L',dx:86,dy:-38,lo:30,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:86,dy:-16,lo:30,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-112,dy:-38,lo:-30,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-112,dy:-16,lo:-30,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-112,dy:20,lo:-30,ld:0,type:'contact'}],
       props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
 
 
     // --- 输出器件 ---
     { type:'lamp', name:'灯泡', cat:'输出器件', icon:'💡', desc:'白炽灯/卤素灯（交流）',
-      w:180, h:330,
-      pins:[{id:'l',label:'L',dx:0,dy:150,lo:0,ld:22},{id:'n',label:'N',dx:18,dy:120,lo:18,ld:0}],
+      w:140, h:260,
+      pins:[{id:'l',label:'L',dx:0,dy:118,lo:0,ld:22},{id:'n',label:'N',dx:18,dy:95,lo:18,ld:0}],
       props:{voltage:220,wattage:60},
       image:'images/lamp_off.webp',
       imageOn:'images/lamp_on.webp' },
@@ -1279,8 +1278,8 @@ const Renderer = {
         // Glow effects on top of image — screen blend for realistic light emission
         if (c.type === 'lamp' && S.simRunning && c.simCurrent > 0) {
           const intensity = Math.min(c.simCurrent / 1.5, 1);  // very low threshold so even dim current glows visibly
-          const cx = 0, cy = -80;
-          const r = 140;
+          const cx = 0, cy = -65;
+          const r = 90;
 
           ctx.globalCompositeOperation = 'screen';
 
@@ -1455,15 +1454,15 @@ const Renderer = {
         // === 自回弹开关: vertical wires + offset contacts + spring-loaded seesaw arm ===
         if (c.type === 'spst_momentary') {
           const closed = c.props.closed;
-          const pinR = 7;
+          const pinR = 6;
 
           // Terminal positions: outside panel edge (half=80, 3px outside)
           const termTopY = -83;
           const termBotY =  83;
 
-          // Contacts: arm ~66px, wire ~43px
-          const redX  = 0,  redY  = -33;
-          const greenX = 0,  greenY =  33;
+          // Contacts: arm ~56px, wire ~27px (scaled from 190→160)
+          const redX  = 0,  redY  = -28;
+          const greenX = 0,  greenY =  28;
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
@@ -1488,7 +1487,7 @@ const Renderer = {
 
           // Vertical wires from terminals to internal contact points
           ctx.lineCap = 'round';
-          ctx.lineWidth = 6;
+          ctx.lineWidth = 5;
 
           ctx.strokeStyle = '#e53e3e';
           ctx.beginPath();
@@ -1505,17 +1504,17 @@ const Renderer = {
           // Contact dots
           ctx.fillStyle = '#c0392b';
           ctx.beginPath();
-          ctx.arc(redX, redY, 3.5, 0, Math.PI * 2);
+          ctx.arc(redX, redY, 3, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#27ae60';
           ctx.beginPath();
-          ctx.arc(greenX, greenY, 3.5, 0, Math.PI * 2);
+          ctx.arc(greenX, greenY, 3, 0, Math.PI * 2);
           ctx.fill();
 
           // Spring-loaded seesaw arm — pivots at RED contact, reaches GREEN when pressed
           const pivotX = redX, pivotY = redY;
-          const armWidth = 5;
-          const dy = greenY - redY;   // 66
+          const armWidth = 4;
+          const dy = greenY - redY;   // 56
           const armLen = dy;          // contacts vertically aligned
 
           if (closed) {
@@ -1651,10 +1650,10 @@ const Renderer = {
       const connected = WireRouter.isPinConnected(c.id, pin.id);
       const pinWireType = connected ? WireRouter.getPinWireType(c.id, pin.id) : null;
       const wireColor = pinWireType ? WireRouter.WireColors[pinWireType] : null;
-      const pinR = (c.type === 'lamp' || c.type === 'spst' || c.type === 'spst_momentary') ? 5 : 8.5;
+      const pinR = (c.type === 'lamp' || c.type === 'spst' || c.type === 'spst_momentary') ? 7 : (c.type === 'battery_12v' ? 10 : 8.5);
 
       if (connected && wireColor && !isXray) {
-        drawCrimp3D(px, py, wireColor, (c.type === 'lamp' || c.type === 'spst' || c.type === 'spst_momentary') ? 5 : 8);
+        drawCrimp3D(px, py, wireColor, (c.type === 'lamp' || c.type === 'spst' || c.type === 'spst_momentary') ? 7 : (c.type === 'battery_12v' ? 10 : 8));
       } else {
         ctx.beginPath();
         ctx.arc(px, py, pinR, 0, Math.PI * 2);
@@ -1691,7 +1690,7 @@ const Renderer = {
       }
 
       if (pin.label) {
-        ctx.font = (c.type === 'battery_12v' || c.type === 'bell_dc') ? 'bold 28px Arial' : 'bold 16px Arial';
+        ctx.font = (c.type === 'battery_12v' || c.type === 'bell_dc') ? 'bold 28px Arial' : (c.type === 'lamp' || c.type === 'dry_relay') ? 'bold 22px Arial' : 'bold 16px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const lbl = pin.label.toUpperCase();
