@@ -588,10 +588,10 @@ const Registry = {
 
     // --- 自回弹开关（点动/复位按钮，按住导通松手断开） ---
     { type:'spst_momentary', name:'自回弹开关', cat:'开关/按钮', icon:'🔘', desc:'点动自回弹开关（按住导通松手断开，带指示灯）',
-      w:160, h:160,
+      w:220, h:220,
       image:'images/switch_momentary_off.webp?v=2',
       imageOn:'images/switch_momentary_on.webp?v=2',
-      pins:[{id:'l',label:'L',dx:0,dy:-87},{id:'l1',label:'L1',dx:0,dy:90}],
+      pins:[{id:'l',label:'L',dx:0,dy:-75},{id:'l1',label:'L1',dx:0,dy:82}],
       props:{closed:false} },
 
     // --- 继电器/接触器 ---
@@ -1457,13 +1457,13 @@ const Renderer = {
           const closed = c.props.closed;
           const pinR = 7;
 
-          // Terminal positions: outside the panel edge
-          const termTopY = -87;  // L at -87
-          const termBotY =  90;  // L1 at +90
+          // Terminal positions: outside the panel edge (220x220, half=110)
+          const termTopY = -75;  // L at -75 (距上边 35px)
+          const termBotY =  82;  // L1 at +82 (距下边 28px)
 
           // Contact points inside panel (vertically aligned)
-          const redX  = 0,  redY  = -48;   // red: below L terminal
-          const greenX = 0,  greenY = +38;  // green: above L1 terminal
+          const redX  = 0,  redY  = -44;   // red: below L terminal
+          const greenX = 0,  greenY = +50;  // green: above L1 terminal
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
