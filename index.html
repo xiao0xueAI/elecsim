@@ -579,7 +579,7 @@ const Registry = {
     // SPST (单开单控): 最简单的开关，L=相线入(红)，L1=相线出，闭合导通断开截止
     { type:'spst', name:'单开单控', cat:'开关/按钮', icon:'🎚', desc:'单刀单掷/单开单控墙壁开关（实物照片）',
       w:190, h:190,
-      pins:[{id:'l',label:'L',dx:0,dy:-82},{id:'l1',label:'L1',dx:0,dy:83}],
+      pins:[{id:'l',label:'L',dx:0,dy:-98},{id:'l1',label:'L1',dx:0,dy:98}],
       props:{closed:false},
       image:'images/spst_off.webp?v=1',
       imageOn:'images/spst_on.webp?v=1',
@@ -591,7 +591,7 @@ const Registry = {
       w:190, h:190,
       image:'images/switch_momentary_off.webp?v=2',
       imageOn:'images/switch_momentary_on.webp?v=2',
-      pins:[{id:'l',label:'L',dx:0,dy:-82},{id:'l1',label:'L1',dx:0,dy:83}],
+      pins:[{id:'l',label:'L',dx:0,dy:-98},{id:'l1',label:'L1',dx:0,dy:98}],
       props:{closed:false} },
 
     // --- 继电器/接触器 ---
@@ -1358,13 +1358,13 @@ const Renderer = {
           const halfH = bh / 2;  // 95
           const pinR = 6;
 
-          // Terminal positions: disc nearly touching panel edge (2px gap)
-          const termTopY = -82;  // L at -82
-          const termBotY =  83;  // L1 at +83
+          // Terminal positions: outside panel edge (half=95, disc center beyond panel)
+          const termTopY = -98;  // L at -98 (3px outside)
+          const termBotY =  98;  // L1 at +98 (3px outside)
 
-          // Contact points inside panel (vertically aligned for straight wires)
-          const redX  = 0,  redY  = -38;   // red: directly below L terminal
-          const greenX = 0,  greenY = +40;  // green: directly above L1 terminal
+          // Contact points inside panel — wires from terminals = 36px each (equal length)
+          const redX  = 0,  redY  = termTopY + 6 + 36;   // -56
+          const greenX = 0,  greenY = termBotY - 6 - 36;  // +56
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
@@ -1457,13 +1457,13 @@ const Renderer = {
           const closed = c.props.closed;
           const pinR = 6;
 
-          // Terminal positions: at panel edge (190x190, half=95)
-          const termTopY = -82;  // L at -82 (距上边 13px)
-          const termBotY =  83;  // L1 at +83 (距下边 12px)
+          // Terminal positions: outside panel edge (half=95, disc center beyond panel)
+          const termTopY = -98;  // L at -98 (3px outside)
+          const termBotY =  98;  // L1 at +98 (3px outside)
 
-          // Contact points inside panel (vertically aligned)
-          const redX  = 0,  redY  = -45;   // red: below L terminal
-          const greenX = 0,  greenY = +48;  // green: above L1 terminal
+          // Contact points inside panel — wires from terminals = 36px each (equal length)
+          const redX  = 0,  redY  = termTopY + 6 + 36;   // -56
+          const greenX = 0,  greenY = termBotY - 6 - 36;  // +56
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
