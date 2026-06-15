@@ -563,7 +563,7 @@ const Registry = {
   defs: [
     // --- 电源 ---
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
-      w:300, h:170,
+      w:280, h:170,
       image:'images/battery_12v.webp',
       pins:[{id:'p',label:'+',dx:70,dy:-16},{id:'n',label:'-',dx:-70,dy:-16}],
       props:{voltage:12} },
@@ -600,8 +600,8 @@ const Registry = {
     { type:'dry_relay', name:'433MHz干接点继电器', cat:'继电器/接触器', icon:'📡',
       desc:'KR2201-COM | 433MHz无线10A干接点1CH AC110V/220V（实物照片）',
       model:'KR2201-COM',
-      w:300, h:250,
-      image:'images/dry_relay.png',
+      w:280, h:176,
+      image:'images/dry_relay.webp',
       // 端子对准600x600 PNG实物圆圈（Python精确扫描）
       // render: imgAR=1.0 < boxAR=1.2 → 250×250居中, scale=250/600
       pins:[{id:'l',label:'L',dx:93,dy:-12,lo:30,ld:0,type:'coil'},
@@ -614,15 +614,15 @@ const Registry = {
 
     // --- 输出器件 ---
     { type:'lamp', name:'灯泡', cat:'输出器件', icon:'💡', desc:'白炽灯/卤素灯（交流）',
-      w:220, h:220,
-      pins:[{id:'l',label:'L',dx:0,dy:70,lo:0,ld:22},{id:'n',label:'N',dx:18,dy:40,lo:18,ld:0}],
+      w:180, h:330,
+      pins:[{id:'l',label:'L',dx:0,dy:150,lo:0,ld:22},{id:'n',label:'N',dx:18,dy:120,lo:18,ld:0}],
       props:{voltage:220,wattage:60},
       image:'images/lamp_off.webp',
       imageOn:'images/lamp_on.webp' },
 
     // 直流电铃 (电磁锤式，通电即响，内部触点自动通断)
     { type:'bell_dc', name:'直流电铃', cat:'输出器件', icon:'🔔', desc:'直流电磁锤式电铃（通电即响，内部触点自动通断）',
-      w:160, h:160,
+      w:160, h:155,
       image:'images/bell_dc.webp',
       pins:[{id:'n',label:'-',dx:-18,dy:62,ld:18},{id:'p',label:'+',dx:18,dy:62,ld:18}],
       props:{voltage:12,resistance:20} },
@@ -1279,8 +1279,8 @@ const Renderer = {
         // Glow effects on top of image — screen blend for realistic light emission
         if (c.type === 'lamp' && S.simRunning && c.simCurrent > 0) {
           const intensity = Math.min(c.simCurrent / 1.5, 1);  // very low threshold so even dim current glows visibly
-          const cx = 0, cy = -50;
-          const r = 95;
+          const cx = 0, cy = -80;
+          const r = 140;
 
           ctx.globalCompositeOperation = 'screen';
 
