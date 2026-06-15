@@ -563,9 +563,9 @@ const Registry = {
   defs: [
     // --- 电源 ---
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
-      w:220, h:130,
+      w:180, h:110,
       image:'images/battery_12v.webp',
-      pins:[{id:'p',label:'+',dx:70,dy:-14},{id:'n',label:'-',dx:-70,dy:-14}],
+      pins:[{id:'p',label:'+',dx:55,dy:-12},{id:'n',label:'-',dx:-55,dy:-12}],
       props:{voltage:12} },
 
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
@@ -600,21 +600,21 @@ const Registry = {
     { type:'dry_relay', name:'433MHz干接点继电器', cat:'继电器/接触器', icon:'📡',
       desc:'KR2201-COM | 433MHz无线10A干接点1CH AC110V/220V（实物照片）',
       model:'KR2201-COM',
-      w:280, h:176,
+      w:220, h:140,
       image:'images/dry_relay.webp',
-      // 端子基于507×320裁剪图（实物照片内容bbox），Python精确扫描
-      pins:[{id:'l',label:'L',dx:86,dy:-38,lo:30,ld:0,type:'coil'},
-            {id:'n',label:'N',dx:86,dy:-16,lo:30,ld:0,type:'coil'},
-            {id:'no',label:'NO',dx:-112,dy:-38,lo:-30,ld:0,type:'contact'},
-            {id:'com',label:'COM',dx:-112,dy:-16,lo:-30,ld:0,type:'contact'},
-            {id:'nc',label:'NC',dx:-112,dy:20,lo:-30,ld:0,type:'contact'}],
+      // 端子基于507×320裁剪图，用户标注颜色定位
+      pins:[{id:'l',label:'L',dx:90,dy:-14,lo:28,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:90,dy:36,lo:28,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-88,dy:-28,lo:-28,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-88,dy:-6,lo:-28,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-88,dy:16,lo:-28,ld:0,type:'contact'}],
       props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
 
 
     // --- 输出器件 ---
     { type:'lamp', name:'灯泡', cat:'输出器件', icon:'💡', desc:'白炽灯/卤素灯（交流）',
       w:140, h:260,
-      pins:[{id:'l',label:'L',dx:0,dy:118,lo:0,ld:22},{id:'n',label:'N',dx:18,dy:95,lo:18,ld:0}],
+      pins:[{id:'l',label:'L',dx:0,dy:118,lo:0,ld:22},{id:'n',label:'N',dx:18,dy:80,lo:18,ld:0}],
       props:{voltage:220,wattage:60},
       image:'images/lamp_off.webp',
       imageOn:'images/lamp_on.webp' },
@@ -1355,11 +1355,11 @@ const Renderer = {
         if (c.type === 'spst') {
           const closed = c.props.closed;
           const halfH = bh / 2;  // 80
-          const pinR = 7;
+          const pinR = 9;
 
           // Terminal positions: outside panel edge (half=80, 3px outside)
-          const termTopY = -83;
-          const termBotY =  83;
+          const termTopY = -85;
+          const termBotY =  85;
 
           // Contacts: arm ~66px, wire ~43px
           const redX  = 0,  redY  = -33;
@@ -1371,10 +1371,10 @@ const Renderer = {
             ctx.fillStyle = fillColor;
             ctx.fill();
             ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 2;
             ctx.stroke();
             if (label) {
-              ctx.font = 'bold 12px Arial';
+              ctx.font = 'bold 14px Arial';
               ctx.textAlign = 'left';
               ctx.textBaseline = 'middle';
               ctx.fillStyle = fillColor;
@@ -1388,7 +1388,7 @@ const Renderer = {
 
           // Thick wires (almost vertical, only 3px horizontal offset)
           ctx.lineCap = 'round';
-          ctx.lineWidth = 6;
+          ctx.lineWidth = 7;
 
           ctx.strokeStyle = '#e53e3e';
           ctx.beginPath();
@@ -1414,7 +1414,7 @@ const Renderer = {
 
           // Seesaw arm — pivots at RED contact dot
           const pivotX = redX, pivotY = redY;
-          const armWidth = 5;
+          const armWidth = 6;
 
           // Arm length = distance from red dot to green dot
           const dx = greenX - redX;   // 0
@@ -1454,13 +1454,13 @@ const Renderer = {
         // === 自回弹开关: vertical wires + offset contacts + spring-loaded seesaw arm ===
         if (c.type === 'spst_momentary') {
           const closed = c.props.closed;
-          const pinR = 6;
+          const pinR = 9;
 
-          // Terminal positions: outside panel edge (half=80, 3px outside)
-          const termTopY = -83;
-          const termBotY =  83;
+          // Terminal positions: outside panel edge (half=80, 5px outside for bigger pins)
+          const termTopY = -85;
+          const termBotY =  85;
 
-          // Contacts: arm ~56px, wire ~27px (scaled from 190→160)
+          // Contacts: arm ~56px, wire ~27px (scaled for 160×160)
           const redX  = 0,  redY  = -28;
           const greenX = 0,  greenY =  28;
 
@@ -1470,10 +1470,10 @@ const Renderer = {
             ctx.fillStyle = fillColor;
             ctx.fill();
             ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 2;
             ctx.stroke();
             if (label) {
-              ctx.font = 'bold 12px Arial';
+              ctx.font = 'bold 14px Arial';
               ctx.textAlign = 'left';
               ctx.textBaseline = 'middle';
               ctx.fillStyle = fillColor;
@@ -1487,7 +1487,7 @@ const Renderer = {
 
           // Vertical wires from terminals to internal contact points
           ctx.lineCap = 'round';
-          ctx.lineWidth = 5;
+          ctx.lineWidth = 7;
 
           ctx.strokeStyle = '#e53e3e';
           ctx.beginPath();
@@ -1504,16 +1504,16 @@ const Renderer = {
           // Contact dots
           ctx.fillStyle = '#c0392b';
           ctx.beginPath();
-          ctx.arc(redX, redY, 3, 0, Math.PI * 2);
+          ctx.arc(redX, redY, 3.5, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#27ae60';
           ctx.beginPath();
-          ctx.arc(greenX, greenY, 3, 0, Math.PI * 2);
+          ctx.arc(greenX, greenY, 3.5, 0, Math.PI * 2);
           ctx.fill();
 
           // Spring-loaded seesaw arm — pivots at RED contact, reaches GREEN when pressed
           const pivotX = redX, pivotY = redY;
-          const armWidth = 4;
+          const armWidth = 6;
           const dy = greenY - redY;   // 56
           const armLen = dy;          // contacts vertically aligned
 
@@ -1569,7 +1569,7 @@ const Renderer = {
           // SPST routing pin highlights (drawn manually since spst bypasses _drawPinsForComponent)
           for (const pin of c.pins) {
             const px = c.x + pin.dx, py = c.y + pin.dy;
-            const pinR = 7;
+            const pinR = 9;
             const isStart = (WireRouter.startPin.comp === c.id && WireRouter.startPin.pin === pin.id);
             const wp = WireRouter.wireType || 'live';
             const hc = WireRouter.WireColors[wp] || '#e53935';
@@ -1650,10 +1650,10 @@ const Renderer = {
       const connected = WireRouter.isPinConnected(c.id, pin.id);
       const pinWireType = connected ? WireRouter.getPinWireType(c.id, pin.id) : null;
       const wireColor = pinWireType ? WireRouter.WireColors[pinWireType] : null;
-      const pinR = (c.type === 'lamp' || c.type === 'spst' || c.type === 'spst_momentary') ? 7 : (c.type === 'battery_12v' ? 10 : 8.5);
+      const pinR = (c.type === 'lamp' || c.type === 'spst' || c.type === 'spst_momentary') ? 9 : (c.type === 'battery_12v' ? 10 : 8.5);
 
       if (connected && wireColor && !isXray) {
-        drawCrimp3D(px, py, wireColor, (c.type === 'lamp' || c.type === 'spst' || c.type === 'spst_momentary') ? 7 : (c.type === 'battery_12v' ? 10 : 8));
+        drawCrimp3D(px, py, wireColor, (c.type === 'lamp' || c.type === 'spst' || c.type === 'spst_momentary') ? 9 : (c.type === 'battery_12v' ? 10 : 8));
       } else {
         ctx.beginPath();
         ctx.arc(px, py, pinR, 0, Math.PI * 2);
@@ -1690,7 +1690,7 @@ const Renderer = {
       }
 
       if (pin.label) {
-        ctx.font = (c.type === 'battery_12v' || c.type === 'bell_dc') ? 'bold 28px Arial' : (c.type === 'lamp' || c.type === 'dry_relay') ? 'bold 22px Arial' : 'bold 16px Arial';
+        ctx.font = (c.type === 'battery_12v' || c.type === 'bell_dc') ? 'bold 28px Arial' : (c.type === 'lamp') ? 'bold 22px Arial' : (c.type === 'dry_relay') ? 'bold 24px Arial' : 'bold 16px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const lbl = pin.label.toUpperCase();
