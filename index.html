@@ -1362,9 +1362,9 @@ const Renderer = {
           const termTopY = -98;
           const termBotY =  98;
 
-          // Contacts: wire = arm = 60px each (three equal segments)
-          const redX  = 0,  redY  = -30;
-          const greenX = 0,  greenY =  30;
+          // Contacts: arm ~80px, wire ~50px (翘片为主，线短)
+          const redX  = 0,  redY  = -40;
+          const greenX = 0,  greenY =  40;
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
@@ -1419,8 +1419,8 @@ const Renderer = {
 
           // Arm length = distance from red dot to green dot
           const dx = greenX - redX;   // 0
-          const dy = greenY - redY;   // 60
-          const armLen = Math.sqrt(dx*dx + dy*dy);  // 60
+          const dy = greenY - redY;   // 80
+          const armLen = Math.sqrt(dx*dx + dy*dy);  // 80
 
           if (closed) {
             // ON: arm reaches green contact dot
@@ -1461,9 +1461,9 @@ const Renderer = {
           const termTopY = -98;
           const termBotY =  98;
 
-          // Contacts: wire = arm = 60px each (three equal segments)
-          const redX  = 0,  redY  = -30;
-          const greenX = 0,  greenY =  30;
+          // Contacts: arm ~80px, wire ~50px (翘片为主，线短)
+          const redX  = 0,  redY  = -40;
+          const greenX = 0,  greenY =  40;
 
           function drawPinDisc(x, y, r, fillColor, strokeColor, label) {
             ctx.beginPath();
@@ -1515,7 +1515,7 @@ const Renderer = {
           // Spring-loaded seesaw arm — pivots at RED contact, reaches GREEN when pressed
           const pivotX = redX, pivotY = redY;
           const armWidth = 6;
-          const dy = greenY - redY;   // 60
+          const dy = greenY - redY;   // 80
           const armLen = dy;          // contacts vertically aligned
 
           if (closed) {
