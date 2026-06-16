@@ -3660,13 +3660,14 @@ const Engine = {
       });
     });
 
-    // For each junction, connect all pin nodes that are connected through it
+    // For each junction, create a junction node and connect all pins to it.
+    // This prevents the DFS from traversing between different components' pins
+    // at the same junction (which would create spurious series paths for parallel circuits).
     jxMap.forEach((entries, key) => {
-      const pinKeys = []; // all pin keys reachable through this junction
+      const pinKeys = [];
       const _seenKeys = new Set();
       entries.forEach(entry => {
         const w = entry.wire;
-        // Collect both endpoint pin keys for regular wires, or the non-junction end for junction wires
         if (!w.from.junction) {
           const k = mkKey(w.from.comp, w.from.pin);
           if (!_seenKeys.has(k)) { _seenKeys.add(k); pinKeys.push(k); }
@@ -3676,16 +3677,16 @@ const Engine = {
           if (!_seenKeys.has(k)) { _seenKeys.add(k); pinKeys.push(k); }
         }
       });
-      // If this junction connects 2+ pin nodes, add edges between all of them
       if (pinKeys.length >= 2) {
-        for (let i = 0; i < pinKeys.length; i++) {
-          for (let j = i + 1; j < pinKeys.length; j++) {
-            // Check bidirectional — add edges both ways with the wire that passes through the junction
-            const connectingWire = entries.find(e => !e.wire.from.junction && !e.wire.to.junction);
-            const wireId = connectingWire ? connectingWire.wire.id : null;
-            addEdge(pinKeys[i], pinKeys[j], wireId, null);
-          }
-        }
+        const jxKey = 'jx:' + key;
+        pinKeys.forEach(pk => {
+          // Extract component ID from pin key (format: "compId_pinId")
+          const compId = pk.substring(0, pk.lastIndexOf('_'));
+          // Pin → Junction
+          adj.push({ from: pk, to: jxKey, wireId: null, compId: null });
+          // Junction → Pin (compId so DFS knows which component this pin belongs to)
+          adj.push({ from: jxKey, to: pk, wireId: null, compId: compId });
+        });
       }
     });
 
@@ -3796,6 +3797,17 @@ const Engine = {
 
           // Skip if this pin was already visited (avoid cycles)
           if (visitedPins.has(to)) continue;
+
+          // Handle junction nodes (jx:*) — electrical nodes that pass through without component processing.
+          // Junction nodes represent physical wire T-junctions where multiple wires converge.
+          if (to.startsWith('jx:')) {
+            const newPathWires = [...pathWires];
+            if (wireId && !newPathWires.includes(wireId)) newPathWires.push(wireId);
+            const newVisitedPins = new Set(visitedPins);
+            newVisitedPins.add(to);
+            dfs(to, entryComp, entryPin, newVisitedPins, [...pathComps], newPathWires, [...pathPins, to]);
+            continue;
+          }
 
           // Get component info for 'to' pin
           const info = pinInfo.get(to);
