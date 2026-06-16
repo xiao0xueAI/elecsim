@@ -3821,11 +3821,11 @@ const Engine = {
       if (!graph.has(e.from)) graph.set(e.from, []);
       graph.get(e.from).push(e);
     });
-    return { graph, pinInfo };
+    return { graph, pinInfo, wireMap };
     }; // end _buildGraph
 
     // ==================== First build: pre-solve AC to determine relay states ====================
-    let { graph, pinInfo } = _buildGraph();
+    let { graph, pinInfo, wireMap } = _buildGraph();
 
     // ==================== Component resistance & behavior ====================
     const getR = (comp) => {
@@ -4027,6 +4027,7 @@ const Engine = {
       const rebuilt = _buildGraph();
       graph = rebuilt.graph;
       pinInfo = rebuilt.pinInfo;
+      wireMap = rebuilt.wireMap;
     }
 
     // ==================== Process each battery (full solve with correct relay states) ====================
@@ -4038,6 +4039,7 @@ const Engine = {
       return;
     }
 
+    let anyBatteryHasPath = false;
     batteries.forEach(bat => {
       // Determine positive/negative pin IDs based on component type
       // (Cannot hardcode 'p'/'n' because different power sources use different pin names)
@@ -4050,13 +4052,7 @@ const Engine = {
       const negKey = mkKey(bat.id, negPin);
 
       // Check if positive terminal has any connections
-      if (!graph.has(posKey) || (graph.get(posKey) || []).length === 0) {
-        document.getElementById('simCurrent').textContent = '0.00 mA';
-        document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
-        document.getElementById('simPower').textContent = '0.00 mW';
-        this.showFaults(faults);
-        return;
-      }
+      if (!graph.has(posKey) || (graph.get(posKey) || []).length === 0) return;
 
       const paths = findAllPaths(posKey, negKey);
       if (paths._timedOut) {
@@ -4064,12 +4060,10 @@ const Engine = {
       }
 
       if (paths.length === 0) {
-        document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
-        document.getElementById('simVoltage').textContent = bat.props.voltage + ' V';
-        document.getElementById('simPower').textContent = '0.00 mW';
-        this.showFaults(faults);
+        // 此电源无通路，不覆盖其他电源的结果；最终若所有电源都无通路才显示断路
         return;
       }
+      anyBatteryHasPath = true;
 
       // ==================== Calculate equivalent resistance ====================
       // Each path represents a series circuit from + to -
@@ -4316,6 +4310,12 @@ const Engine = {
         }
       });
     });
+
+    // 如果所有电源都没有找到通路，显示断路提示
+    if (!anyBatteryHasPath && batteries.length > 0) {
+      document.getElementById('simCurrent').textContent = '0.00 mA (断路)';
+      document.getElementById('simPower').textContent = '0.00 mW';
+    }
 
     this.showFaults(faults);
     } catch(err) {
