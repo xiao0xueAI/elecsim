@@ -180,10 +180,6 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 ::-webkit-scrollbar-thumb:hover{background:var(--border-light);}
 
-/* ==================== X-ray mode ==================== */
-.xray-mode .comp-body{opacity:.4 !important;}
-.xray-mode .wire-line{opacity:.3 !important;}
-
 /* ==================== Recording Indicator ==================== */
 #recIndicator{display:none;align-items:center;gap:5px;padding:3px 8px;background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);border-radius:20px;font-size:10px;color:#f85149;font-weight:600;cursor:pointer;user-select:none;}
 #recIndicator.recording{display:inline-flex;}
@@ -219,10 +215,9 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
     <button class="tbtn" id="btnUndo" onclick="ElecSim.History.undo()" disabled title="撤销 (Ctrl+Z)">&#8630; 撤销</button>
     <button class="tbtn" id="btnRedo" onclick="ElecSim.History.redo()" disabled title="重做 (Ctrl+Y)">&#8631; 重做</button>
     <div class="sep"></div>
-    <button class="tbtn active" id="btnStandard" onclick="ElecSim.UI.setView('standard')">&#9673; 标准</button>
-    <button class="tbtn" id="btnXray" onclick="ElecSim.UI.setView('xray')">&#9881; X光</button>
     <button class="tbtn" id="btnDeleteWire" onclick="ElecSim.WireRouter.toggleDeleteMode()">&#128465; 删除布线</button>
     <button class="tbtn" id="btnDeleteAllWires" onclick="ElecSim.WireRouter.deleteAllWires()" style="color:#f85149;">&#128465; 一键清线</button>
+    <button class="tbtn" id="btnClearAll" onclick="ElecSim.UI.clearAll()" style="color:#ff7043;">&#128260; 清空画布</button>
     <div class="sep"></div>
     <button class="tbtn run" id="btnRun" onclick="ElecSim.Engine.toggle()">&#9654; 运行仿真</button>
     <div class="sep"></div>
@@ -514,7 +509,6 @@ const S = {
   dragOff: { x: 0, y: 0 },
   panning: false,
   panStart: { x: 0, y: 0 },
-  viewMode: 'standard',
   showInternal: false,
   showCurrentDir: true,
   showPinLabels: true,
@@ -1141,7 +1135,7 @@ const Renderer = {
     const startY = Math.floor(-S.pan.y / S.zoom / g) * g;
     const endX = startX + W / S.zoom + g * 2;
     const endY = startY + H / S.zoom + g * 2;
-    const isXray = S.viewMode === 'xray';
+    const isXray = false;
 
     ctx.strokeStyle = isXray ? 'rgba(57,210,192,0.06)' : 'rgba(255,255,255,0.04)';
     ctx.lineWidth = 0.5;
@@ -1163,7 +1157,7 @@ const Renderer = {
     S.components.forEach(c => {
       const sel = S.selected === c.id;
       const catColor = Config.categoryColors[c.cat] || '#58a6ff';
-      const isXray = S.viewMode === 'xray';
+      const isXray = false;
 
       ctx.save();
       ctx.translate(c.x, c.y);
@@ -1640,7 +1634,7 @@ const Renderer = {
 
 
   _drawPinsForComponent(c) {
-    const isXray = S.viewMode === 'xray';
+    const isXray = false;
     c.pins.forEach(pin => {
       const px = c.x + pin.dx, py = c.y + pin.dy;
       const connected = WireRouter.isPinConnected(c.id, pin.id);
@@ -2847,7 +2841,7 @@ const WireRouter = {
   },
 
   drawWires() {
-    const isXray = S.viewMode === 'xray';
+    const isXray = false;
     const junctionPositions = new Map(); // "x,y" → Set of wire IDs
 
     // Helper: get wire endpoints as [p1, p2], returns null if invalid
@@ -3150,7 +3144,7 @@ const WireRouter = {
   drawCurrentFlow(points, current, wireColor, wire) {
     if (!points || points.length < 2) return;
     const speed = Math.min(Math.abs(current) / 4, 5);
-    const isXray = S.viewMode === 'xray';
+    const isXray = false;
     const wt = wire ? (wire.wireType || 'live') : 'live';
     const isDC = wt === 'dc_pos' || wt === 'dc_neg';
     // Flow animation uses the wire's own color (not hardcoded gold/white)
@@ -4971,6 +4965,32 @@ const Recorder = {
 
 // ==================== Section 12: UI Controllers ====================
 const UI = {
+  clearAll() {
+    const compCount = S.components.length;
+    const wireCount = S.wires.length;
+    if (compCount === 0 && wireCount === 0) {
+      this.toast('画布已是空的', 'warn');
+      return;
+    }
+    // 停止仿真
+    if (Engine.running) Engine.toggle();
+    // 清空所有数据
+    S.components = [];
+    S.wires = [];
+    S.selected = null;
+    S.nextId = 1;
+    S.nextWireId = 1;
+    // 清空历史记录
+    History.stack = [];
+    History.index = -1;
+    History.updateButtons();
+    // 更新计数和渲染
+    document.getElementById('compCount').textContent = '0';
+    document.getElementById('wireCount').textContent = '0';
+    requestRender();
+    this.toast(`已清空：${compCount} 个元件 + ${wireCount} 条布线`);
+  },
+
   toast(msg, type = '') {
     const el = document.getElementById('toast');
     el.textContent = msg;
@@ -4996,14 +5016,6 @@ const UI = {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     const target = document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1));
     if (target) target.classList.add('active');
-  },
-
-  setView(mode) {
-    S.viewMode = mode;
-    document.getElementById('btnStandard').classList.toggle('active', mode === 'standard');
-    document.getElementById('btnXray').classList.toggle('active', mode === 'xray');
-    document.getElementById('canvasArea').classList.toggle('xray-mode', mode === 'xray');
-    requestRender();
   },
 
   toggleOpt(el, opt) {
