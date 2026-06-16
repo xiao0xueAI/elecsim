@@ -3848,7 +3848,7 @@ const Engine = {
 
     // ==================== Find all paths using DFS ====================
     const findAllPaths = (startKey, endKey, maxPaths = 50) => {
-      const paths = [];
+      let paths = [];
       const visitedEdges = new Set(); // to avoid duplicate paths
       const _deadline = Date.now() + 500; // 500ms 超时，防止 UI 假死
       let _timedOut = false;
