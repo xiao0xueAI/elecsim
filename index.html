@@ -2511,7 +2511,8 @@ const WireRouter = {
       );
       // Auto-orthogonal from junction
       if (waypoints.length === 0 && Math.abs(jRef.x - p2.x) > S.grid && Math.abs(jRef.y - p2.y) > S.grid) {
-        const corner = this._snap({ x: p2.x, y: jRef.y });
+        const hg = S.grid;
+        const corner = { x: Math.round(p2.x / hg) * hg, y: jRef.y };
         if (Math.abs(corner.x - jRef.x) > 1 && Math.abs(corner.y - jRef.y) > 1) {
           waypoints.push(corner);
         }
@@ -2582,9 +2583,10 @@ const WireRouter = {
       // Auto-orthogonal from pin
       if (waypoints.length === 0 && Math.abs(p1.x - endPin.junction.x) > S.grid && Math.abs(p1.y - endPin.junction.y) > S.grid) {
         const useHorizFirst = this.pinNaturalDir === 'h';
+        const hg = S.grid;
         const corner = useHorizFirst
-          ? this._snap({ x: endPin.junction.x, y: p1.y })
-          : this._snap({ x: p1.x, y: endPin.junction.y });
+          ? { x: Math.round(endPin.junction.x / hg) * hg, y: p1.y }
+          : { x: p1.x, y: Math.round(endPin.junction.y / hg) * hg };
         if (Math.abs(corner.x - p1.x) > 1 && Math.abs(corner.y - p1.y) > 1) {
           waypoints.push(corner);
         }
@@ -2667,9 +2669,10 @@ const WireRouter = {
       // horizontal edge pin → horizontal-first (corner at end.x, start.y)
       // vertical edge pin → vertical-first (corner at start.x, end.y)
       const useHorizFirst = this.pinNaturalDir === 'h';
+      const hg = S.grid;
       const corner = useHorizFirst
-        ? this._snap({ x: p2.x, y: p1.y })
-        : this._snap({ x: p1.x, y: p2.y });
+        ? { x: Math.round(p2.x / hg) * hg, y: p1.y }
+        : { x: p1.x, y: Math.round(p2.y / hg) * hg };
       // Only add if corner is truly between p1 and p2 (not collinear)
       if (Math.abs(corner.x - p1.x) > 1 && Math.abs(corner.y - p1.y) > 1) {
         waypoints.push(corner);
