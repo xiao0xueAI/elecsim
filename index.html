@@ -293,7 +293,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
           <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#43a047;border-color:#43a047">地线 PE</button>
           <span style="color:#555;font-size:11px;line-height:24px;margin:0 2px;">|</span>
           <button class="wire-type-btn" data-wtype="dc_pos" onclick="ElecSim.WireRouter.setWireType('dc_pos')" style="color:#ff6d00;border-color:#ff6d00">DC+</button>
-          <button class="wire-type-btn" data-wtype="dc_neg" onclick="ElecSim.WireRouter.setWireType('dc_neg')" style="color:#546e7a;border-color:#546e7a">DC−</button>
+          <button class="wire-type-btn" data-wtype="dc_neg" onclick="ElecSim.WireRouter.setWireType('dc_neg')" style="color:#00bcd4;border-color:#00bcd4">DC−</button>
           <span style="color:#555;font-size:11px;line-height:24px;margin:0 2px;">|</span>
           <button class="wire-type-btn" data-wtype="signal" onclick="ElecSim.WireRouter.setWireType('signal')" style="color:#ffa800;border-color:#ffa800">信号</button>
           <button class="wire-type-btn" data-wtype="purple" onclick="ElecSim.WireRouter.setWireType('purple')" style="color:#ab47bc;border-color:#ab47bc">紫</button>
@@ -965,6 +965,7 @@ const BellAudio = {
   _playFallback(loop) {
     if (!this.ctx) return;
     this._stopSource();
+    this._stopFallback();  // clean up any previous fallback
     // 电铃声："叮~" 高频衰减正弦波，每 200ms 重复一次
     const now = this.ctx.currentTime;
     const gain = this.ctx.createGain();
@@ -1018,6 +1019,7 @@ const BellAudio = {
     } else {
       // 正常：AudioBufferSourceNode 播放 bell.mp3
       this._stopSource();
+      this._stopFallback();
       const src = this.ctx.createBufferSource();
       src.buffer = this.buffer;
       src.loop = true;
@@ -1025,7 +1027,11 @@ const BellAudio = {
       try {
         src.start(0);
         this.source = src;
-      } catch(e) { setTimeout(() => this.ring(bellId), 80); }
+      } catch(e) {
+        // AudioBufferSourceNode 失败 → 回退到 OscillatorNode
+        this._useFallback = true;
+        this._playFallback(true);
+      }
     }
   },
 
@@ -1245,7 +1251,7 @@ const Renderer = {
           // 引线：从端子球位置 → pin (相距5px)
           for (const pin of c.pins) {
             const isPos = pin.label === '+';
-            const color = isPos ? '#e53935' : '#1e88e5';
+            const color = isPos ? '#e53935' : '#00bcd4';
             ctx.strokeStyle = color;
             ctx.lineWidth = 3.5;
             ctx.lineCap = 'round';
@@ -1685,11 +1691,14 @@ const Renderer = {
         const lbl = pin.label.toUpperCase();
         const isLive = lbl === 'L' || lbl === '+';
         const isL1 = lbl === 'L1';
-        const isNeutral = lbl === 'N' || lbl === '-';
+        const isNeutral = lbl === 'N';
+        const isNeg = lbl === '-';
         if (isLive) {
           ctx.fillStyle = '#f85149';
         } else if (isL1) {
           ctx.fillStyle = '#22c55e';
+        } else if (isNeg) {
+          ctx.fillStyle = '#00bcd4';
         } else if (isNeutral) {
           ctx.fillStyle = '#58a6ff';
         } else if (wireColor && !isXray) {
@@ -2235,14 +2244,14 @@ const WireRouter = {
   lastDir: null,         // 'h' | 'v' - direction of last committed segment
   deleteMode: false,     // wire deletion mode
 
-  WireColors: { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#ff6d00', dc_neg:'#546e7a', purple:'#ab47bc', cyan:'#00bcd4', pink:'#ec407a', gold:'#ffc107' },
+  WireColors: { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#ff6d00', dc_neg:'#00bcd4', purple:'#ab47bc', cyan:'#00bcd4', pink:'#ec407a', gold:'#ffc107' },
   WireWidth: 5,
 
   isActive() { return this.active; },
 
   setWireType(type) {
     this.wireType = type;
-    const colorMap = { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#ff6d00', dc_neg:'#546e7a', purple:'#ab47bc', cyan:'#00bcd4', pink:'#ec407a', gold:'#ffc107' };
+    const colorMap = { live:'#e53935', neutral:'#1e88e5', ground:'#43a047', signal:'#ffa800', dc_pos:'#ff6d00', dc_neg:'#00bcd4', purple:'#ab47bc', cyan:'#00bcd4', pink:'#ec407a', gold:'#ffc107' };
     document.querySelectorAll('#wireTypeBar .wire-type-btn').forEach(b => {
       const isActive = b.dataset.wtype === type;
       b.classList.toggle('active', isActive);
@@ -3189,7 +3198,7 @@ const WireRouter = {
     ctx.restore();
 
     // === Layer 3: Flowing arrows (moving along wire path) ===
-    // DC: white small triangles   AC: gold glowing arrows
+    // Both DC and AC use gold glowing arrows
     this._drawFlowingArrows(flowPoints, speed, isDC);
   },
 
@@ -3314,28 +3323,57 @@ const WireRouter = {
       const dirAngle = this._getTangentAngle(points, dist);
 
       if (isDC) {
-        // DC: small white triangle pointers tightly packed
-        const arrowSize = 3.5;
-        const tipX = pos.x + Math.cos(dirAngle) * arrowSize;
-        const tipY = pos.y + Math.sin(dirAngle) * arrowSize;
-        const baseX1 = pos.x + Math.cos(dirAngle - 2.6) * arrowSize * 0.7;
-        const baseY1 = pos.y + Math.sin(dirAngle - 2.6) * arrowSize * 0.7;
-        const baseX2 = pos.x + Math.cos(dirAngle + 2.6) * arrowSize * 0.7;
-        const baseY2 = pos.y + Math.sin(dirAngle + 2.6) * arrowSize * 0.7;
+        // DC: gold glowing arrows, slightly smaller than AC
+        const arrowSize = 5;
+        const goldR = 255, goldG = 210, goldB = 0;
 
+        // Glow halo behind arrow
+        ctx.save();
+        ctx.shadowColor = `rgba(255, 180, 0, ${alpha})`;
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = `rgba(${goldR}, ${goldG}, ${goldB}, ${alpha * 0.6})`;
         ctx.beginPath();
-        ctx.moveTo(tipX, tipY);
-        ctx.lineTo(baseX1, baseY1);
-        ctx.lineTo(baseX2, baseY2);
+        const hx1 = pos.x + Math.cos(dirAngle) * arrowSize;
+        const hy1 = pos.y + Math.sin(dirAngle) * arrowSize;
+        const hx2 = pos.x + Math.cos(dirAngle - 2.4) * arrowSize * 0.8;
+        const hy2 = pos.y + Math.sin(dirAngle - 2.4) * arrowSize * 0.8;
+        const hx3 = pos.x + Math.cos(dirAngle + 2.4) * arrowSize * 0.8;
+        const hy3 = pos.y + Math.sin(dirAngle + 2.4) * arrowSize * 0.8;
+        ctx.moveTo(hx1, hy1);
+        ctx.lineTo(hx2, hy2);
+        ctx.lineTo(hx3, hy3);
         ctx.closePath();
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.fill();
-        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
-        ctx.lineWidth = 0.8;
+        ctx.restore();
+
+        // Arrow shaft
+        ctx.beginPath();
+        ctx.moveTo(pos.x - Math.cos(dirAngle) * arrowSize, pos.y - Math.sin(dirAngle) * arrowSize);
+        ctx.lineTo(pos.x + Math.cos(dirAngle) * arrowSize * 0.3, pos.y + Math.sin(dirAngle) * arrowSize * 0.3);
+        ctx.strokeStyle = `rgba(${goldR}, ${goldG}, ${goldB}, ${alpha * 0.9})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Arrow head
+        ctx.beginPath();
+        const ax1 = pos.x + Math.cos(dirAngle) * arrowSize * 0.4;
+        const ay1 = pos.y + Math.sin(dirAngle) * arrowSize * 0.4;
+        const ax2 = pos.x + Math.cos(dirAngle - 2.4) * arrowSize * 0.7;
+        const ay2 = pos.y + Math.sin(dirAngle - 2.4) * arrowSize * 0.7;
+        const ax3 = pos.x + Math.cos(dirAngle + 2.4) * arrowSize * 0.7;
+        const ay3 = pos.y + Math.sin(dirAngle + 2.4) * arrowSize * 0.7;
+        ctx.moveTo(ax1, ay1);
+        ctx.lineTo(ax2, ay2);
+        ctx.lineTo(ax3, ay3);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(${goldR}, ${goldG}, ${goldB}, ${alpha})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(${goldR}, ${Math.min(255, goldG + 30)}, ${goldB}, ${alpha * 0.6})`;
+        ctx.lineWidth = 1;
         ctx.stroke();
       } else {
-        // AC: gold glowing arrows — prominent for visibility
-        const arrowSize = 6; // larger than DC for emphasis
+        // AC: gold glowing arrows — slightly larger for emphasis
+        const arrowSize = 6;
         const goldR = 255, goldG = 210, goldB = 0;
 
         // Glow halo behind arrow
