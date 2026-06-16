@@ -222,6 +222,7 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
     <button class="tbtn active" id="btnStandard" onclick="ElecSim.UI.setView('standard')">&#9673; 标准</button>
     <button class="tbtn" id="btnXray" onclick="ElecSim.UI.setView('xray')">&#9881; X光</button>
     <button class="tbtn" id="btnDeleteWire" onclick="ElecSim.WireRouter.toggleDeleteMode()">&#128465; 删除布线</button>
+    <button class="tbtn" id="btnDeleteAllWires" onclick="ElecSim.WireRouter.deleteAllWires()" style="color:#f85149;">&#128465; 一键清线</button>
     <div class="sep"></div>
     <button class="tbtn run" id="btnRun" onclick="ElecSim.Engine.toggle()">&#9654; 运行仿真</button>
     <div class="sep"></div>
@@ -2738,6 +2739,20 @@ const WireRouter = {
     requestRender();
   },
 
+  // Delete all wires at once (with undo support)
+  deleteAllWires() {
+    if (S.wires.length === 0) return;
+    this.cancel();
+    const allWires = S.wires.map(w => ({ ...w }));
+    S.wires = [];
+    S.dirty = true;
+    History.push({ type: 'deleteAllWires', wires: allWires });
+    UI.toast(`已删除 ${allWires.length} 条布线`, 'success');
+    // Reset all component simCurrent so arrows disappear
+    S.components.forEach(c => { c.simCurrent = 0; c._ringing = false; });
+    requestRender();
+  },
+
   // Find the closest wire segment to a point (within threshold)
   findWireAt(x, y, threshold) {
     const t = threshold || 12;
@@ -4170,6 +4185,9 @@ const History = {
     } else if (action.type === 'deleteWire') {
       // Undo delete: re-add the wire
       S.wires.push({ ...action.wire });
+    } else if (action.type === 'deleteAllWires') {
+      // Undo delete all: restore all wires
+      S.wires = action.wires.map(w => ({ ...w }));
     }
     S.selected = null;
     UI.hideProps();
@@ -4187,6 +4205,9 @@ const History = {
     } else if (action.type === 'deleteWire') {
       // Redo delete: remove the wire again
       S.wires = S.wires.filter(w => w.id !== action.wire.id);
+    } else if (action.type === 'deleteAllWires') {
+      // Redo delete all: clear all wires again
+      S.wires = [];
     }
     requestRender();
   },
