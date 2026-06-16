@@ -629,7 +629,7 @@ const Registry = {
       pins:[],
       props:{freq:433,channel:'A',pressed:false} },
     { type:'rf_remote_2key', name:'433MHz 2键遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz两键无线遥控器（ON/OFF双键，配433MHz控制器使用）',
-      w:100, h:140,
+      w:200, h:273,
       image:'images/rf_remote_2key.webp',
       imageOn:'images/rf_remote_2key_on.webp',
       signalImage:'images/rf_signal.webp',
@@ -2151,14 +2151,16 @@ const Renderer = {
       ctx.textAlign = 'center';
       ctx.fillText('433MHz', 0, bh / 2 - 12);
     } else if (c.type === 'rf_remote_2key') {
-      // 433MHz 两键遥控器：ON键(上) + OFF键(下) 两个独立按键
-      // 裁剪后实图 328×440，ON键中心 y≈180.7，OFF键中心 y≈237.9
-      const imgH = 440;   // 裁剪后图片高度
-      const btnOnY = 180.7;  // ON键 y坐标
-      const btnOffY = 237.9; // OFF键 y坐标
-      const onCY = (btnOnY / imgH - 0.5) * c.h;   // ≈ -12.5
-      const offCY = (btnOffY / imgH - 0.5) * c.h;  // ≈ +5.7
-      const btnR = 15;
+      // 433MHz 两键遥控器：实物图 366×500 (w=200, h=273)
+      // ON键 ≈ y=40%处, OFF键 ≈ y=65%处, LED ≈ y=7.5%处
+      const imgH = 500;
+      const ledY_pct = 0.075;   // LED指示灯位置比例（顶部）
+      const onY_pct = 0.40;     // ON键中心
+      const offY_pct = 0.65;    // OFF键中心
+      const ledCY = (ledY_pct - 0.5) * c.h;  // LED Y 相对组件中心
+      const onCY = (onY_pct - 0.5) * c.h;    // ON键 Y
+      const offCY = (offY_pct - 0.5) * c.h;  // OFF键 Y
+
       const isPressed1 = S.simRunning && c.props.pressed1;
       const isPressed2 = S.simRunning && c.props.pressed2;
       const anyPressed = isPressed1 || isPressed2;
@@ -2173,7 +2175,7 @@ const Renderer = {
         if (sigImg.complete && sigImg.naturalWidth > 0) {
           const sigW = sigImg.naturalWidth, sigH = sigImg.naturalHeight;
           const sigDrawH = 36, sigDrawW = (sigW / sigH) * sigDrawH;
-          const sigY = -bh / 2 - sigDrawH - 4;
+          const sigY = -c.h / 2 - sigDrawH - 6;
           const pulseT = (Date.now() % 800) / 800;
           const pulseAlpha = 0.5 + 0.5 * Math.sin(pulseT * Math.PI * 2);
           const scale = 1 + 0.15 * Math.sin(pulseT * Math.PI * 2);
@@ -2189,114 +2191,49 @@ const Renderer = {
         }
       }
 
-      // ON 键（红色/橙色系，独立按键）
-      const drawOnBtn = (cx, cy, isPressed) => {
-        if (isPressed) {
-          ctx.beginPath();
-          ctx.arc(cx, cy, btnR + 16, 0, Math.PI * 2);
-          const glowGrad = ctx.createRadialGradient(cx, cy, btnR, cx, cy, btnR + 16);
-          glowGrad.addColorStop(0, 'rgba(255, 100, 30, 0.7)');
-          glowGrad.addColorStop(1, 'rgba(255, 60, 20, 0)');
-          ctx.fillStyle = glowGrad;
-          ctx.fill();
-        }
+      // === LED 红色指示灯（按压时闪烁）=== 
+      // 仅叠加红色光晕，不遮挡实物图
+      if (anyPressed) {
+        const pulseT = (Date.now() % 600) / 600;
+        const alpha = 0.3 + 0.7 * Math.abs(Math.sin(pulseT * Math.PI * 2));
+        // LED 发光光晕
+        const glowR = 10;
         ctx.beginPath();
-        ctx.arc(cx, cy, btnR + 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#1e0a05';
+        ctx.arc(0, ledCY, glowR, 0, Math.PI * 2);
+        const glowGrad = ctx.createRadialGradient(0, ledCY, 2, 0, ledCY, glowR);
+        glowGrad.addColorStop(0, `rgba(255, 30, 20, ${alpha})`);
+        glowGrad.addColorStop(0.5, `rgba(255, 0, 0, ${alpha * 0.6})`);
+        glowGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        ctx.fillStyle = glowGrad;
         ctx.fill();
-        ctx.strokeStyle = '#8a3a2a';
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
-        const btnGrad = ctx.createRadialGradient(cx - 3, cy - 3, 2, cx, cy, btnR);
-        if (isPressed) {
-          btnGrad.addColorStop(0, '#ff6040');
-          btnGrad.addColorStop(0.7, '#e03010');
-          btnGrad.addColorStop(1, '#8a1a0a');
-        } else {
-          btnGrad.addColorStop(0, '#702010');
-          btnGrad.addColorStop(0.7, '#501008');
-          btnGrad.addColorStop(1, '#2a0602');
-        }
+        // LED 中心亮点
         ctx.beginPath();
-        ctx.arc(cx, cy, btnR, 0, Math.PI * 2);
-        ctx.fillStyle = btnGrad;
+        ctx.arc(0, ledCY, 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 60, 40, ${alpha})`;
         ctx.fill();
-        ctx.strokeStyle = isPressed ? '#ff8844' : '#8a3a2a';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.fillStyle = isPressed ? '#fff' : '#e8a090';
-        ctx.font = 'bold 10px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('ON', cx, cy);
-      };
+      }
 
-      // OFF 键（深色/暗灰色系，独立按键）
-      const drawOffBtn = (cx, cy, isPressed) => {
-        if (isPressed) {
-          ctx.beginPath();
-          ctx.arc(cx, cy, btnR + 16, 0, Math.PI * 2);
-          const glowGrad = ctx.createRadialGradient(cx, cy, btnR, cx, cy, btnR + 16);
-          glowGrad.addColorStop(0, 'rgba(100, 100, 120, 0.6)');
-          glowGrad.addColorStop(1, 'rgba(60, 60, 80, 0)');
-          ctx.fillStyle = glowGrad;
-          ctx.fill();
-        }
-        ctx.beginPath();
-        ctx.arc(cx, cy, btnR + 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#1a1a1a';
-        ctx.fill();
-        ctx.strokeStyle = '#444';
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
-        const btnGrad = ctx.createRadialGradient(cx - 3, cy - 3, 2, cx, cy, btnR);
-        if (isPressed) {
-          btnGrad.addColorStop(0, '#888');
-          btnGrad.addColorStop(0.7, '#555');
-          btnGrad.addColorStop(1, '#222');
-        } else {
-          btnGrad.addColorStop(0, '#4a4a4a');
-          btnGrad.addColorStop(0.7, '#2a2a2a');
-          btnGrad.addColorStop(1, '#111');
-        }
-        ctx.beginPath();
-        ctx.arc(cx, cy, btnR, 0, Math.PI * 2);
-        ctx.fillStyle = btnGrad;
-        ctx.fill();
-        ctx.strokeStyle = isPressed ? '#999' : '#444';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.fillStyle = isPressed ? '#fff' : '#999';
-        ctx.font = 'bold 10px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('OFF', cx, cy);
-      };
-
-      drawOnBtn(0, onCY, isPressed1);
-      drawOffBtn(0, offCY, isPressed2);
-
-      // 无线波纹（任一按下时从对应按钮扩散）
+      // === RF 无线波纹（按压时从本体扩散）===
       if (anyPressed) {
         const t = (Date.now() % 900) / 900;
-        const pressedCY = isPressed1 ? onCY : offCY;
-        for (let i = 0; i < 3; i++) {
-          const phase = (t + i * 0.33) % 1;
-          const r = btnR + 8 + phase * 40;
-          const alpha = (1 - phase) * 0.5;
+        for (let i = 0; i < 4; i++) {
+          const phase = (t + i * 0.25) % 1;
+          const r = 30 + phase * 70;
+          const alpha = (1 - phase) * 0.45;
           ctx.beginPath();
-          ctx.arc(0, pressedCY, r, 0, Math.PI * 2);
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
           ctx.strokeStyle = `rgba(255, 168, 0, ${alpha})`;
           ctx.lineWidth = 2;
           ctx.stroke();
         }
       }
-      // 底部标识
-      ctx.fillStyle = '#888';
+
+      // === 底部标识文字 ===
+      ctx.fillStyle = '#999';
       ctx.font = '9px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('433MHz', 0, bh / 2 - 10);
-      ctx.fillText('ON / OFF', 0, bh / 2 - 1);
+      ctx.fillText('433MHz', 0, c.h / 2 - 10);
+      ctx.fillText('ON / OFF', 0, c.h / 2 - 1);
       // 干接点控制器：模式文字（顶部大号）+ 模式按钮（底部矩形）
       const mode = c.props.mode || 'none';
       const modeText = mode === 'momentary' ? '点动' : mode === 'toggle' ? '自锁' : mode === 'interlock' ? '互锁' : '纯线圈';
@@ -5520,12 +5457,11 @@ function onMouseDown(e) {
     }
     if (c.type === 'rf_remote_2key') {
       const localX = pos.x - c.x, localY = pos.y - c.y;
-      const imgH = 440;   // 裁剪后图片高度
-      const btnOnY = 180.7;  // ON键 y坐标
-      const btnOffY = 237.9; // OFF键 y坐标
-      const onCY = (btnOnY / imgH - 0.5) * c.h;
-      const offCY = (btnOffY / imgH - 0.5) * c.h;
-      const hitR = 30; // 按钮15 + 环4 + 容差10
+      // 实物图 366×500, 组件 200×273
+      // ON键 @40%, OFF键 @65%
+      const onCY = (0.40 - 0.5) * c.h;   // ≈ -27
+      const offCY = (0.65 - 0.5) * c.h;  // ≈ +41
+      const hitR = 28;
       if (Math.hypot(localX - 0, localY - onCY) < hitR) {
         c.props.pressed1 = true;
         c._lastBtn = 1;
