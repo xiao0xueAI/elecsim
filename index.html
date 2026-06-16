@@ -3550,6 +3550,7 @@ const Engine = {
     const mkKey = (compId, pinId) => compId + '_' + pinId;
 
     // ==================== Build connectivity graph ====================
+    const _buildGraph = () => {
     const adj = []; // Array of {from, to, wireId, compId}
     const pinInfo = new Map(); // pinKey -> {comp, pinDef}
 
@@ -3704,6 +3705,11 @@ const Engine = {
       if (!graph.has(e.from)) graph.set(e.from, []);
       graph.get(e.from).push(e);
     });
+    return { graph, pinInfo };
+    }; // end _buildGraph
+
+    // ==================== First build: pre-solve AC to determine relay states ====================
+    let { graph, pinInfo } = _buildGraph();
 
     // ==================== Component resistance & behavior ====================
     const getR = (comp) => {
@@ -3865,10 +3871,49 @@ const Engine = {
       return paths;
     };
 
-    // ==================== Process each battery ====================
+    // ==================== Pre-pass: detect relay energize from AC sources ====================
+    // AC sources energize relay coils; we must update c.props.energized BEFORE
+    // the final graph is built, so contact edges (COM→NO vs COM→NC) are correct.
     const batteries = S.components.filter(c =>
       c.type === 'battery_12v' || c.type === 'ac_source'
     );
+    let graphNeedsRebuild = false;
+    for (const bat of batteries) {
+      if (bat.type !== 'ac_source') continue;
+      const posKey = mkKey(bat.id, 'p'); // AC source: 'p' = L (hot)
+      const negKey = mkKey(bat.id, 'n'); // AC source: 'n' = N (neutral)
+      if (!graph.has(posKey)) continue;
+      const paths = findAllPaths(posKey, negKey);
+      for (const p of paths) {
+        for (const compId of p.comps) {
+          if (compId === bat.id) continue;
+          const comp = S.components.find(c => c.id === compId);
+          if (!comp || comp.type !== 'dry_relay') continue;
+          if (comp.props.energized) continue; // already set
+          // Calculate coil current: does the AC path provide >1mA?
+          let R = 0;
+          for (const cid of p.comps) {
+            if (cid === bat.id) continue;
+            const c = S.components.find(c2 => c2.id === cid);
+            if (c) R += getR(c);
+          }
+          R = Math.max(0.1, R);
+          const I_mA = bat.props.voltage / R * 1000;
+          if (I_mA > 1) {
+            comp.props.energized = true;
+            graphNeedsRebuild = true;
+          }
+        }
+      }
+    }
+    // Rebuild graph if any relay changed energize state
+    if (graphNeedsRebuild) {
+      const rebuilt = _buildGraph();
+      graph = rebuilt.graph;
+      pinInfo = rebuilt.pinInfo;
+    }
+
+    // ==================== Process each battery (full solve with correct relay states) ====================
 
     if (batteries.length === 0) {
       document.getElementById('simCurrent').textContent = '0.00 mA';
@@ -3924,7 +3969,12 @@ const Engine = {
           if (compId === bat.id) continue; // Don't count battery internal R
           const comp = S.components.find(c => c.id === compId);
           if (!comp) continue;
-          R += getR(comp);
+          // 继电器电阻需区分：线圈(AC供电)用coilResistance，触点(DC导通)用contactR
+          if (comp.type === 'dry_relay' && sourceType !== 'ac') {
+            R += comp.props.contactR || 0.02; // DC 电路：干接点导通电阻 ~20mΩ
+          } else {
+            R += getR(comp);
+          }
           // 检查交直流类型匹配：负载的电类型必须与电源兼容
           const loadType = getPowerType(comp);
           if (loadType !== 'both' && loadType !== sourceType) {
@@ -3963,7 +4013,7 @@ const Engine = {
         // Load components that consume power (not just conduct)
         return ['resistor', 'led', 'diode', 'motor_dc', 'buzzer', 'solenoid', 'lamp', 'bell_dc',
                 'capacitor', 'inductor', 'thermistor', 'photoresistor', 'npn',
-                'relay5', 'relay8', 'contactor', 'ac_source', 'dc_dc'].includes(t);
+                'relay5', 'relay8', 'contactor', 'dry_relay', 'ac_source', 'dc_dc'].includes(t);
       };
 
       // Check each path: if a path has only wire/switch elements (no load), it's a direct short
@@ -4104,7 +4154,7 @@ const Engine = {
       // 干接点控制器：线圈通电即可吸合；模式用于遥控器
       S.components.filter(c => c.type === 'dry_relay').forEach(relay => {
         const powered = relay.simCurrent > 1;
-        if (!powered) { relay.props.energized = false; return; }
+        if (!powered) return; // 不在此处复位——线圈可能由其他电源(如AC)供电，DC无路径不代表线圈失电
         const mode = relay.props.mode;
         // mode='none' → 纯线圈驱动，通电即吸合（普通继电器行为）
         if (mode === 'none' || mode === undefined) { relay.props.energized = true; return; }
