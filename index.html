@@ -563,9 +563,9 @@ const Registry = {
   defs: [
     // --- 电源 ---
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
-      w:150, h:92,
+      w:200, h:120,
       image:'images/battery_12v.webp',
-      pins:[{id:'p',label:'+',dx:46,dy:-10},{id:'n',label:'-',dx:-46,dy:-10}],
+      pins:[{id:'p',label:'+',dx:-33,dy:54,lo:-26,ld:0},{id:'n',label:'-',dx:33,dy:54,lo:26,ld:0}],
       props:{voltage:12} },
 
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
@@ -600,14 +600,13 @@ const Registry = {
     { type:'dry_relay', name:'433MHz干接点继电器', cat:'继电器/接触器', icon:'📡',
       desc:'KR2201-COM | 433MHz无线10A干接点1CH AC110V/220V（实物照片）',
       model:'KR2201-COM',
-      w:220, h:140,
+      w:320, h:200,
       image:'images/dry_relay.webp',
-      // 端子基于507×320裁剪图，Python精确扫描螺丝亮点定位
-      pins:[{id:'l',label:'L',dx:92,dy:-37,lo:55,ld:0,type:'coil'},
-            {id:'n',label:'N',dx:92,dy:-5,lo:55,ld:0,type:'coil'},
-            {id:'no',label:'NO',dx:-84,dy:-37,lo:-55,ld:0,type:'contact'},
-            {id:'com',label:'COM',dx:-84,dy:-18,lo:-55,ld:0,type:'contact'},
-            {id:'nc',label:'NC',dx:-84,dy:1,lo:-55,ld:0,type:'contact'}],
+      pins:[{id:'l',label:'L',dx:124,dy:8,lo:55,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:124,dy:53,lo:55,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-124,dy:-38,lo:-55,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-124,dy:-7,lo:-55,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-124,dy:25,lo:-55,ld:0,type:'contact'}],
       props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
 
 
