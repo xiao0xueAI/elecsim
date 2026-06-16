@@ -1762,17 +1762,7 @@ const Renderer = {
       }
     });
 
-    if (c._fault) {
-      const flash = Math.sin(Date.now() / 200) > 0;
-      if (flash) {
-        ctx.strokeStyle = '#f85149';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        roundRect(ctx, c.x - (c.w || 100) / 2 - 3, c.y - (c.h || 56) / 2 - 3, (c.w || 100) + 6, (c.h || 56) + 6, 10);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
+    // 故障指示已通过故障面板文字显示，不在元件上画红色虚线框
   },
   getValueLabel(c) {
     if (c.type === 'resistor') return formatR(c.props.resistance);
@@ -2161,14 +2151,14 @@ const Renderer = {
       ctx.textAlign = 'center';
       ctx.fillText('433MHz', 0, bh / 2 - 12);
     } else if (c.type === 'rf_remote_2key') {
-      // 433MHz 两键遥控器：1键(上) + 2键(下) 双按钮
-      // 原始实物图 2048×2048，按钮面板 y≈793-1182，ON中心≈890，OFF中心≈1085
-      const imgH = 2048;  // 原始图片高度
-      const btnOnY = 890;   // 1键(ON) 在原始图中的y坐标
-      const btnOffY = 1085; // 2键(OFF) 在原始图中的y坐标
-      const onCY = (btnOnY / imgH - 0.5) * c.h;   // ≈ -9
-      const offCY = (btnOffY / imgH - 0.5) * c.h;  // ≈ +4
-      const btnR = 16;
+      // 433MHz 两键遥控器：ON键(上) + OFF键(下) 两个独立按键
+      // 裁剪后实图 328×440，ON键中心 y≈180.7，OFF键中心 y≈237.9
+      const imgH = 440;   // 裁剪后图片高度
+      const btnOnY = 180.7;  // ON键 y坐标
+      const btnOffY = 237.9; // OFF键 y坐标
+      const onCY = (btnOnY / imgH - 0.5) * c.h;   // ≈ -12.5
+      const offCY = (btnOffY / imgH - 0.5) * c.h;  // ≈ +5.7
+      const btnR = 15;
       const isPressed1 = S.simRunning && c.props.pressed1;
       const isPressed2 = S.simRunning && c.props.pressed2;
       const anyPressed = isPressed1 || isPressed2;
@@ -2199,56 +2189,94 @@ const Renderer = {
         }
       }
 
-      // 两个按钮的绘制函数
-      const drawBtn = (cx, cy, isPressed, label) => {
-        // 按压光晕
+      // ON 键（红色/橙色系，独立按键）
+      const drawOnBtn = (cx, cy, isPressed) => {
         if (isPressed) {
           ctx.beginPath();
           ctx.arc(cx, cy, btnR + 16, 0, Math.PI * 2);
           const glowGrad = ctx.createRadialGradient(cx, cy, btnR, cx, cy, btnR + 16);
-          glowGrad.addColorStop(0, 'rgba(255, 120, 40, 0.6)');
-          glowGrad.addColorStop(1, 'rgba(255, 80, 40, 0)');
+          glowGrad.addColorStop(0, 'rgba(255, 100, 30, 0.7)');
+          glowGrad.addColorStop(1, 'rgba(255, 60, 20, 0)');
           ctx.fillStyle = glowGrad;
           ctx.fill();
         }
-        // 按钮外圈
         ctx.beginPath();
         ctx.arc(cx, cy, btnR + 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#2a2a2a';
+        ctx.fillStyle = '#1e0a05';
         ctx.fill();
-        ctx.strokeStyle = '#555';
+        ctx.strokeStyle = '#8a3a2a';
         ctx.lineWidth = 1.2;
         ctx.stroke();
-        // 按钮本体
         const btnGrad = ctx.createRadialGradient(cx - 3, cy - 3, 2, cx, cy, btnR);
         if (isPressed) {
           btnGrad.addColorStop(0, '#ff6040');
-          btnGrad.addColorStop(0.7, '#cc3020');
+          btnGrad.addColorStop(0.7, '#e03010');
           btnGrad.addColorStop(1, '#8a1a0a');
         } else {
-          btnGrad.addColorStop(0, '#5a5a5a');
-          btnGrad.addColorStop(0.7, '#3a3a3a');
-          btnGrad.addColorStop(1, '#1a1a1a');
+          btnGrad.addColorStop(0, '#702010');
+          btnGrad.addColorStop(0.7, '#501008');
+          btnGrad.addColorStop(1, '#2a0602');
         }
         ctx.beginPath();
         ctx.arc(cx, cy, btnR, 0, Math.PI * 2);
         ctx.fillStyle = btnGrad;
         ctx.fill();
-        ctx.strokeStyle = isPressed ? '#ffaa44' : '#555';
+        ctx.strokeStyle = isPressed ? '#ff8844' : '#8a3a2a';
         ctx.lineWidth = 1.5;
         ctx.stroke();
-        // 按钮文字
-        ctx.fillStyle = isPressed ? '#fff' : '#ccc';
-        ctx.font = 'bold 12px monospace';
+        ctx.fillStyle = isPressed ? '#fff' : '#e8a090';
+        ctx.font = 'bold 10px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(label, cx, cy);
+        ctx.fillText('ON', cx, cy);
       };
 
-      drawBtn(0, onCY, isPressed1, '1');
-      drawBtn(0, offCY, isPressed2, '2');
+      // OFF 键（深色/暗灰色系，独立按键）
+      const drawOffBtn = (cx, cy, isPressed) => {
+        if (isPressed) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, btnR + 16, 0, Math.PI * 2);
+          const glowGrad = ctx.createRadialGradient(cx, cy, btnR, cx, cy, btnR + 16);
+          glowGrad.addColorStop(0, 'rgba(100, 100, 120, 0.6)');
+          glowGrad.addColorStop(1, 'rgba(60, 60, 80, 0)');
+          ctx.fillStyle = glowGrad;
+          ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.arc(cx, cy, btnR + 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fill();
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        const btnGrad = ctx.createRadialGradient(cx - 3, cy - 3, 2, cx, cy, btnR);
+        if (isPressed) {
+          btnGrad.addColorStop(0, '#888');
+          btnGrad.addColorStop(0.7, '#555');
+          btnGrad.addColorStop(1, '#222');
+        } else {
+          btnGrad.addColorStop(0, '#4a4a4a');
+          btnGrad.addColorStop(0.7, '#2a2a2a');
+          btnGrad.addColorStop(1, '#111');
+        }
+        ctx.beginPath();
+        ctx.arc(cx, cy, btnR, 0, Math.PI * 2);
+        ctx.fillStyle = btnGrad;
+        ctx.fill();
+        ctx.strokeStyle = isPressed ? '#999' : '#444';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = isPressed ? '#fff' : '#999';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('OFF', cx, cy);
+      };
 
-      // 无线波纹（任一按下时从两个按钮扩散）
+      drawOnBtn(0, onCY, isPressed1);
+      drawOffBtn(0, offCY, isPressed2);
+
+      // 无线波纹（任一按下时从对应按钮扩散）
       if (anyPressed) {
         const t = (Date.now() % 900) / 900;
         const pressedCY = isPressed1 ? onCY : offCY;
@@ -2263,12 +2291,12 @@ const Renderer = {
           ctx.stroke();
         }
       }
-      // 底部小字
+      // 底部标识
       ctx.fillStyle = '#888';
       ctx.font = '9px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('433MHz', 0, bh / 2 - 10);
-      ctx.fillText('1键/2键', 0, bh / 2 - 1);
+      ctx.fillText('ON / OFF', 0, bh / 2 - 1);
       // 干接点控制器：模式文字（顶部大号）+ 模式按钮（底部矩形）
       const mode = c.props.mode || 'none';
       const modeText = mode === 'momentary' ? '点动' : mode === 'toggle' ? '自锁' : mode === 'interlock' ? '互锁' : '纯线圈';
@@ -5486,10 +5514,12 @@ function onMouseDown(e) {
     }
     if (c.type === 'rf_remote_2key') {
       const localX = pos.x - c.x, localY = pos.y - c.y;
-      const imgH = 2048;
-      const onCY = (890 / imgH - 0.5) * c.h;   // ≈ -9
-      const offCY = (1085 / imgH - 0.5) * c.h;  // ≈ +4
-      const hitR = 30; // 按钮16 + 环4 + 容差10
+      const imgH = 440;   // 裁剪后图片高度
+      const btnOnY = 180.7;  // ON键 y坐标
+      const btnOffY = 237.9; // OFF键 y坐标
+      const onCY = (btnOnY / imgH - 0.5) * c.h;
+      const offCY = (btnOffY / imgH - 0.5) * c.h;
+      const hitR = 30; // 按钮15 + 环4 + 容差10
       if (Math.hypot(localX - 0, localY - onCY) < hitR) {
         c.props.pressed1 = true;
         c._lastBtn = 1;
