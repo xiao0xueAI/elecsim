@@ -2235,7 +2235,7 @@ const Renderer = {
       const mode = c.props.mode || 'none';
       const modeText = mode === 'momentary' ? '点动' : mode === 'toggle' ? '自锁' : mode === 'interlock' ? '互锁' : '纯线圈';
       const nextMode = mode === 'none' ? '点动' : mode === 'momentary' ? '自锁' : mode === 'toggle' ? '互锁' : '纯线圈';
-      const isPowered = c.simCurrent > 0;
+      const isPowered = true; // always allow mode switching (RF modes don't need coil current)
       // 顶部大号模式文字
       const modeColor = mode === 'none' ? '#ff5252' : '#4caf50';
       ctx.fillStyle = modeColor;
@@ -5302,9 +5302,8 @@ const UI = {
       if (comp.type === 'dry_relay') {
         const modeLabels = { 'none':'纯线圈', 'momentary':'点动', 'toggle':'自锁', 'interlock':'互锁' };
         const modeRow = document.createElement('div'); modeRow.className = 'prop-row';
-        const powered = comp.simCurrent > 0;
         const nextMode = { 'none':'momentary', 'momentary':'toggle', 'toggle':'interlock', 'interlock':'momentary' }[comp.props.mode] || 'momentary';
-        modeRow.innerHTML = `<span class="label">控制模式</span><button class="tbtn" style="font-size:13px;padding:4px 14px;font-weight:bold;${!powered ? 'opacity:0.4;' : ''}" ${!powered ? 'disabled' : ''} title="${!powered ? '需先通电' : '点击切换：' + modeLabels[nextMode]}">${modeLabels[comp.props.mode] || '未设模式'}</button>`;
+        modeRow.innerHTML = `<span class="label">控制模式</span><button class="tbtn" style="font-size:13px;padding:4px 14px;font-weight:bold;" title="点击切换：${modeLabels[nextMode]}">${modeLabels[comp.props.mode] || '未设模式'}</button>`;
         modeRow.querySelector('button').addEventListener('click', () => {
           comp.props.mode = nextMode;
           S.dirty = true; this.showProps(comp); requestRender();
@@ -5463,7 +5462,6 @@ function onMouseDown(e) {
       const hw = (c._modeBtnW || 90) / 2 + 6, hh = (c._modeBtnH || 28) / 2 + 6;
       if (localX >= c._modeBtnX - hw && localX <= c._modeBtnX + hw &&
           localY >= c._modeBtnY - hh && localY <= c._modeBtnY + hh) {
-        if (c.simCurrent <= 0) { UI.toast('请先通电！', 'warning'); return; }
         const order = ['none', 'momentary', 'toggle', 'interlock'];
         const idx = order.indexOf(c.props.mode || 'none');
         c.props.mode = order[(idx + 1) % 4];
