@@ -565,7 +565,7 @@ const Registry = {
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
       w:200, h:120,
       image:'images/battery_12v.webp',
-      pins:[{id:'p',label:'+',dx:-33,dy:54,lo:-26,ld:0},{id:'n',label:'-',dx:33,dy:54,lo:26,ld:0}],
+      pins:[{id:'p',label:'+',dx:65,dy:45,lo:30,ld:0},{id:'n',label:'-',dx:-65,dy:45,lo:-30,ld:0}],
       props:{voltage:12} },
 
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
@@ -602,11 +602,11 @@ const Registry = {
       model:'KR2201-COM',
       w:320, h:200,
       image:'images/dry_relay.webp',
-      pins:[{id:'l',label:'L',dx:124,dy:8,lo:55,ld:0,type:'coil'},
-            {id:'n',label:'N',dx:124,dy:53,lo:55,ld:0,type:'coil'},
-            {id:'no',label:'NO',dx:-124,dy:-38,lo:-55,ld:0,type:'contact'},
-            {id:'com',label:'COM',dx:-124,dy:-7,lo:-55,ld:0,type:'contact'},
-            {id:'nc',label:'NC',dx:-124,dy:25,lo:-55,ld:0,type:'contact'}],
+      pins:[{id:'l',label:'L',dx:135,dy:-20,lo:45,ld:0,type:'coil'},
+            {id:'n',label:'N',dx:135,dy:10,lo:45,ld:0,type:'coil'},
+            {id:'no',label:'NO',dx:-137,dy:-38,lo:-45,ld:0,type:'contact'},
+            {id:'com',label:'COM',dx:-137,dy:-4,lo:-45,ld:0,type:'contact'},
+            {id:'nc',label:'NC',dx:-137,dy:26,lo:-45,ld:0,type:'contact'}],
       props:{coilVoltage:220,coilResistance:500,contactR:0.02,maxCurrent:10,rfFreq:433,channels:1,mode:'none',pairedRemote:null,lastSignal:0,lastSignalOn:false,energized:false} },
 
 
