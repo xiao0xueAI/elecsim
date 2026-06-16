@@ -628,6 +628,13 @@ const Registry = {
       signalImage:'images/rf_signal.webp',
       pins:[],
       props:{freq:433,channel:'A',pressed:false} },
+    { type:'rf_remote_2key', name:'433MHz遥控器1键/2键', cat:'无线遥控', icon:'📱', desc:'433MHz两键无线遥控器（1键/2键，配433MHz控制器使用）',
+      w:100, h:140,
+      image:'images/rf_remote_2key.webp',
+      imageOn:'images/rf_remote_2key_on.webp',
+      signalImage:'images/rf_signal.webp',
+      pins:[],
+      props:{freq:433,pressed1:false,pressed2:false} },
 
   ],
 
@@ -1206,7 +1213,8 @@ const Renderer = {
         // Draw image full-bleed (no dark box, no padding) — with SHARED image cache
         try {
           const lampLit = c.type === 'lamp' && S.simRunning && c.simCurrent > 0;
-          const wantOn = (c.props.closed || c.props.pressed || lampLit) && c.imageOn;
+          const remote2kLit = c.type === 'rf_remote_2key' && (c.props.pressed1 || c.props.pressed2);
+          const wantOn = (c.props.closed || c.props.pressed || lampLit || remote2kLit) && c.imageOn;
           const imgSrc = wantOn ? c.imageOn : c.image;
           const cacheKey = wantOn ? '_imgOnCache' : '_imgCache';
           let img = c[cacheKey];
@@ -2152,7 +2160,115 @@ const Renderer = {
       ctx.font = '9px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('433MHz', 0, bh / 2 - 12);
-    } else if (c.type === 'dry_relay') {
+    } else if (c.type === 'rf_remote_2key') {
+      // 433MHz 两键遥控器：1键(上) + 2键(下) 双按钮
+      // 原始实物图 2048×2048，按钮面板 y≈793-1182，ON中心≈890，OFF中心≈1085
+      const imgH = 2048;  // 原始图片高度
+      const btnOnY = 890;   // 1键(ON) 在原始图中的y坐标
+      const btnOffY = 1085; // 2键(OFF) 在原始图中的y坐标
+      const onCY = (btnOnY / imgH - 0.5) * c.h;   // ≈ -9
+      const offCY = (btnOffY / imgH - 0.5) * c.h;  // ≈ +4
+      const btnR = 16;
+      const isPressed1 = S.simRunning && c.props.pressed1;
+      const isPressed2 = S.simRunning && c.props.pressed2;
+      const anyPressed = isPressed1 || isPressed2;
+
+      // === 信号发射图标（任一按钮按下时显示）===
+      if (anyPressed && c.signalImage) {
+        let sigImg = c._sigImg;
+        if (!sigImg || sigImg.src !== c.signalImage) {
+          sigImg = Registry.preloadImage(c.signalImage);
+          c._sigImg = sigImg;
+        }
+        if (sigImg.complete && sigImg.naturalWidth > 0) {
+          const sigW = sigImg.naturalWidth, sigH = sigImg.naturalHeight;
+          const sigDrawH = 36, sigDrawW = (sigW / sigH) * sigDrawH;
+          const sigY = -bh / 2 - sigDrawH - 4;
+          const pulseT = (Date.now() % 800) / 800;
+          const pulseAlpha = 0.5 + 0.5 * Math.sin(pulseT * Math.PI * 2);
+          const scale = 1 + 0.15 * Math.sin(pulseT * Math.PI * 2);
+          ctx.save();
+          ctx.globalAlpha = 0.4 + pulseAlpha * 0.6;
+          ctx.translate(0, sigY + sigDrawH / 2);
+          ctx.scale(scale, scale);
+          ctx.shadowColor = 'rgba(255, 80, 20, 0.6)';
+          ctx.shadowBlur = 12 + pulseAlpha * 8;
+          ctx.drawImage(sigImg, -sigDrawW / 2, -sigDrawH / 2, sigDrawW, sigDrawH);
+          ctx.shadowBlur = 0;
+          ctx.restore();
+        }
+      }
+
+      // 两个按钮的绘制函数
+      const drawBtn = (cx, cy, isPressed, label) => {
+        // 按压光晕
+        if (isPressed) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, btnR + 16, 0, Math.PI * 2);
+          const glowGrad = ctx.createRadialGradient(cx, cy, btnR, cx, cy, btnR + 16);
+          glowGrad.addColorStop(0, 'rgba(255, 120, 40, 0.6)');
+          glowGrad.addColorStop(1, 'rgba(255, 80, 40, 0)');
+          ctx.fillStyle = glowGrad;
+          ctx.fill();
+        }
+        // 按钮外圈
+        ctx.beginPath();
+        ctx.arc(cx, cy, btnR + 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fill();
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        // 按钮本体
+        const btnGrad = ctx.createRadialGradient(cx - 3, cy - 3, 2, cx, cy, btnR);
+        if (isPressed) {
+          btnGrad.addColorStop(0, '#ff6040');
+          btnGrad.addColorStop(0.7, '#cc3020');
+          btnGrad.addColorStop(1, '#8a1a0a');
+        } else {
+          btnGrad.addColorStop(0, '#5a5a5a');
+          btnGrad.addColorStop(0.7, '#3a3a3a');
+          btnGrad.addColorStop(1, '#1a1a1a');
+        }
+        ctx.beginPath();
+        ctx.arc(cx, cy, btnR, 0, Math.PI * 2);
+        ctx.fillStyle = btnGrad;
+        ctx.fill();
+        ctx.strokeStyle = isPressed ? '#ffaa44' : '#555';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // 按钮文字
+        ctx.fillStyle = isPressed ? '#fff' : '#ccc';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, cx, cy);
+      };
+
+      drawBtn(0, onCY, isPressed1, '1');
+      drawBtn(0, offCY, isPressed2, '2');
+
+      // 无线波纹（任一按下时从两个按钮扩散）
+      if (anyPressed) {
+        const t = (Date.now() % 900) / 900;
+        const pressedCY = isPressed1 ? onCY : offCY;
+        for (let i = 0; i < 3; i++) {
+          const phase = (t + i * 0.33) % 1;
+          const r = btnR + 8 + phase * 40;
+          const alpha = (1 - phase) * 0.5;
+          ctx.beginPath();
+          ctx.arc(0, pressedCY, r, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 168, 0, ${alpha})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+      // 底部小字
+      ctx.fillStyle = '#888';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('433MHz', 0, bh / 2 - 10);
+      ctx.fillText('1键/2键', 0, bh / 2 - 1);
       // 干接点控制器：模式文字（顶部大号）+ 模式按钮（底部矩形）
       const mode = c.props.mode || 'none';
       const modeText = mode === 'momentary' ? '点动' : mode === 'toggle' ? '自锁' : mode === 'interlock' ? '互锁' : '纯线圈';
@@ -4158,14 +4274,29 @@ const Engine = {
         const mode = relay.props.mode;
         // mode='none' → 纯线圈驱动，通电即吸合（普通继电器行为）
         if (mode === 'none' || mode === undefined) { relay.props.energized = true; return; }
-        // 以下为遥控器模式：找画布上所有遥控器
-        const remotes = S.components.filter(c => c.type === 'rf_remote');
+        // 以下为遥控器模式：找画布上所有遥控器（单键 + 双键）
+        const remotes1k = S.components.filter(c => c.type === 'rf_remote');
+        const remotes2k = S.components.filter(c => c.type === 'rf_remote_2key');
         let signalOn = false, signalPulse = false;
-        for (const r of remotes) {
+        // 用于互锁模式：收集所有按键事件 (channel→按下)
+        const allChannelPresses = []; // { channel, pressed, pulse }
+        for (const r of remotes1k) {
           if (r.props.pressed) signalOn = true;
-          // 边沿检测：从松开→按下
           if (r.props.pressed && !r._wasPressed) signalPulse = true;
+          const ch = r.props.channel || 'A';
+          allChannelPresses.push({ channel: ch, pressed: r.props.pressed, pulse: r.props.pressed && !r._wasPressed });
           r._wasPressed = r.props.pressed;
+        }
+        for (const r of remotes2k) {
+          if (r.props.pressed1 || r.props.pressed2) signalOn = true;
+          // 边沿检测：区分1键和2键
+          const p1Pulse = r.props.pressed1 && !r._wasPressed1;
+          const p2Pulse = r.props.pressed2 && !r._wasPressed2;
+          if (p1Pulse || p2Pulse) signalPulse = true;
+          allChannelPresses.push({ channel: '1', pressed: r.props.pressed1, pulse: p1Pulse });
+          allChannelPresses.push({ channel: '2', pressed: r.props.pressed2, pulse: p2Pulse });
+          r._wasPressed1 = r.props.pressed1;
+          r._wasPressed2 = r.props.pressed2;
         }
         if (mode === 'momentary') {
           // 点动：按住时吸合
@@ -4174,14 +4305,12 @@ const Engine = {
           // 自锁：每次按一下翻转
           if (signalPulse) relay.props.energized = !relay.props.energized;
         } else if (mode === 'interlock') {
-          // 互锁：第1个遥控器按下→开，第2个按下→关
-          if (signalPulse) {
-            // 用第一个按下的遥控器在remotes中的index决定开关
-            for (let i = 0; i < remotes.length; i++) {
-              if (remotes[i].props.pressed) {
-                relay.props.energized = (i === 0);  // 第1个开，第2个关
-                break;
-              }
+          // 互锁：channel='1'/'A'(第1键/第1遥控器)→开，channel='2'/'B'(第2键/第2遥控器)→关
+          for (const ev of allChannelPresses) {
+            if (ev.pulse) {
+              if (ev.channel === '1' || ev.channel === 'A') relay.props.energized = true;
+              else if (ev.channel === '2' || ev.channel === 'B') relay.props.energized = false;
+              break;
             }
           }
         }
@@ -5355,6 +5484,33 @@ function onMouseDown(e) {
         return;
       }
     }
+    if (c.type === 'rf_remote_2key') {
+      const localX = pos.x - c.x, localY = pos.y - c.y;
+      const imgH = 2048;
+      const onCY = (890 / imgH - 0.5) * c.h;   // ≈ -9
+      const offCY = (1085 / imgH - 0.5) * c.h;  // ≈ +4
+      const hitR = 30; // 按钮16 + 环4 + 容差10
+      if (Math.hypot(localX - 0, localY - onCY) < hitR) {
+        c.props.pressed1 = true;
+        c._lastBtn = 1;
+        S._pressRemote = c;
+        S.dragging = null;
+        S.dirty = true;
+        requestRender();
+        e.preventDefault();
+        return;
+      }
+      if (Math.hypot(localX - 0, localY - offCY) < hitR) {
+        c.props.pressed2 = true;
+        c._lastBtn = 2;
+        S._pressRemote = c;
+        S.dragging = null;
+        S.dirty = true;
+        requestRender();
+        e.preventDefault();
+        return;
+      }
+    }
   }
 
   // Wiring mode — handle wire tap detection FIRST (before pin detection)
@@ -5487,7 +5643,12 @@ function onMouseUp(e) {
   }
   // 433MHz 遥控器按钮松开
   if (S._pressRemote) {
-    S._pressRemote.props.pressed = false;
+    if (S._pressRemote.type === 'rf_remote_2key') {
+      S._pressRemote.props.pressed1 = false;
+      S._pressRemote.props.pressed2 = false;
+    } else {
+      S._pressRemote.props.pressed = false;
+    }
     S._pressRemote = null;
     requestRender();
   }
