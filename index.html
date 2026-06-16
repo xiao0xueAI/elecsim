@@ -2433,22 +2433,23 @@ const WireRouter = {
     // Clicked on blank space → add a waypoint
     const constrained = this._constrainOrtho(head, canvasPos);
 
-    // Alignment snap to nearby pin axes (only free axis, stay orthogonal)
-    const allPins = [];
+    // Alignment snap to nearest pin axis (only free axis, stay orthogonal)
+    const ALIGN_SNAP = 15;
+    const isHoriz = Math.abs(constrained.y - head.y) < 2;
+    let bestPin = null, bestDist = Infinity;
     S.components.forEach(comp => {
       (comp.pins || []).forEach(pd => {
         const pp = getPinPos(comp, pd.id);
         if (pp && !(Math.abs(pp.x - head.x) < 3 && Math.abs(pp.y - head.y) < 3)) {
-          allPins.push(pp);
+          const d = isHoriz ? Math.abs(canvasPos.x - pp.x) : Math.abs(canvasPos.y - pp.y);
+          if (d < bestDist) { bestDist = d; bestPin = pp; }
         }
       });
     });
-    const ALIGN_SNAP = 15;
-    const isHoriz = Math.abs(constrained.y - head.y) < 2;
-    allPins.forEach(pp => {
-      if (isHoriz && Math.abs(canvasPos.x - pp.x) < ALIGN_SNAP) constrained.x = pp.x;
-      if (!isHoriz && Math.abs(canvasPos.y - pp.y) < ALIGN_SNAP) constrained.y = pp.y;
-    });
+    if (bestPin && bestDist < ALIGN_SNAP) {
+      if (isHoriz) constrained.x = bestPin.x;
+      else constrained.y = bestPin.y;
+    }
 
     // Only add waypoint if it actually moves from head
     if (Math.abs(constrained.x - head.x) > 1 || Math.abs(constrained.y - head.y) > 1) {
@@ -2993,28 +2994,29 @@ const WireRouter = {
         (comp.pins || []).forEach(pd => {
           const pp = getPinPos(comp, pd.id);
           if (pp && !(Math.abs(pp.x - head.x) < 3 && Math.abs(pp.y - head.y) < 3)) {
-            allPins.push(pp);
+            allPins.push({ ...pp, compId: comp.id, pinId: pd.id });
           }
         });
       });
       const ALIGN_SNAP = 15;
-      const ALIGN_SHOW = 120;
-      // Only snap the FREE axis — the orthogonal axis is already locked to head.
+      // Only show guide for the SINGLE closest pin on the free axis (not all pins).
       // Horizontal segment (Y locked to head): snap X only.
       // Vertical segment (X locked to head): snap Y only.
       const isHoriz = Math.abs(constrained.y - head.y) < 2;
+      let bestPin = null, bestDist = Infinity;
       allPins.forEach(pp => {
-        const xDist = Math.abs(m.x - pp.x);
-        const yDist = Math.abs(m.y - pp.y);
-        if (isHoriz && xDist < ALIGN_SHOW) {
-          _alignGuides.push({ axis: 'v', pos: pp.x, dist: xDist, isSnap: xDist < ALIGN_SNAP });
-          if (xDist < ALIGN_SNAP) constrained.x = pp.x;
-        }
-        if (!isHoriz && yDist < ALIGN_SHOW) {
-          _alignGuides.push({ axis: 'h', pos: pp.y, dist: yDist, isSnap: yDist < ALIGN_SNAP });
-          if (yDist < ALIGN_SNAP) constrained.y = pp.y;
-        }
+        const d = isHoriz ? Math.abs(m.x - pp.x) : Math.abs(m.y - pp.y);
+        if (d < bestDist) { bestDist = d; bestPin = pp; }
       });
+      if (bestPin && bestDist < ALIGN_SNAP) {
+        if (isHoriz) {
+          constrained.x = bestPin.x;
+          _alignGuides.push({ axis: 'v', pos: bestPin.x, dist: bestDist, isSnap: true });
+        } else {
+          constrained.y = bestPin.y;
+          _alignGuides.push({ axis: 'h', pos: bestPin.y, dist: bestDist, isSnap: true });
+        }
+      }
     }
 
     // Draw all committed segments (3D pipe, full opacity)
