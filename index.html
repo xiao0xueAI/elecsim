@@ -3951,6 +3951,12 @@ const Engine = {
           // Handle junction nodes (jx:*) — electrical nodes that pass through without component processing.
           // Junction nodes represent physical wire T-junctions where multiple wires converge.
           if (to.startsWith('jx:')) {
+            // Prevent backtracking: when at a component's entry pin, do NOT traverse
+            // back through the same junction to reach other components. Without this, the
+            // DFS would create spurious series paths (e.g. Battery→Bell1→Bell2→Battery)
+            // instead of recognizing true parallel branches. The startKey exception allows
+            // the initial junction traversal from the power source's output pin.
+            if (current === entryPin && current !== startKey) continue;
             const newPathWires = [...pathWires];
             if (wireId && !newPathWires.includes(wireId)) newPathWires.push(wireId);
             const newVisitedPins = new Set(visitedPins);
@@ -4233,10 +4239,10 @@ const Engine = {
           }
         }
 
-        // Set wire currents
+        // Set wire currents (accumulate across parallel paths for shared segments)
         p.wires.forEach(wId => {
           const w = wireMap.get(wId);
-          if (w) w.current = I_path * 1000; // mA
+          if (w) w.current += I_path * 1000; // mA
         });
       });
 
