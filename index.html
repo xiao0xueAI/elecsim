@@ -565,7 +565,7 @@ const Registry = {
     { type:'battery_12v', name:'12V直流电池', cat:'电源', icon:'🔋', desc:'DC 12V 实物电池包（蓝线-/红线+）',
       w:200, h:120,
       image:'images/battery_12v.webp',
-      pins:[{id:'p',label:'+',dx:65,dy:45,lo:30,ld:0},{id:'n',label:'-',dx:-65,dy:45,lo:-30,ld:0}],
+      pins:[{id:'p',label:'+',dx:65,dy:45,lo:0,ld:28},{id:'n',label:'-',dx:-65,dy:45,lo:0,ld:28}],
       props:{voltage:12} },
 
     { type:'ac_source', name:'交流电源', cat:'电源', icon:'⚡', desc:'AC 220V 实物插头',
@@ -1685,7 +1685,7 @@ const Renderer = {
       }
 
       if (pin.label) {
-        ctx.font = (c.type === 'battery_12v' || c.type === 'bell_dc') ? 'bold 28px Arial' : (c.type === 'lamp') ? 'bold 22px Arial' : (c.type === 'dry_relay') ? 'bold 24px Arial' : 'bold 16px Arial';
+        ctx.font = (c.type === 'battery_12v') ? 'bold 40px Arial' : (c.type === 'bell_dc') ? 'bold 28px Arial' : (c.type === 'lamp') ? 'bold 22px Arial' : (c.type === 'dry_relay') ? 'bold 24px Arial' : 'bold 16px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const lbl = pin.label.toUpperCase();
