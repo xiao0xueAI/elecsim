@@ -621,14 +621,14 @@ const Registry = {
 
     // --- 无线遥控 ---
     // 433MHz 无线遥控器，搭配干接点控制器使用
-    { type:'rf_remote', name:'433MHz遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz无线遥控器A键（433MHz信号发射器, 配433MHz控制器使用）',
+    { type:'rf_remote', name:'433MHz 1键遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz单键无线遥控器A键（信号发射器, 配433MHz控制器使用）',
       w:100, h:134,
       image:'images/rf_remote_关闭.webp',
       imageOn:'images/rf_remote_打开.webp',
       signalImage:'images/rf_signal.webp',
       pins:[],
       props:{freq:433,channel:'A',pressed:false} },
-    { type:'rf_remote_2key', name:'433MHz遥控器1键/2键', cat:'无线遥控', icon:'📱', desc:'433MHz两键无线遥控器（1键/2键，配433MHz控制器使用）',
+    { type:'rf_remote_2key', name:'433MHz 2键遥控器', cat:'无线遥控', icon:'📱', desc:'433MHz两键无线遥控器（ON/OFF双键，配433MHz控制器使用）',
       w:100, h:140,
       image:'images/rf_remote_2key.webp',
       imageOn:'images/rf_remote_2key_on.webp',
