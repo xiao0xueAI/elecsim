@@ -525,7 +525,7 @@ const S = {
 // ==================== Section 3: Component Registry ====================
 const Registry = {
   categories: [
-    '电源', '开关/按钮', '继电器/接触器',
+    '电源', '基本元件', '开关/按钮', '继电器/接触器',
     '无线遥控', '输出器件'
   ],
 
@@ -568,6 +568,24 @@ const Registry = {
       image:'images/ac_plug.webp',
       pins:[{id:'p',label:'L',dx:-12,dy:90,lo:-18,ld:-18},{id:'n',label:'N',dx:12,dy:90,lo:18,ld:-18}],
       props:{voltage:220,freq:50} },
+
+    // --- 基本元件（无源/有源分立元件，用于搭建并联串联电路）---
+    { type:'resistor', name:'电阻', cat:'基本元件', icon:'⚡', desc:'固定电阻器（默认1kΩ）',
+      w:80, h:40,
+      pins:[{id:'l',label:'',dx:-40,dy:0,lo:-20,ld:0},{id:'r',label:'',dx:40,dy:0,lo:20,ld:0}],
+      props:{resistance:1000} },
+    { type:'led', name:'LED发光管', cat:'基本元件', icon:'💡', desc:'发光二极管（默认2V/20mA）',
+      w:60, h:60,
+      pins:[{id:'a',label:'+',dx:0,dy:-30,lo:0,ld:-15},{id:'k',label:'-',dx:0,dy:30,lo:0,ld:15}],
+      props:{forwardV:2} },
+    { type:'diode', name:'二极管', cat:'基本元件', icon:'🔌', desc:'整流二极管（默认0.7V正向压降）',
+      w:60, h:40,
+      pins:[{id:'a',label:'+',dx:-30,dy:0,lo:-15,ld:0},{id:'k',label:'-',dx:30,dy:0,lo:15,ld:0}],
+      props:{forwardV:0.7} },
+    { type:'motor_dc', name:'直流电机', cat:'基本元件', icon:'⚙️', desc:'小型直流电机（默认50Ω）',
+      w:80, h:80,
+      pins:[{id:'p',label:'+',dx:0,dy:-40,lo:0,ld:-20},{id:'n',label:'-',dx:0,dy:40,lo:0,ld:20}],
+      props:{resistance:50} },
 
 
     // --- 开关/按钮 ---
@@ -1780,7 +1798,7 @@ const Renderer = {
     if (c.type === 'push_no' || c.type === 'push_nc') return c.props.pressed ? '按下' : '释放';
     if (c.type === 'fuse') return c.props.blown ? '熔断!' : c.props.rating + 'A';
     if (c.type === 'relay5' || c.type === 'relay8' || c.type === 'contactor' || c.type === 'dry_relay') return c.props.energized ? '吸合' : '释放';
-    if (c.type === 'motor_dc') return c.props.voltage + 'V';
+    if (c.type === 'motor_dc') return formatR(c.props.resistance || 50);
     if (c.type === 'buzzer') return c.props.voltage + 'V';
     if (c.type === 'solenoid') return c.props.voltage + 'V';
     if (c.type === 'bell_dc') return S.simRunning && c.simCurrent > 0 ? '叮~叮~' : c.props.voltage + 'V';
@@ -3824,12 +3842,15 @@ const Engine = {
           const newPathPins = [...pathPins, to];
           const newVisitedPins = new Set(visitedPins);
 
-          if (compId !== entryComp) {
+          // Resolve actual component ID: wire edges have compId=null, use pinInfo instead
+          const actualCompId = compId || info.comp.id;
+
+          if (actualCompId !== entryComp) {
             // Entering a new component
-            newEntryComp = compId;
+            newEntryComp = actualCompId;
             newEntryPin = to;
-            if (!pathComps.includes(compId)) {
-              newPathComps.push(compId);
+            if (!pathComps.includes(actualCompId)) {
+              newPathComps.push(actualCompId);
             }
             // Only mark the entry pin as visited (not all pins of this component)
             // This allows traversing internal edges within the same component (e.g., Lamp L→N)
@@ -5125,7 +5146,7 @@ const UI = {
       row.querySelector('button').addEventListener('click', () => { comp.props.energized = !comp.props.energized; S.dirty = true; this.showProps(comp); requestRender(); });
       content.appendChild(row);
     }
-    else if (comp.type === 'motor_dc') makeRow('电压 (V)', 'voltage', comp.props.voltage);
+    else if (comp.type === 'motor_dc') makeRow('电阻 (Ω)', 'resistance', comp.props.resistance || 50);
     else if (comp.type === 'buzzer') makeRow('电压 (V)', 'voltage', comp.props.voltage);
     else if (comp.type === 'solenoid') makeRow('电压 (V)', 'voltage', comp.props.voltage);
     else if (comp.type === 'bell_dc') {
