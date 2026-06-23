@@ -3743,28 +3743,32 @@ const Engine = {
     // This prevents the DFS from traversing between different components' pins
     // at the same junction (which would create spurious series paths for parallel circuits).
     jxMap.forEach((entries, key) => {
-      const pinKeys = [];
+      // Track which wire connects to which pin at this junction.
+      // Previously wireId was null on junction edges, so junction wires
+      // (e.g. Battery+→branch→switch_L) never appeared in DFS pathWires
+      // and never got current assigned → no flow arrows on parallel branches.
+      const pinToWire = new Map(); // pinKey → wireId
       const _seenKeys = new Set();
       entries.forEach(entry => {
         const w = entry.wire;
         if (!w.from.junction) {
           const k = mkKey(w.from.comp, w.from.pin);
-          if (!_seenKeys.has(k)) { _seenKeys.add(k); pinKeys.push(k); }
+          if (!_seenKeys.has(k)) { _seenKeys.add(k); pinToWire.set(k, w.id); }
         }
         if (!w.to.junction) {
           const k = mkKey(w.to.comp, w.to.pin);
-          if (!_seenKeys.has(k)) { _seenKeys.add(k); pinKeys.push(k); }
+          if (!_seenKeys.has(k)) { _seenKeys.add(k); pinToWire.set(k, w.id); }
         }
       });
-      if (pinKeys.length >= 2) {
+      if (pinToWire.size >= 2) {
         const jxKey = 'jx:' + key;
-        pinKeys.forEach(pk => {
+        pinToWire.forEach((wireId, pk) => {
           // Extract component ID from pin key (format: "compId_pinId")
           const compId = pk.substring(0, pk.lastIndexOf('_'));
-          // Pin → Junction
-          adj.push({ from: pk, to: jxKey, wireId: null, compId: null });
+          // Pin → Junction (wireId so DFS adds this wire to pathWires)
+          adj.push({ from: pk, to: jxKey, wireId, compId: null });
           // Junction → Pin (compId so DFS knows which component this pin belongs to)
-          adj.push({ from: jxKey, to: pk, wireId: null, compId: compId });
+          adj.push({ from: jxKey, to: pk, wireId, compId });
         });
       }
     });
