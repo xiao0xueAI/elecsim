@@ -3660,7 +3660,7 @@ const Engine = {
         if (comPin && activePin) {
           addEdge(mkKey(c.id, comPin.id), mkKey(c.id, activePin.id), null, c.id);
         }
-      } else if (t === 'switch' || t === 'spst' || t === 'breaker') {
+      } else if (t === 'switch' || t === 'spst' || t === 'breaker' || t === 'spst_momentary') {
         if (c.props.closed && pins.length >= 2) {
           addEdge(mkKey(c.id, pins[0].id), mkKey(c.id, pins[1].id), null, c.id);
         }
