@@ -6,7 +6,6 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>ElecSim Studio Pro v2.0 - QIACHIP 电工电路仿真平台</title>
   <link rel="stylesheet" href="样式/样式.css">
-</head>
 <body>
 <div class="app" id="app">
   <!-- Toolbar -->
