@@ -21,9 +21,9 @@ const WireStyle = {
   flow: {
     // AC 交流电
     ac: {
-      dashLen: 12,        // 虚线长度
+      dashLen: 12,        // 虚线长���
       gapLen: 20,         // 虚线间隔
-      speed: 0.18,        // 流动速度倍率
+      speed: 0.7,         // 流动速度倍率
       arrowSize: 6,       // 箭头大小
       arrowSpacing: 35,   // 箭头间距
       glowBlur: 18        // 发光模糊半径
@@ -32,7 +32,7 @@ const WireStyle = {
     dc: {
       dashLen: 8,
       gapLen: 12,
-      speed: 0.25,
+      speed: 1.0,
       arrowSize: 5,
       arrowSpacing: 25,
       glowBlur: 12
