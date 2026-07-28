@@ -69,8 +69,10 @@ const UI = {
 
   setRecBg(color) {
     S.recBg = color;
-    document.getElementById('bgWhite').classList.toggle('active', color === 'white');
-    document.getElementById('bgBlack').classList.toggle('active', color === 'black');
+    // Update all bg-white / bg-black buttons (toolbar + panel)
+    document.querySelectorAll('.bg-sel').forEach(b => {
+      b.classList.toggle('active', b.dataset.bg === color);
+    });
   },
 
   showProps(comp) {

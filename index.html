@@ -30,6 +30,10 @@
     </div>
     <button class="tbtn export-btn" onclick="ElecSim.Recorder.captureImage()">&#128247; 截图</button>
     <button class="tbtn export-btn" id="recStartBtn" onclick="ElecSim.Recorder.start()">&#128249; 开始录制</button>
+    <!-- 录屏背景色切换（直接放在工具栏，方便随时切换） -->
+    <span style="font-size:10px;color:#8b949e;margin:0 2px;">背景</span>
+    <button class="tbtn export-btn bg-sel active" data-bg="white" onclick="ElecSim.UI.setRecBg('white')" style="padding:2px 6px;font-size:10px;">白</button>
+    <button class="tbtn export-btn bg-sel" data-bg="black" onclick="ElecSim.UI.setRecBg('black')" style="padding:2px 6px;font-size:10px;">黑</button>
     <button class="tbtn" id="recPauseBtn" onclick="ElecSim.Recorder.toggle()" style="display:none;color:#d29922;">&#10074;&#10074; 暂停</button>
     <button class="tbtn" id="recStopBtn" onclick="ElecSim.Recorder.stop()" style="display:none;color:#f85149;">&#9632; 停止</button>
     <button class="tbtn" id="recReRecordBtn" onclick="ElecSim.Recorder.reRecord()" style="display:none;color:#d29922;">&#9654; 重新录制</button>
@@ -206,8 +210,8 @@
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:11px;color:#8b949e;">背景色</span>
         <div style="display:flex;gap:4px;">
-          <button class="fmt-btn active" id="bgWhite" onclick="ElecSim.UI.setRecBg('white')">白色</button>
-          <button class="fmt-btn" id="bgBlack" onclick="ElecSim.UI.setRecBg('black')">黑色</button>
+          <button class="fmt-btn bg-sel active" data-bg="white" onclick="ElecSim.UI.setRecBg('white')">白色</button>
+          <button class="fmt-btn bg-sel" data-bg="black" onclick="ElecSim.UI.setRecBg('black')">黑色</button>
         </div>
       </div>
       <!-- Controls -->
