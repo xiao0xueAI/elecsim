@@ -189,6 +189,18 @@ const Engine = {
     // This prevents the DFS from traversing between different components' pins
     // at the same junction (which would create spurious series paths for parallel circuits).
     jxMap.forEach((entries, key) => {
+      // BUGFIX: Only create a junction node if 2+ DIFFERENT wires meet at this
+      // coordinate. Previously the code processed each jxMap entry and added
+      // BOTH endpoints of the wire to pinToWire (even the pin at the OTHER
+      // end of the wire). For a normal 2-pin wire (e.g. battery+ → switch),
+      // this created a fake `jx:50,0` node connecting the two endpoints AS IF
+      // they were a T-junction. The DFS then ping-ponged through the junction
+      // (jx:50,0 → sw_a → jx:200,-20 → bat_p → …) producing dozens of
+      // duplicate "paths" which got summed as parallel → current inflated 50×.
+      // A real junction is when 2+ wires meet (T-branch, parallel branch).
+      const uniqueWires = new Set(entries.map(e => e.wire.id));
+      if (uniqueWires.size < 2) return;
+
       // Track which wire connects to which pin at this junction.
       // Previously wireId was null on junction edges, so junction wires
       // (e.g. Battery+→branch→switch_L) never appeared in DFS pathWires
@@ -197,13 +209,29 @@ const Engine = {
       const _seenKeys = new Set();
       entries.forEach(entry => {
         const w = entry.wire;
+        const ep = entry.pos;
+        // Only add the pin if it is ACTUALLY at this coordinate (not the
+        // other end of the same wire). For each wire, check w.from / w.to
+        // and only add the one whose position matches the current entry.
         if (!w.from.junction) {
-          const k = mkKey(w.from.comp, w.from.pin);
-          if (!_seenKeys.has(k)) { _seenKeys.add(k); pinToWire.set(k, w.id); }
+          const c = getComp(w.from.comp);
+          const pp = c ? getPinPos(c, w.from.pin) : null;
+          if (pp && Math.round(pp.x) === Math.round(ep.x) && Math.round(pp.y) === Math.round(ep.y)) {
+            const k = mkKey(w.from.comp, w.from.pin);
+            if (!_seenKeys.has(k)) { _seenKeys.add(k); pinToWire.set(k, w.id); }
+          }
+        } else if (w.from.junction && w.from.junction.x === ep.x && w.from.junction.y === ep.y) {
+          // Wire ends at an explicit junction mark — handled by the
+          // junction-node creation below (we still need a pin key, but for
+          // junction-terminated wires the original wire edges already exist).
         }
         if (!w.to.junction) {
-          const k = mkKey(w.to.comp, w.to.pin);
-          if (!_seenKeys.has(k)) { _seenKeys.add(k); pinToWire.set(k, w.id); }
+          const c = getComp(w.to.comp);
+          const pp = c ? getPinPos(c, w.to.pin) : null;
+          if (pp && Math.round(pp.x) === Math.round(ep.x) && Math.round(pp.y) === Math.round(ep.y)) {
+            const k = mkKey(w.to.comp, w.to.pin);
+            if (!_seenKeys.has(k)) { _seenKeys.add(k); pinToWire.set(k, w.id); }
+          }
         }
       });
       if (pinToWire.size >= 2) {
@@ -281,7 +309,7 @@ const Engine = {
       // AC-only loads (只接受交流电)
       if (t === 'lamp') return 'ac';
       // DC-only loads (只接受直流电)
-      if (t === 'led' || t === 'diode' || t === 'motor_dc' || t === 'bell_dc' || t === 'solenoid' || t === 'npn') return 'dc';
+      if (t === 'led' || t === 'diode' || t === 'motor_dc' || t === 'solenoid' || t === 'npn') return 'dc';
       // Everything else works on both (passive: resistor, capacitor, inductor, switches, meters, etc.)
       return 'both';
     };
@@ -310,7 +338,11 @@ const Engine = {
 
         if (current === endKey) {
           // Valid path found
-          const compKey = pathComps.join(',');
+          // Canonical, ORDER-INDEPENDENT dedup key: the SET of components and wires
+          // traversed (not their traversal order). Without this, DFS produces many
+          // near-duplicate paths for the same physical loop and they get summed as
+          // "parallel" paths → current inflated by ~maxPaths (e.g. 50× too high).
+          const compKey = [...new Set(pathComps)].sort().join(',') + '|' + [...new Set(pathWires)].sort().join(',');
           if (!visitedEdges.has(compKey)) {
             visitedEdges.add(compKey);
             paths.push({
