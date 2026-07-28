@@ -962,6 +962,12 @@ const WireRouter = {
 
     // === Layer 2: Animated dashed flow (base) ===
     // DC: 实线短段（电流连续单向）  AC: 虚线闪烁
+    // BUGFIX: dcSpeedMul/acSpeedMul were referenced here but defined only inside
+    // _drawFlowingArrows() — threw ReferenceError on every animation frame, killing
+    // the render loop. Resolve the speed multipliers here too.
+    const flowCfg = (typeof WireStyle !== 'undefined' && WireStyle.flow) ? WireStyle.flow : null;
+    const dcSpeedMul = flowCfg ? flowCfg.dc.speed : 0.25;
+    const acSpeedMul = flowCfg ? flowCfg.ac.speed : 0.18;
     ctx.save();
     ctx.lineCap = 'butt';
     ctx.lineWidth = 3;
