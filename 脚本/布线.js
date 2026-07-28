@@ -943,20 +943,29 @@ const WireRouter = {
     // === Layer 1: Ambient glow (wide, soft) — optimized: no shadowBlur ===
     // Replaced expensive shadowBlur with a double wide transparent stroke.
     // Visual effect is nearly identical, but ~10x faster.
+    const drawGlowPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(flowPoints[0].x, flowPoints[0].y);
+      for (let i = 1; i < flowPoints.length; i++) ctx.lineTo(flowPoints[i].x, flowPoints[i].y);
+    };
     ctx.save();
     ctx.strokeStyle = flowColor;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(flowPoints[0].x, flowPoints[0].y);
-    for (let i = 1; i < flowPoints.length; i++) ctx.lineTo(flowPoints[i].x, flowPoints[i].y);
-    // Outer glow (very wide, very transparent)
-    ctx.globalAlpha = isDC ? 0.06 : 0.08;
-    ctx.lineWidth = isDC ? 10 : 14;
+    // Outer glow (wide, soft)
+    drawGlowPath();
+    ctx.globalAlpha = isDC ? 0.25 : 0.3;
+    ctx.lineWidth = isDC ? 12 : 16;
     ctx.stroke();
-    // Inner glow (medium width, more opaque)
-    ctx.globalAlpha = isDC ? 0.12 : 0.15;
+    // Inner glow (tighter, brighter — the visible "pipe glow")
+    drawGlowPath();
+    ctx.globalAlpha = isDC ? 0.5 : 0.55;
     ctx.lineWidth = isDC ? 6 : 8;
+    ctx.stroke();
+    // Core line (thin, almost opaque — gives wire a "lit neon" look)
+    drawGlowPath();
+    ctx.globalAlpha = isDC ? 0.8 : 0.85;
+    ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
 
