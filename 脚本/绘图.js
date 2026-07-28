@@ -141,6 +141,20 @@ const Renderer = {
     // Pin labels drawn LAST → topmost layer (never covered by wires/current-flow)
     this.drawPinLabels();
 
+    // DEBUG: Show engine/running state and wire currents on canvas
+    if (Engine.running) {
+      const liveWires = S.wires.filter(w => w.current > 0).length;
+      ctx.save();
+      ctx.setTransform(1,0,0,1,0,0); // reset to screen coords
+      ctx.font = '12px monospace';
+      ctx.fillStyle = '#ff0';
+      ctx.fillText('⚡ 仿真运行中 | '+liveWires+'/'+S.wires.length+' 根导线有电流 | animTick='+S.animTick, 10, H - 10);
+      S.wires.forEach((w, i) => {
+        ctx.fillText('  '+w.id+': current='+(w.current||0).toFixed(1)+'mA  flowDir='+w._flowDir+' wireType='+(w.wireType||'?'), 10, H - 30 - i*16);
+      });
+      ctx.restore();
+    }
+
     this.updateCounts();
   },
 
