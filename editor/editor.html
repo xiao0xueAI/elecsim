@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElecSim 代码编辑器</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --panel-bg: #16213e;
+  --border: #0f3460;
+  --text: #e0e0e0;
+  --accent: #e94560;
+  --accent2: #0f3460;
+  --green: #4caf50;
+  --yellow: #ff9800;
+  --toolbar: #0d1117;
+  --status-bg: #0d1117;
+  --gutter: #1e1e2e;
+  --line-num: #555;
+  --cursor-line: rgba(233, 69, 96, 0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ====== 工具栏 ====== */
+#toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--toolbar);
+  border-bottom: 1px solid var(--border);
+  height: 48px;
+  user-select: none;
+}
+
+#toolbar .logo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 16px;
+  white-space: nowrap;
+}
+
+#toolbar .sep {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+}
+
+#toolbar button {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+#toolbar button:hover {
+  background: var(--accent2);
+  border-color: var(--accent);
+}
+#toolbar button:active { transform: scale(0.97); }
+
+#toolbar button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+#toolbar button.primary:hover {
+  background: #ff5a75;
+}
+#toolbar button.success {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  font-weight: 600;
+}
+#toolbar button.success:hover {
+  background: #43a047;
+}
+
+#toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#toolbar .spacer { flex: 1; }
+
+#toolbar .info {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+}
+
+/* ====== 主区域 ====== */
+#main {
+  display: flex;
+  height: calc(100% - 48px - 28px);
+  /* toolbar 48px + statusbar 28px */
+}
+
+#editor-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  min-width: 300px;
+}
+
+#editor-panel .panel-header {
+  padding: 6px 12px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: #888;
+  user-select: none;
+}
+
+#editor-wrap {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+#line-numbers {
+  width: 54px;
+  min-width: 54px;
+  background: var(--gutter);
+  color: var(--line-num);
+  font-size: 13px;
+  line-height: 20px;
+  padding: 10px 8px 10px 0;
+  text-align: right;
+  overflow: hidden;
+  user-select: none;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+
+#editor {
+  flex: 1;
+  background: var(--panel-bg);
+  color: var(--text);
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 13px;
+  line-height: 20px;
+  padding: 10px 12px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+/* ====== 分割线 ====== */
+#splitter {
+  width: 4px;
+  background: var(--border);
+  cursor: col-resize;
+  user-select: none;
+  transition: background 0.15s;
+}
+#splitter:hover,
+#splitter.active {
+  background: var(--accent);
+}
+
+/* ====== 预览面板 ====== */
+#preview-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 300px;
+}
+
+#preview-panel .panel-header {
+  padding: 6px 12px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: #888;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#preview-panel .panel-header .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+}
+
+#preview-panel .panel-header button {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+#preview-panel .panel-header button:hover {
+  background: var(--accent2);
+}
+
+#preview-wrap {
+  flex: 1;
+  overflow: hidden;
+  background: #fff;
+}
+
+#preview {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* ====== 状态栏 ====== */
+#statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  height: 28px;
+  background: var(--status-bg);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: #888;
+  user-select: none;
+}
+
+#statusbar .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+#statusbar .dot.saved { background: var(--green); }
+#statusbar .dot.unsaved { background: var(--yellow); }
+#statusbar .dot.error { background: var(--accent); }
+
+#statusbar .spacer { flex: 1; }
+
+/* ====== Toast ====== */
+#toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #fff;
+  z-index: 999;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  opacity: 0;
+}
+#toast.show { opacity: 1; }
+#toast.success { background: #2e7d32; }
+#toast.error { background: #c62828; }
+#toast.info { background: #1565c0; }
+
+/* ====== 响应式 ====== */
+@media (max-width: 800px) {
+  #main { flex-direction: column; }
+  #editor-panel { border-right: none; border-bottom: 1px solid var(--border); }
+  #splitter { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- 工具栏 -->
+<div id="toolbar">
+  <span class="logo">⚡ ElecSim 代码编辑器</span>
+  <span class="sep"></span>
+  <button onclick="doSave()" title="Ctrl+S">💾 保存</button>
+  <button onclick="doDeploy()" class="success" title="Ctrl+Shift+D">🚀 部署到 GitHub</button>
+  <span class="sep"></span>
+  <button onclick="doReload()">🔄 从文件重新加载</button>
+  <button onclick="togglePreview()">👁 切换预览</button>
+  <span class="spacer"></span>
+  <span class="info" id="toolbarInfo"></span>
+</div>
+
+<!-- 主区域 -->
+<div id="main">
+  <!-- 代码编辑区 -->
+  <div id="editor-panel">
+    <div class="panel-header">📝 index.html</div>
+    <div id="editor-wrap">
+      <div id="line-numbers">1</div>
+      <textarea id="editor" spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <!-- 分割线 -->
+  <div id="splitter"></div>
+
+  <!-- 预览区 -->
+  <div id="preview-panel">
+    <div class="panel-header">
+      <span class="dot"></span>
+      <span>实时预览</span>
+      <button onclick="doRefreshPreview()" style="margin-left:auto">🔄 刷新</button>
+      <button onclick="openInNewTab()">↗ 新窗口</button>
+    </div>
+    <div id="preview-wrap">
+      <iframe id="preview" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- 状态栏 -->
+<div id="statusbar">
+  <span class="dot saved" id="statusDot"></span>
+  <span id="statusText">就绪</span>
+  <span class="spacer"></span>
+  <span id="statusLines"></span>
+  <span>|</span>
+  <span id="statusSize"></span>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ====== 状态 ======
+let originalContent = '';
+let isDirty = false;
+let previewVisible = true;
+
+const $ = id => document.getElementById(id);
+const editor = $('editor');
+const lineNums = $('line-numbers');
+const preview = $('preview');
+const toast = $('toast');
+const statusText = $('statusText');
+const statusLines = $('statusLines');
+const statusSize = $('statusSize');
+const toolbarInfo = $('toolbarInfo');
+
+// ====== 加载文件 ======
+async function loadFile() {
+  statusText.textContent = '正在加载...';
+  try {
+    const r = await fetch('/api/file');
+    if (!r.ok) throw new Error('加载失败: ' + r.status);
+    const data = await r.json();
+    editor.value = data.content;
+    originalContent = data.content;
+    isDirty = false;
+    updateLineNumbers();
+    updateStatus(data);
+    updatePreview();
+    setStatusSaved();
+    statusText.textContent = '已加载';
+    toolbarInfo.textContent = data.lines + ' 行 | ' + formatSize(data.size);
+  } catch(e) {
+    statusText.textContent = '加载失败';
+    setStatusError();
+    showToast('加载失败: ' + e.message, 'error');
+  }
+}
+
+// ====== 保存 ======
+async function doSave() {
+  statusText.textContent = '正在保存...';
+  try {
+    const content = editor.value;
+    const r = await fetch('/api/save', {
+      method: 'POST',
+      body: content,
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || '保存失败');
+    originalContent = content;
+    isDirty = false;
+    updateLineNumbers();
+    updateStatus(data);
+    updatePreview();
+    setStatusSaved();
+    statusText.textContent = '已保存';
+    showToast('✅ 已保存 (' + formatSize(data.size) + ')', 'success');
+  } catch(e) {
+    statusText.textContent = '保存失败';
+    showToast('保存失败: ' + e.message, 'error');
+  }
+}
+
+// ====== 部署 ======
+async function doDeploy() {
+  // 先保存
+  if (isDirty) {
+    await doSave();
+  }
+  statusText.textContent = '正在部署...';
+  showToast('正在部署到 GitHub...', 'info');
+  try {
+    const r = await fetch('/api/deploy', { method: 'POST' });
+    const data = await r.json();
+    if (data.ok) {
+      statusText.textContent = '已部署';
+      showToast('✅ 已部署到 GitHub Pages！', 'success');
+    } else {
+      const err = (data.details && data.details.push) || '未知错误';
+      if (err.includes('Everything up-to-date') || err.includes('nothing to commit')) {
+        statusText.textContent = '已是最新';
+        showToast('文件没有变化，无需部署', 'info');
+      } else {
+        statusText.textContent = '部署失败';
+        showToast('部署失败: ' + err, 'error');
+      }
+    }
+  } catch(e) {
+    statusText.textContent = '部署失败';
+    showToast('部署失败: ' + e.message, 'error');
+  }
+}
+
+// ====== 重新加载 ======
+function doReload() {
+  if (isDirty && !confirm('当前有未保存的修改，确定要重新加载吗？')) return;
+  loadFile();
+}
+
+// ====== 预览 ======
+let previewTimer = null;
+function updatePreview() {
+  if (!previewVisible) return;
+  const html = editor.value;
+  // 注入 base 标签确保相对路径正确
+  const final = html.replace('<head>', '<head><base href="/">');
+  preview.srcdoc = final;
+}
+
+function doRefreshPreview() {
+  updatePreview();
+  showToast('预览已刷新', 'info');
+}
+
+function openInNewTab() {
+  window.open('/index.html', '_blank');
+}
+
+function togglePreview() {
+  previewVisible = !previewVisible;
+  const panel = $('preview-panel');
+  const splitter = $('splitter');
+  if (previewVisible) {
+    panel.style.display = '';
+    splitter.style.display = '';
+    updatePreview();
+  } else {
+    panel.style.display = 'none';
+    splitter.style.display = 'none';
+    $('editor-panel').style.flex = '1';
+  }
+}
+
+// ====== 行号 ======
+function updateLineNumbers() {
+  const lines = editor.value.split('\n');
+  lineNums.innerHTML = lines.map((_, i) => i + 1).join('\n');
+  statusLines.textContent = lines.length + ' 行';
+}
+
+function updateStatus(data) {
+  if (data.lines !== undefined) statusLines.textContent = data.lines + ' 行';
+  if (data.size !== undefined) statusSize.textContent = formatSize(data.size);
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ====== 状态指示 ======
+function setStatusSaved() {
+  const dot = $('statusDot');
+  dot.className = 'dot saved';
+  dot.title = '已保存';
+}
+function setStatusUnsaved() {
+  const dot = $('statusDot');
+  dot.className = 'dot unsaved';
+  dot.title = '有未保存的修改';
+}
+function setStatusError() {
+  const dot = $('statusDot');
+  dot.className = 'dot error';
+  dot.title = '出错';
+}
+
+// ====== Toast ======
+let toastTimer = null;
+function showToast(msg, type) {
+  toast.textContent = msg;
+  toast.className = type + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.className = ''; }, 3000);
+}
+
+// ====== 编辑器事件 ======
+editor.addEventListener('input', () => {
+  isDirty = (editor.value !== originalContent);
+  updateLineNumbers();
+  setStatusUnsaved();
+  statusText.textContent = '未保存修改';
+  toolbarInfo.textContent = editor.value.split('\n').length + ' 行 | ' + formatSize(editor.value.length);
+
+  // 防抖预览
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(updatePreview, 500);
+});
+
+editor.addEventListener('scroll', () => {
+  lineNums.scrollTop = editor.scrollTop;
+});
+
+// Tab 键插入缩进
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const before = editor.value.substring(0, start);
+    const after = editor.value.substring(end);
+    editor.value = before + '  ' + after;
+    editor.selectionStart = editor.selectionEnd = start + 2;
+    editor.dispatchEvent(new Event('input'));
+  }
+  // Ctrl+S
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    doSave();
+  }
+  // Ctrl+Shift+D
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
+    e.preventDefault();
+    doDeploy();
+  }
+});
+
+// ====== 分割线拖拽 ======
+const splitter = $('splitter');
+let isDragging = false;
+let startX = 0;
+let startLeftWidth = 0;
+
+splitter.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  splitter.classList.add('active');
+  startX = e.clientX;
+  startLeftWidth = $('editor-panel').getBoundingClientRect().width;
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dx = e.clientX - startX;
+  const mainWidth = $('main').getBoundingClientRect().width;
+  const newWidth = startLeftWidth + dx;
+  const minW = 300;
+  const maxW = mainWidth - 300 - 4; // 4px splitter
+  const clamped = Math.max(minW, Math.min(newWidth, maxW));
+  $('editor-panel').style.flex = 'none';
+  $('editor-panel').style.width = clamped + 'px';
+  $('preview-panel').style.flex = '1';
+});
+
+document.addEventListener('mouseup', () => {
+  if (!isDragging) return;
+  isDragging = false;
+  splitter.classList.remove('active');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+});
+
+// ====== 初始化 ======
+loadFile();
+</script>
+</body>
+</html>

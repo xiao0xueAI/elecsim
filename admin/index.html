@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ElecSim 可视化编辑器</title>
+<style>
+:root{
+  --bg:#0d1117;--panel:#161b22;--card:#1c2333;--border:#30363d;
+  --text:#e6edf3;--dim:#8b949e;--muted:#484f58;
+  --accent:#58a6ff;--green:#3fb950;--red:#f85149;--yellow:#d29922;
+  --orange:#f0883e;--purple:#bc8cff;--pink:#ff7eb3;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
+.topbar{height:48px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;}
+.logo{font-size:15px;font-weight:700;color:var(--accent);}
+.logo small{color:var(--muted);font-weight:400;margin-left:6px;font-size:11px;}
+.spacer{flex:1;}
+.btn{padding:5px 12px;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--text);font-size:11px;cursor:pointer;transition:all .15s;}
+.btn:hover{border-color:var(--accent);background:#1c2a3a;}
+.btn.primary{background:var(--accent);color:#0d1117;border-color:var(--accent);font-weight:600;}
+.btn.primary:hover{background:#79b8ff;}
+.btn.danger{color:var(--red);border-color:var(--red);}
+.btn.success{color:var(--green);border-color:var(--green);}
+
+.layout{display:flex;height:calc(100vh - 48px);}
+.sidebar{width:200px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:8px 0;flex-shrink:0;}
+.nav-item{padding:8px 16px;font-size:12px;color:var(--dim);cursor:pointer;display:flex;align-items:center;gap:8px;border-left:2px solid transparent;transition:all .12s;}
+.nav-item:hover{background:var(--card);color:var(--text);}
+.nav-item.active{background:var(--card);color:var(--accent);border-left-color:var(--accent);}
+.nav-icon{width:18px;text-align:center;}
+
+.main{flex:1;overflow-y:auto;padding:20px 28px;}
+.section-title{font-size:14px;font-weight:600;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);color:var(--text);display:flex;align-items:center;gap:8px;}
+.section-title small{color:var(--dim);font-weight:400;font-size:11px;}
+
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:14px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;transition:all .15s;content-visibility:auto;contain-intrinsic-size:auto 120px;}
+.card:hover{border-color:var(--accent);}
+.card-title{font-size:12px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.card-desc{font-size:10px;color:var(--muted);margin-bottom:10px;}
+
+.form-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px;}
+.form-label{font-size:11px;color:var(--dim);flex-shrink:0;min-width:90px;}
+.form-input{flex:1;padding:4px 8px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:11px;font-family:inherit;}
+.form-input:focus{outline:none;border-color:var(--accent);}
+.form-input.small{flex:0 0 60px;min-width:50px;}
+.color-input{display:flex;align-items:center;gap:6px;flex:1;}
+.color-input input[type=color]{width:36px;height:28px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;padding:1px;}
+.color-input input[type=text]{flex:1;padding:4px 8px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:11px;font-family:'Cascadia Code',monospace;}
+textarea.code{width:100%;min-height:300px;padding:10px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;font-family:'Cascadia Code',monospace;font-size:11px;resize:vertical;}
+
+.pin-canvas-wrap{position:relative;width:100%;height:220px;background:var(--bg);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px;}
+.pin-canvas-wrap canvas{position:absolute;inset:0;cursor:default;}
+.pin-list{margin-top:8px;}
+.pin-row{display:flex;align-items:center;gap:8px;padding:4px 8px;margin-bottom:4px;background:var(--card);border:1px solid var(--border);border-radius:4px;font-size:11px;}
+.pin-row .pin-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.pin-row .pin-label{font-weight:600;min-width:30px;}
+.pin-row input{width:50px;padding:2px 4px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:10px;font-family:'Cascadia Code',monospace;}
+.pin-row input:focus{outline:none;border-color:var(--accent);}
+
+.list-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;transition:all .12s;}
+.list-item:hover{border-color:var(--accent);}
+.list-icon{font-size:18px;width:30px;text-align:center;flex-shrink:0;}
+.list-info{flex:1;min-width:0;}
+.list-name{font-size:12px;font-weight:600;}
+.list-meta{font-size:10px;color:var(--muted);margin-top:2px;}
+.list-actions{display:flex;gap:5px;flex-shrink:0;}
+.list-actions .btn{padding:3px 8px;font-size:10px;}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100;}
+.modal.show{display:flex;}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:650px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.5);}
+.modal-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:14px;font-weight:600;}
+.modal-body{padding:18px;overflow-y:auto;flex:1;}
+.modal-footer{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+
+.toast{position:fixed;top:60px;right:20px;padding:10px 18px;background:var(--green);color:#fff;border-radius:6px;font-size:12px;z-index:200;display:none;box-shadow:0 4px 12px rgba(0,0,0,.4);}
+.toast.show{display:block;animation:slideIn .3s;}
+.toast.error{background:var(--red);}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+.preview-frame{width:100%;height:600px;border:1px solid var(--border);border-radius:6px;background:#0d1117;margin-top:14px;}
+.hint{font-size:10px;color:var(--muted);margin-top:4px;font-style:italic;}
+.hint a{color:var(--accent);}
+.group{margin-bottom:18px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:8px;}
+.group-title{font-size:12px;font-weight:600;margin-bottom:10px;color:var(--accent);}
+.save-row{margin-top:14px;display:flex;gap:8px;align-items:center;}
+.status-tag{font-size:10px;padding:2px 8px;border-radius:10px;display:inline-block;}
+.status-tag.ok{background:rgba(63,185,80,.15);color:var(--green);}
+.status-tag.warn{background:rgba(242,136,62,.15);color:var(--orange);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">🔧 ElecSim 可视化编辑器<small>v3.0</small></div>
+  <div class="spacer"></div>
+  <span id="nodeStatus" class="status-tag">⏳ 检测中...</span>
+  <button class="btn" onclick="openSite()">🌐 新窗口打开主站</button>
+  <button class="btn" onclick="refreshPreview()">↻ 刷新预览</button>
+  <button class="btn" onclick="loadAll()">↻ 重新加载</button>
+  <button class="btn primary" onclick="deploy()" id="btnDeploy" style="color:#0d1117;">🚀 部署到 GitHub</button>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="nav-item active" data-page="appearance"><span class="nav-icon">🎨</span>外观样式</div>
+    <div class="nav-item" data-page="wirestyle"><span class="nav-icon">🔗</span>布线样式</div>
+    <div class="nav-item" data-page="components"><span class="nav-icon">🔌</span>元件库</div>
+    <div class="nav-item" data-page="products"><span class="nav-icon">📡</span>产品库</div>
+    <div class="nav-item" data-page="templates"><span class="nav-icon">📐</span>电路模板</div>
+    <div class="nav-item" data-page="config"><span class="nav-icon">⚙</span>全局配置</div>
+    <div class="nav-item" data-page="images"><span class="nav-icon">🖼</span>图片资源</div>
+    <div class="nav-item" data-page="code"><span class="nav-icon">📝</span>代码编辑</div>
+    <div class="nav-item" data-page="preview"><span class="nav-icon">👁</span>网站预览</div>
+  </div>
+
+  <div class="main">
+    <!-- 外观样式 -->
+    <div id="page-appearance" class="page active">
+      <div class="section-title">🎨 外观样式 <small>修改后点「保存」，编辑器自身和预览同时更新</small></div>
+      <div class="hint">点色块直接选色，所有修改<strong>实时</strong>反映在当前编辑器上。确认满意后点「保存」写入文件。</div>
+      <div id="css-groups"></div>
+      <div class="save-row">
+        <button class="btn primary" id="btn-save-css" onclick="saveCss()">💾 保存所有颜色</button>
+        <button class="btn" onclick="resetCss()">↺ 恢复默认</button>
+        <span id="css-save-status" style="font-size:10px;color:var(--dim);"></span>
+      </div>
+    </div>
+
+    <!-- 布线样式 -->
+    <div id="page-wirestyle" class="page" style="display:none;">
+      <div class="section-title">🔗 布线样式 <small>修改导线颜色和电流动画，保存后刷新预览生效</small></div>
+      <div class="hint">修改各线型颜色、线宽、电流流动动画速度等。</div>
+      <div id="wirestyle-groups"></div>
+      <div class="save-row">
+        <button class="btn primary" onclick="saveWireStyle()">💾 保存布线样式</button>
+        <button class="btn" onclick="loadWireStyle()">↻ 重新加载</button>
+      </div>
+    </div>
+
+    <!-- 元件库 -->
+    <div id="page-components" class="page" style="display:none;">
+      <div class="section-title">🔌 元件库 <small>编辑元件参数和端子位置</small></div>
+      <div class="hint">点击「编辑」可修改名称、图标、图片、尺寸和<strong>端子位置</strong>（可拖拽或输入坐标）。编辑完需点击「保存到文件」才会写入。</div>
+      <div class="save-row" style="margin-bottom:12px;">
+        <button class="btn primary" onclick="addComponent()">➕ 新增元件</button>
+        <button class="btn primary" onclick="saveAllComponents()">💾 保存元件库到文件</button>
+      </div>
+      <div id="components-list"></div>
+    </div>
+
+    <!-- 产品库 -->
+    <div id="page-products" class="page" style="display:none;">
+      <div class="section-title">📡 产品库 <small>QIACHIP 系列产品</small></div>
+      <div class="hint">QIACHIP 产品数据由主站运行时从 localStorage 加载。<br>源码中的 <code>QIACHIP.products</code> 初始为空，运行时从 <code>QIACHIP.templates</code> 复制。如需编辑预置产品模板，请使用 📐 电路模板页面。</div>
+      <div class="save-row" style="margin-bottom:12px;">
+        <button class="btn primary" onclick="addProduct()">➕ 新增产品</button>
+        <button class="btn" onclick="saveProductsToFile()">💾 保存产品库到文件</button>
+      </div>
+      <div id="products-list"></div>
+    </div>
+
+    <!-- 电路模板 -->
+    <div id="page-templates" class="page" style="display:none;">
+      <div class="section-title">📐 电路模板 <small>预置电路示例</small></div>
+      <div class="hint">此处编辑 <code>数据/模板库.js</code> 中的 <code>Templates.list</code>。</div>
+      <div class="save-row" style="margin-bottom:12px;">
+        <button class="btn primary" onclick="addTemplate()">➕ 新增模板</button>
+        <button class="btn" onclick="saveTemplatesToFile()">💾 保存模板到文件</button>
+      </div>
+      <div id="templates-list"></div>
+    </div>
+
+    <!-- 全局配置 -->
+    <div id="page-config" class="page" style="display:none;">
+      <div class="section-title">⚙ 全局配置 <small>修改网格、缩放、分类颜色等</small></div>
+      <div class="hint">以下参数定义在 <code>脚本/配置.js</code> 中。如需修改，请使用左侧「代码编辑」功能。</div>
+      <div id="config-groups"></div>
+    </div>
+
+    <!-- 图片资源 -->
+    <div id="page-images" class="page" style="display:none;">
+      <div class="section-title">🖼 图片资源 <small>images/ 目录</small></div>
+      <div style="margin-bottom:14px;">
+        <input type="file" id="img-upload" accept="image/*" style="display:none;" onchange="uploadImage()">
+        <button class="btn primary" onclick="document.getElementById('img-upload').click()">⬆ 上传新图片</button>
+        <span class="hint" style="margin-left:10px;">上传后文件名会出现在元件编辑框的下拉列表中</span>
+      </div>
+      <div id="images-list" class="card-grid"></div>
+    </div>
+
+    <!-- 代码编辑 -->
+    <div id="page-code" class="page" style="display:none;">
+      <div class="section-title">📝 代码编辑 <small>直接编辑源文件（高级）</small></div>
+      <div class="hint">⚠️ 此功能适合懂代码的人使用。</div>
+      <div style="margin-bottom:10px;">
+        <select id="code-file" class="form-input" style="width:300px;display:inline-block;">
+          <option value="数据/元件库.js">数据/元件库.js</option>
+          <option value="数据/产品库.js">数据/产品库.js</option>
+          <option value="数据/模板库.js">数据/模板库.js</option>
+          <option value="数据/布线样式.js">数据/布线样式.js</option>
+          <option value="样式/样式.css">样式/样式.css</option>
+          <option value="脚本/配置.js">脚本/配置.js</option>
+        </select>
+        <button class="btn" onclick="loadCodeFile()">↻ 加载</button>
+        <button class="btn primary" onclick="saveCodeFile()">💾 保存</button>
+      </div>
+      <textarea id="code-textarea" class="code"></textarea>
+    </div>
+
+    <!-- 网站预览 -->
+    <div id="page-preview" class="page" style="display:none;">
+      <div class="section-title">👁 网站预览 <small>ElecSim 主站实时查看</small></div>
+      <div class="hint">此预览加载的是 <code>../index.html</code>（即 ElecSim 主站）。如果空白，请点下方按钮在新窗口打开。</div>
+      <iframe id="preview-frame" class="preview-frame" src="about:blank" loading="lazy"></iframe>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+        <button class="btn primary" onclick="refreshPreview()">↻ 刷新预览</button>
+        <button class="btn" onclick="window.open('../index.html','_blank')">🔗 在新窗口打开</button>
+        <span id="preview-status" style="font-size:10px;color:var(--dim);"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 通用编辑弹窗 -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">编辑</div>
+      <button class="btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="confirmModal()">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+// ============== API ==============
+const API = {
+  css: '/api/css',
+  wireStyle: '/api/wire-style',
+  components: '/api/components',
+  products: '/api/products',
+  templates: '/api/templates',
+  images: '/api/images',
+  all: '/api/all',
+  upload: '/api/upload-image',
+  nodeCheck: '/api/node-check',
+};
+
+// ============== 全局状态 ==============
+const DATA = {
+  css: {}, wireStyle: {}, components: null, products: null,
+  templates: null, images: [], nodeInfo: null, _errors: [],
+};
+
+let currentComponentIndex = -1;
+let currentProductIndex = -1;
+let currentTemplateIndex = -1;
+let currentPinDragIdx = -1;
+let modalCallback = null;
+let pinDragData = null;
+let _previewLoaded = false;
+let _toastTimer = null;
+
+// ============== 工具函数 ==============
+function evalArray(text){
+  if(text===null||text===undefined)return null;
+  if(typeof text!=='string')return text;
+  try{return new Function('return ['+text+']')();}
+  catch(e){console.error('eval失败:',e.message);return null;}
+}
+function resolveArray(val){
+  if(Array.isArray(val))return val;
+  if(val&&typeof val==='object'&&val._raw)return evalArray(val._raw);
+  return null;
+}
+
+async function fetchJson(url,opts){
+  const r = await fetch(url,opts);
+  const text = await r.text();
+  try { return JSON.parse(text); }
+  catch(e) { return {__error__: 'JSON解析失败', __status__: r.status, __raw__: text.substring(0,200)}; }
+}
+
+function toast(msg, isError){
+  const t = document.getElementById('toast');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  t.textContent = msg; t.className = 'toast show'+(isError?' error':'');
+  _toastTimer = setTimeout(()=>{t.className='toast';}, 3000);
+}
+
+function escapeHtml(s){
+  if(s===null||s===undefined)return'';
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function isHexColor(v){return/^#[0-9a-fA-F]{6}$/.test(v);}
+
+// ============== 页面切换 ==============
+let _currentPage = 'appearance';
+document.querySelectorAll('.nav-item').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    const prevPage = _currentPage;
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    el.classList.add('active');
+    const page = el.dataset.page;
+    _currentPage = page;
+    document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+    const pageEl = document.getElementById('page-'+page);
+    if (pageEl) pageEl.style.display = 'block';
+    // 离开预览页时释放 iframe 资源（仿真工具占用大量内存）
+    if (prevPage === 'preview' && page !== 'preview') {
+      const frame = document.getElementById('preview-frame');
+      if (frame) { frame.src = 'about:blank'; _previewLoaded = false; }
+    }
+    // 预览页延迟加载
+    if (page === 'preview') ensurePreviewLoaded();
+  });
+});
+
+// ============== 主加载 ==============
+async function loadAll(){
+  try {
+    toast('加载中...');
+
+    // 并行加载所有数据
+    const [data, wsData, nodeInfo] = await Promise.all([
+      fetchJson(API.all).catch(e=>({css:{},components:null,products:null,templates:null,errors:[e.message]})),
+      fetchJson(API.wireStyle).catch(()=>null),
+      fetchJson(API.nodeCheck).catch(()=>null),
+    ]);
+
+    DATA.css = (data && data.css) ? data.css : {};
+    DATA.components = resolveArray(data.components);
+    DATA.products = resolveArray(data.products);
+    DATA.templates = resolveArray(data.templates);
+    DATA.nodeInfo = nodeInfo;
+    DATA._errors = (data && data.errors) ? data.errors : [];
+    DATA.wireStyle = wsData || {};
+
+    // 如果 /api/all 没返回 CSS，单独请求
+    if (!data || !data.css || Object.keys(data.css||{}).length===0) {
+      try {
+        const cssData = await fetchJson(API.css);
+        if (cssData && cssData.vars) DATA.css = cssData.vars;
+      } catch(e) { console.warn('CSS单独加载失败:',e); }
+    }
+
+    updateNodeStatus();
+    renderAll();
+    await loadImages();
+    applyCssToAdmin();
+    toast('已加载 ✓');
+  } catch(e) {
+    console.error('加载失败:',e);
+    toast('加载失败: '+e.message, true);
+    renderAll();
+  }
+}
+
+function updateNodeStatus(){
+  const el = document.getElementById('nodeStatus');
+  if (!el) return;
+  if (DATA.nodeInfo && DATA.nodeInfo.available) {
+    el.className = 'status-tag ok';
+    el.textContent = '✅ Node.js '+ (DATA.nodeInfo.version||'');
+  } else {
+    el.className = 'status-tag warn';
+    el.textContent = '⚠ 未检测到 Node.js';
+  }
+}
+
+function renderAll(){
+  renderCss(); renderWireStyle(); renderConfig();
+  renderComponents(); renderProducts(); renderTemplates();
+}
+
+async function loadImages(){
+  try {
+    const r = await fetchJson(API.images);
+    DATA.images = (r && r.images) ? r.images : [];
+  } catch(e) { DATA.images = []; }
+  renderImages();
+}
+
+// ============== 外观样式 ==============
+const CSS_DESC = {
+  'bg-dark':'页面主背景','bg-panel':'侧边栏/顶部栏','bg-card':'元件卡片','bg-input':'输入框底色',
+  'border':'边框颜色','border-light':'浅色分割线',
+  'text':'主要文字','text-dim':'次要说明','text-muted':'占位文字',
+  'accent':'按钮/选中态','accent-glow':'发光效果',
+  'green':'成功/导通','yellow':'警告','red':'错误/断开',
+  'purple':'紫色','cyan':'青色','orange':'橙色','pink':'粉色',
+  'cat-power':'电源类标签','cat-switch':'开关类标签','cat-protection':'保护类标签',
+  'cat-relay':'继电器标签','cat-sensor':'传感器标签','cat-output':'输出类标签',
+  'cat-meter':'仪表类标签','cat-passive':'无源元件标签','cat-qiachip':'QIACHIP标签',
+};
+const CSS_GROUPS = {
+  '背景与面板':['bg-dark','bg-panel','bg-card','bg-input'],
+  '边框':['border','border-light'],
+  '文字':['text','text-dim','text-muted'],
+  '主色':['accent','accent-glow'],
+  '通用色':['green','yellow','red','purple','cyan','orange','pink'],
+  '元件分类色':['cat-power','cat-switch','cat-protection','cat-relay','cat-sensor','cat-output','cat-meter','cat-passive','cat-qiachip'],
+};
+
+function renderCss(){
+  const root = document.getElementById('css-groups');
+  let html = '';
+  for (const [group, keys] of Object.entries(CSS_GROUPS)) {
+    html += '<div class="group"><div class="group-title">'+group+'</div>';
+    for (const k of keys) {
+      const v = DATA.css[k] || '';
+      const desc = CSS_DESC[k] || '--'+k;
+      html += '<div class="form-row">'
+        + '<span class="form-label" title="--'+k+'">'+desc+'</span>'
+        + '<div class="color-input">'
+        + '<input type="color" value="'+(isHexColor(v)?v:'#000000')+'" onchange="onCssChange(\''+k+'\',this.value)">'
+        + '<input type="text" id="css-'+k+'" value="'+escapeHtml(v)+'" oninput="onCssChange(\''+k+'\',this.value)" placeholder="#rrggbb">'
+        + '</div></div>';
+    }
+    html += '</div>';
+  }
+  root.innerHTML = html;
+}
+
+// CSS 实时预览防抖：用 rAF 批量应用多个 CSS 变量变更，避免每次按键都触发重排
+let _cssPending = null, _cssRafId = null;
+function _flushCssBatch(){
+  if (_cssPending) {
+    for (const [k, v] of Object.entries(_cssPending)) {
+      document.documentElement.style.setProperty('--'+k, v);
+    }
+    _cssPending = null;
+  }
+  _cssRafId = null;
+}
+
+function onCssChange(key, val){
+  DATA.css[key] = val;
+  if (!_cssPending) { _cssPending = {}; _cssRafId = requestAnimationFrame(_flushCssBatch); }
+  _cssPending[key] = val;
+}
+
+function applyCssToAdmin(){
+  const root = document.documentElement.style;
+  for (const [k, v] of Object.entries(DATA.css)) {
+    if (v) root.setProperty('--'+k, v);
+  }
+}
+
+async function saveCss(){
+  const btn = document.getElementById('btn-save-css');
+  const status = document.getElementById('css-save-status');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 保存中...'; }
+
+  try {
+    const r = await fetchJson(API.css, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({vars: DATA.css})
+    });
+    if (r.error) {
+      toast('保存失败: '+r.error, true);
+      if (status) status.textContent = '❌ 保存失败';
+    } else {
+      toast('💾 已保存 ✓ 预览已刷新', false);
+      refreshPreview();
+      if (status) { status.textContent = '✅ 已保存'; setTimeout(()=>{status.textContent='';},2000); }
+    }
+  } catch(e) {
+    toast('保存异常: '+e.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 保存所有颜色'; }
+  }
+}
+
+function resetCss(){
+  if (!confirm('确定要恢复所有颜色到默认值吗？此操作不可撤销。')) return;
+  const defaults = {
+    'bg-dark':'#0d1117','bg-panel':'#161b22','bg-card':'#1c2333','bg-input':'#0d1117',
+    'border':'#30363d','border-light':'#3d444d',
+    'text':'#e6edf3','text-dim':'#8b949e','text-muted':'#484f58',
+    'accent':'#58a6ff','accent-glow':'rgba(88,166,255,0.3)',
+    'green':'#3fb950','yellow':'#d29922','red':'#f85149',
+    'purple':'#bc8cff','cyan':'#39d2c0','orange':'#f0883e','pink':'#ff7eb3',
+    'cat-power':'#f0883e','cat-switch':'#58a6ff','cat-protection':'#f85149',
+    'cat-relay':'#bc8cff','cat-sensor':'#39d2c0','cat-output':'#3fb950',
+    'cat-meter':'#d29922','cat-passive':'#8b949e','cat-qiachip':'#ff7eb3',
+  };
+  DATA.css = defaults;
+  renderCss();
+  applyCssToAdmin();
+  toast('已恢复默认值（未保存到文件）');
+}
+
+// ============== 布线样式 ==============
+const WIRE_COLORS_KEYS = ['live','neutral','ground','signal','dc_pos','dc_neg','purple','cyan','pink','gold'];
+const WIRE_COLORS_DESC = {
+  live:'火线(L) — 红色', neutral:'零线(N) — 蓝色', ground:'地线(PE/E) — 绿色',
+  signal:'信号线 — 橙色', dc_pos:'DC正极(+) — 深橙', dc_neg:'DC负极(-) — 青色',
+  purple:'紫色线', cyan:'青色线', pink:'粉色线', gold:'金色线',
+};
+
+function renderWireStyle(){
+  const root = document.getElementById('wirestyle-groups');
+  const ws = DATA.wireStyle || {};
+  const colors = ws.colors || {};
+  const flow = ws.flow || {};
+  const ac = flow.ac || {};
+  const dc = flow.dc || {};
+
+  let html = '<div class="group"><div class="group-title">导线颜色</div>';
+  WIRE_COLORS_KEYS.forEach(k=>{
+    const v = escapeHtml(colors[k]||'');
+    html += '<div class="form-row">'
+      + '<span class="form-label">'+ (WIRE_COLORS_DESC[k]||k) +'</span>'
+      + '<div class="color-input">'
+      + '<input type="color" value="'+(isHexColor(v)?v:'#000000')+'" onchange="document.getElementById(\'wc-'+k+'\').value=this.value">'
+      + '<input type="text" id="wc-'+k+'" value="'+v+'" oninput="onWireColorChange(\''+k+'\',this.value)" placeholder="#rrggbb">'
+      + '</div></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="group"><div class="group-title">导线宽度</div>'
+    + '<div class="form-row"><span class="form-label">线宽 (px)</span>'
+    + '<input class="form-input small" type="number" id="ws-width" value="'+(ws.width||5)+'" step="0.5" min="1" max="20" oninput="DATA.wireStyle.width=parseFloat(this.value)"></div>'
+    + '</div>';
+
+  html += '<div class="group"><div class="group-title">交流电(AC) 电流动画</div>';
+  html += flowNumRow('虚线长度','ws-ac-dashLen',ac.dashLen||12);
+  html += flowNumRow('虚线间隔','ws-ac-gapLen',ac.gapLen||20);
+  html += flowNumRow('流动速度','ws-ac-speed',ac.speed||0.18,0.01);
+  html += flowNumRow('箭头大小','ws-ac-arrowSize',ac.arrowSize||6);
+  html += flowNumRow('箭头间距','ws-ac-arrowSpacing',ac.arrowSpacing||35);
+  html += flowNumRow('发光模糊','ws-ac-glowBlur',ac.glowBlur||18);
+  html += '</div>';
+
+  html += '<div class="group"><div class="group-title">直流电(DC) 电流动画</div>';
+  html += flowNumRow('虚线长度','ws-dc-dashLen',dc.dashLen||8);
+  html += flowNumRow('虚线间隔','ws-dc-gapLen',dc.gapLen||12);
+  html += flowNumRow('流动速度','ws-dc-speed',dc.speed||0.25,0.01);
+  html += flowNumRow('箭头大小','ws-dc-arrowSize',dc.arrowSize||5);
+  html += flowNumRow('箭头间距','ws-dc-arrowSpacing',dc.arrowSpacing||25);
+  html += flowNumRow('发光模糊','ws-dc-glowBlur',dc.glowBlur||12);
+  html += '</div>';
+
+  root.innerHTML = html;
+}
+
+function flowNumRow(label, id, val, step){
+  step = step || 1;
+  return '<div class="form-row"><span class="form-label">'+label+'</span>'
+    + '<input class="form-input small" type="number" id="'+id+'" value="'+val+'" step="'+step+'" min="0.01" oninput="onFlowInput()">'
+    + '</div>';
+}
+
+let _wcPending = null;
+function onWireColorChange(key, val){
+  if (!DATA.wireStyle.colors) DATA.wireStyle.colors = {};
+  DATA.wireStyle.colors[key] = val;
+  // 实时更新颜色方块（用 rAF 防抖）
+  if (!_wcPending) { _wcPending = true; requestAnimationFrame(()=>{ _wcPending = null; }); }
+}
+
+function onFlowInput(){
+  // 数值输入框使用 oninput，实时更新到 DATA.wireStyle
+  // 实际保存时从 DOM 读取所有值
+}
+
+async function saveWireStyle(){
+  // 从 DOM 读取所有当前值（确保拿到最新的，包括刚输入未 blur 的）
+  const ws = {colors:{}, width:5, flow:{ac:{}, dc:{}}};
+
+  WIRE_COLORS_KEYS.forEach(k=>{
+    const el = document.getElementById('wc-'+k);
+    ws.colors[k] = el ? el.value : '#888888';
+  });
+
+  const wEl = document.getElementById('ws-width');
+  ws.width = wEl ? parseFloat(wEl.value)||5 : 5;
+
+  ['ac','dc'].forEach(acdc => {
+    ['dashLen','gapLen','speed','arrowSize','arrowSpacing','glowBlur'].forEach(p => {
+      const el = document.getElementById('ws-'+acdc+'-'+p);
+      ws.flow[acdc][p] = el ? parseFloat(el.value)||0 : 0;
+    });
+  });
+
+  try {
+    const r = await fetchJson(API.wireStyle, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(ws)
+    });
+    if (r.error) {
+      toast('保存失败: '+r.error, true);
+    } else {
+      toast('💾 已保存 ✓ 预览已刷新', false);
+      refreshPreview();
+    }
+  } catch(e) {
+    toast('保存异常: '+e.message, true);
+  }
+}
+
+function loadWireStyle(){ loadAll(); }
+
+// ============== 全局配置 ==============
+function renderConfig(){
+  const root = document.getElementById('config-groups');
+  let html = '<div class="group"><div class="group-title">页面级别配置</div>';
+  html += '<div class="hint">以下参数定义在 <code>脚本/配置.js</code>。如需修改请使用左侧「代码编辑」。</div>';
+  html += '<div class="form-row"><span class="form-label">网格大小</span><span class="form-input">20 px</span></div>';
+  html += '<div class="form-row"><span class="form-label">缩放范围</span><span class="form-input">0.2x ~ 4x</span></div>';
+  html += '<div class="form-row"><span class="form-label">最大元件数</span><span class="form-input">100 个</span></div>';
+  html += '<div class="form-row"><span class="form-label">历史记录</span><span class="form-input">50 步</span></div>';
+  html += '<div class="form-row"><span class="form-label">自动保存间隔</span><span class="form-input">30 秒</span></div>';
+  html += '<div class="form-row"><span class="form-label">端子半径</span><span class="form-input">8.5 px</span></div>';
+  html += '</div>';
+
+  const defCats = {
+    '电源':'#f0883e','开关/按钮':'#58a6ff','保护器件':'#f85149',
+    '继电器/接触器':'#bc8cff','传感器':'#39d2c0','输出器件':'#3fb950',
+    '测量仪表':'#d29922','无源元件':'#8b949e','QIACHIP产品':'#ff7eb3',
+  };
+  html += '<div class="group"><div class="group-title">分类颜色</div>';
+  for (const [cat, color] of Object.entries(defCats)) {
+    html += '<div class="form-row">'
+      + '<span class="form-label">'+cat+'</span>'
+      + '<div class="color-input" style="flex:0 0 200px;">'
+      + '<input type="color" value="'+color+'" disabled style="opacity:0.5;">'
+      + '<span style="font-size:10px;color:var(--muted);">'+color+'</span>'
+      + '</div></div>';
+  }
+  html += '</div>';
+  root.innerHTML = html;
+}
+
+// ============== 元件库（含端子拖拽编辑器） ==============
+function renderComponents(){
+  const root = document.getElementById('components-list');
+  if (!Array.isArray(DATA.components)) {
+    const errs = DATA._errors || [];
+    const errDetail = errs.length ? '<br><span style="font-size:10px;color:var(--dim);">详情: '+escapeHtml(errs.join('; '))+'</span>' : '';
+    root.innerHTML = '<div class="hint" style="color:var(--red);padding:20px;">'
+      + '⚠ 元件库数据加载失败。'+errDetail
+      + '<br><br>请确认：<br>'
+      + '1. Node.js 已安装（<a href="https://nodejs.org/" target="_blank">nodejs.org</a>）<br>'
+      + '2. 顶栏状态显示 ✅ Node.js<br>'
+      + '3. 按 F12 查看控制台详细错误<br>'
+      + '4. 如刚安装 Node.js，请重启终端'
+      + '</div>';
+    return;
+  }
+  if (DATA.components.length === 0) {
+    root.innerHTML = '<div class="hint" style="padding:20px;text-align:center;">元件库为空。</div>';
+    return;
+  }
+
+  let html = '';
+  DATA.components.forEach((c,i)=>{
+    html += '<div class="list-item">'
+      + '<div class="list-icon">'+escapeHtml(c.icon||'⚙')+'</div>'
+      + '<div class="list-info">'
+      + '<div class="list-name">'+escapeHtml(c.name)+' <small style="color:var(--muted);font-weight:400;">('+escapeHtml(c.type)+')</small></div>'
+      + '<div class="list-meta">'+escapeHtml(c.cat||'')+' · '+escapeHtml(c.desc||'')+' · 端子: '+(c.pins||[]).length+'个</div>'
+      + '</div>'
+      + '<div class="list-actions"><button class="btn" onclick="editComponent('+i+')">✏ 编辑</button></div>'
+      + '</div>';
+  });
+  root.innerHTML = html;
+}
+
+// 新增元件（创建空白模板并打开编辑弹窗）
+function addComponent(){
+  const newComp = {
+    id: 'custom_' + Date.now(),
+    name: '新元件',
+    icon: '⚙',
+    type: 'custom_' + Date.now(),
+    cat: '自定义',
+    desc: '',
+    w: 80,
+    h: 80,
+    image: '',
+    pins: [
+      {id:'p1', label:'L', dx:-30, dy:0, lo:-20, ld:0},
+      {id:'p2', label:'N', dx:30, dy:0, lo:20, ld:0}
+    ]
+  };
+  // 追加到数组末尾
+  if (!Array.isArray(DATA.components)) DATA.components = [];
+  DATA.components.push(newComp);
+  const newIndex = DATA.components.length - 1;
+  renderComponents();
+  editComponent(newIndex);
+  toast('已创建新元件，请填写信息后点保存');
+}
+
+function editComponent(i){
+  const c = DATA.components[i];
+  currentComponentIndex = i;
+  const pins = c.pins || [];
+
+  let pinImgs = '';
+  if (DATA.images && DATA.images.length) {
+    pinImgs = DATA.images.map(img=>
+      '<option value="'+escapeHtml(img.name)+'" '+((c.image||'').endsWith(img.name)?'selected':'')+'>'+escapeHtml(img.name)+'</option>'
+    ).join('');
+  }
+
+  let pinRows = '';
+  pins.forEach((p, pi)=>{
+    pinRows += '<div class="pin-row">'
+      + '<div class="pin-dot" style="background:#58a6ff;"></div>'
+      + '<span class="pin-label">'+escapeHtml(p.label||p.id||'?')+'</span>'
+      + '<span style="color:var(--muted);font-size:10px;">dx:</span><input type="number" id="pin-dx-'+pi+'" value="'+(p.dx||0)+'" step="1" onchange="onPinInput('+pi+')" style="width:60px;">'
+      + '<span style="color:var(--muted);font-size:10px;">dy:</span><input type="number" id="pin-dy-'+pi+'" value="'+(p.dy||0)+'" step="1" onchange="onPinInput('+pi+')" style="width:60px;">'
+      + '<span style="color:var(--muted);font-size:10px;">标:</span><input type="text" id="pin-label-'+pi+'" value="'+escapeHtml(p.label||'')+'" style="width:30px;">'
+      + '<span style="color:var(--muted);font-size:10px;">lo:</span><input type="number" id="pin-lo-'+pi+'" value="'+(p.lo||0)+'" style="width:40px;">'
+      + '<span style="color:var(--muted);font-size:10px;">ld:</span><input type="number" id="pin-ld-'+pi+'" value="'+(p.ld||0)+'" style="width:40px;">'
+      + '<span style="flex:1;"></span>'
+      + '<button class="btn danger" onclick="removePin('+pi+')" style="padding:2px 6px;font-size:10px;">✕</button>'
+      + '</div>';
+  });
+
+  let imgOnRow = '';
+  if (typeof c.imageOn !== 'undefined') {
+    imgOnRow = '<div class="form-row"><span class="form-label">亮态图</span><select class="form-input" id="edit-imageOn">'
+      + DATA.images.map(img=>'<option value="'+escapeHtml(img.name)+'" '+((c.imageOn||'').endsWith(img.name)?'selected':'')+'>'+escapeHtml(img.name)+'</option>').join('')
+      + '</select></div>';
+  }
+
+  const body =
+    '<div class="form-row"><span class="form-label">名称</span><input class="form-input" id="edit-name" value="'+escapeHtml(c.name||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">图标</span><input class="form-input" id="edit-icon" value="'+escapeHtml(c.icon||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">类型ID</span><input class="form-input" id="edit-type" value="'+escapeHtml(c.type||'')+'" disabled style="opacity:.5;"></div>'
+    + '<div class="form-row"><span class="form-label">分类</span><input class="form-input" id="edit-cat" value="'+escapeHtml(c.cat||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">描述</span><input class="form-input" id="edit-desc" value="'+escapeHtml(c.desc||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">宽度</span><input class="form-input small" type="number" id="edit-w" value="'+(c.w||0)+'"></div>'
+    + '<div class="form-row"><span class="form-label">高度</span><input class="form-input small" type="number" id="edit-h" value="'+(c.h||0)+'"></div>'
+    + '<div class="form-row"><span class="form-label">图片</span><select class="form-input" id="edit-image"><option value="">无</option>'+pinImgs+'</select></div>'
+    + imgOnRow
+    + '<div class="group" style="margin-top:12px;">'
+    + '<div class="group-title">📌 端子位置 <button class="btn" onclick="addPin('+i+')" style="font-size:10px;padding:2px 8px;margin-left:8px;">+ 添加端子</button></div>'
+    + '<div class="hint">拖拽蓝色圆点移动端子位置（自动吸附网格）。也可在下方输入精确坐标。</div>'
+    + '<div class="pin-canvas-wrap"><canvas id="pinCanvas" width="600" height="220"></canvas></div>'
+    + '<div class="pin-list" id="pinList">'+pinRows+'</div>'
+    + '</div>';
+
+  openModal('编辑元件 - '+c.name, body, saveComponent);
+  setTimeout(()=>initPinCanvas(c), 200);
+}
+
+function initPinCanvas(c){
+  const canvas = document.getElementById('pinCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const scale = 1.8, centerX = canvas.width/2, centerY = canvas.height/2;
+  const w = c.w||100, h = c.h||100;
+
+  // 离屏 canvas 缓存静态层（网格+元件轮廓+十字线），拖拽时不重复绘制
+  let _staticCanvas, _staticCtx, _staticValid = false, _staticW, _staticH;
+  function _buildStatic(){
+    if (!_staticCanvas) {
+      _staticCanvas = document.createElement('canvas');
+      _staticCanvas.width = canvas.width;
+      _staticCanvas.height = canvas.height;
+      _staticCtx = _staticCanvas.getContext('2d');
+    }
+    _staticCtx.clearRect(0, 0, canvas.width, canvas.height);
+    // Grid
+    _staticCtx.strokeStyle = '#2a2a3a'; _staticCtx.lineWidth = 1;
+    for (let x = centerX%20; x < canvas.width; x += 20) {
+      _staticCtx.beginPath(); _staticCtx.moveTo(x,0); _staticCtx.lineTo(x,canvas.height); _staticCtx.stroke();
+    }
+    for (let y = centerY%20; y < canvas.height; y += 20) {
+      _staticCtx.beginPath(); _staticCtx.moveTo(0,y); _staticCtx.lineTo(canvas.width,y); _staticCtx.stroke();
+    }
+    // Component outline
+    const cx = centerX - w/2*scale, cy = centerY - h/2*scale;
+    _staticCtx.fillStyle = 'rgba(88,166,255,0.08)'; _staticCtx.strokeStyle = '#58a6ff'; _staticCtx.lineWidth = 2;
+    _staticCtx.fillRect(cx, cy, w*scale, h*scale); _staticCtx.strokeRect(cx, cy, w*scale, h*scale);
+    // Center cross
+    _staticCtx.strokeStyle = '#58a6ff'; _staticCtx.lineWidth = 1; _staticCtx.setLineDash([4,4]);
+    _staticCtx.beginPath(); _staticCtx.moveTo(centerX-30,centerY); _staticCtx.lineTo(centerX+30,centerY); _staticCtx.stroke();
+    _staticCtx.beginPath(); _staticCtx.moveTo(centerX,centerY-30); _staticCtx.lineTo(centerX,centerY+30); _staticCtx.stroke();
+    _staticCtx.setLineDash([]);
+    _staticCtx.fillStyle = '#8b949e'; _staticCtx.font = '9px monospace'; _staticCtx.textAlign = 'center';
+    _staticCtx.fillText('(0,0)', centerX+12, centerY-4);
+    _staticCtx.fillText(w+'×'+h, centerX+12, centerY+14);
+    _staticValid = true;
+    _staticW = w; _staticH = h;
+  }
+  // 重绘时如果尺寸变了，重建静态层
+  if (!_staticValid || _staticW !== w || _staticH !== h) {
+    _buildStatic();
+  }
+
+  // 动态层绘制（仅画端子，轻量级）
+  function draw(){
+    // 贴静态层
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(_staticCanvas, 0, 0);
+    // 只画端子圆点和标签
+    (c.pins||[]).forEach((p,pi)=>{
+      const x = centerX + p.dx*scale, y = centerY + p.dy*scale;
+      ctx.fillStyle = '#58a6ff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(p.label||p.id, x, (p.dy>=0) ? y-12 : y+18);
+      ctx.fillStyle = '#8b949e'; ctx.font = '8px monospace';
+      ctx.fillText('('+p.dx+','+p.dy+')', x, y+(p.dy>=0?20:-22));
+    });
+  }
+  draw();
+
+  pinDragData = {comp:c, canvas, ctx, scale, centerX, centerY, _rebuild:()=>{_staticValid=false;draw();}};
+
+  canvas.onmousedown = (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left - centerX) / scale;
+    const my = (e.clientY - rect.top - centerY) / scale;
+    const pins = c.pins||[];
+    for (let pi=0; pi<pins.length; pi++){
+      const dx = mx - pins[pi].dx, dy = my - pins[pi].dy;
+      if (Math.sqrt(dx*dx+dy*dy) < 15) { currentPinDragIdx = pi; break; }
+    }
+  };
+  canvas.onmousemove = (e)=>{
+    if (currentPinDragIdx < 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = Math.round((e.clientX - rect.left - centerX) / scale);
+    const my = Math.round((e.clientY - rect.top - centerY) / scale);
+    c.pins[currentPinDragIdx].dx = mx;
+    c.pins[currentPinDragIdx].dy = my;
+    const dxEl = document.getElementById('pin-dx-'+currentPinDragIdx);
+    const dyEl = document.getElementById('pin-dy-'+currentPinDragIdx);
+    if (dxEl) dxEl.value = mx;
+    if (dyEl) dyEl.value = my;
+    draw();  // 仅重绘动态层（O(n_pins) 而非 O(grid_lines + n_pins)）
+  };
+  canvas.onmouseup = ()=>{ currentPinDragIdx = -1; };
+  canvas.onmouseleave = ()=>{ currentPinDragIdx = -1; };
+}
+
+function onPinInput(i){
+  if (!pinDragData || !pinDragData.comp) return;
+  const c = pinDragData.comp, pins = c.pins||[];
+  if (i >= pins.length) return;
+  pins[i].dx = parseInt(document.getElementById('pin-dx-'+i).value)||0;
+  pins[i].dy = parseInt(document.getElementById('pin-dy-'+i).value)||0;
+  pins[i].label = document.getElementById('pin-label-'+i).value||'';
+  pins[i].lo = parseInt(document.getElementById('pin-lo-'+i).value)||0;
+  pins[i].ld = parseInt(document.getElementById('pin-ld-'+i).value)||0;
+  // 静层需重建（标签文字可能变了），标记失效后重绘
+  if (pinDragData && pinDragData._rebuild) pinDragData._rebuild();
+}
+
+function addPin(i){
+  const c = DATA.components[i];
+  if (!c.pins) c.pins = [];
+  const newId = 'p'+(c.pins.length+1);
+  c.pins.push({id:newId, label:newId, dx:0, dy:0, lo:0, ld:0});
+  closeModal();
+  editComponent(i);
+}
+
+function removePin(pi){
+  const c = DATA.components[currentComponentIndex];
+  if (!c || !c.pins) return;
+  c.pins.splice(pi,1);
+  closeModal();
+  editComponent(currentComponentIndex);
+}
+
+function saveComponent(){
+  const i = currentComponentIndex, c = DATA.components[i];
+  if (!c) return;
+  c.name = document.getElementById('edit-name').value;
+  c.icon = document.getElementById('edit-icon').value;
+  c.cat = document.getElementById('edit-cat').value;
+  c.desc = document.getElementById('edit-desc').value;
+  c.w = parseInt(document.getElementById('edit-w').value)||c.w;
+  c.h = parseInt(document.getElementById('edit-h').value)||c.h;
+  const imgName = document.getElementById('edit-image').value;
+  if (imgName) c.image = 'images/'+imgName; else delete c.image;
+  if (typeof c.imageOn !== 'undefined') {
+    const imgOnName = document.getElementById('edit-imageOn').value;
+    if (imgOnName) c.imageOn = 'images/'+imgOnName;
+  }
+  closeModal();
+  pinDragData = null; currentPinDragIdx = -1;
+  renderComponents();
+  toast('已修改内存中的元件数据（需点击"保存元件库到文件"才会写入磁盘）');
+}
+
+async function saveAllComponents(){
+  if (!Array.isArray(DATA.components)) {
+    toast('元件库数据未加载', true);
+    return;
+  }
+  try {
+    const r = await fetchJson(API.components, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({array: DATA.components})
+    });
+    if (r.error) toast('保存失败: '+r.error, true);
+    else { toast('💾 元件库已保存 ✓', false); refreshPreview(); }
+  } catch(e) { toast('保存异常: '+e.message, true); }
+}
+
+// ============== 部署到 GitHub ==============
+async function deploy(){
+  const btn = document.getElementById('btnDeploy');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ 部署中...';
+  btn.className = 'btn';
+
+  try {
+    const resp = await fetch('/api/deploy', { method:'POST' });
+    const r = await resp.json();
+    if (r.error) {
+      toast('❌ 部署失败: '+r.error, true);
+      btn.className = 'btn danger';
+      btn.textContent = '❌ 部署失败';
+    } else if (r.pushed) {
+      toast('🚀 部署成功！1-2 分钟后网站生效', false);
+      btn.textContent = '✅ 已部署';
+      btn.className = 'btn success';
+    } else {
+      toast('ℹ️ '+(r.message||'没有变更'), false);
+      btn.textContent = '🚀 部署到 GitHub';
+      btn.className = 'btn primary';
+    }
+  } catch(e) {
+    toast('❌ 部署异常: '+e.message, true);
+    btn.className = 'btn danger';
+    btn.textContent = '❌ 部署失败';
+  } finally {
+    btn.disabled = false;
+    setTimeout(()=>{
+      btn.textContent = '🚀 部署到 GitHub';
+      btn.className = 'btn primary';
+      btn.disabled = false;
+    }, 4000);
+  }
+}
+
+// ============== 产品库 ==============
+function renderProducts(){
+  const root = document.getElementById('products-list');
+  if (!Array.isArray(DATA.products)) {
+    root.innerHTML = '<div class="hint" style="color:var(--red);">⚠ 产品库数据加载失败。</div>';
+    return;
+  }
+  if (DATA.products.length === 0) {
+    root.innerHTML = '<div class="hint" style="padding:20px;text-align:center;line-height:1.8;">'
+      + 'ℹ️ <code>QIACHIP.products</code> 在源码中初始为空数组。<br>'
+      + '<small style="color:var(--dim);">主站启动时从 <code>QIACHIP.templates</code> 自动复制产品数据到 localStorage。<br>'
+      + '如需编辑预置产品（4个 QIACHIP 继电器模板），请使用 <b>📐 电路模板</b> 页面。</small></div>';
+    return;
+  }
+  let html = '';
+  DATA.products.forEach((p,i)=>{
+    html += '<div class="list-item">'
+      + '<div class="list-icon">'+escapeHtml(p.icon||'📡')+'</div>'
+      + '<div class="list-info">'
+      + '<div class="list-name">'+escapeHtml(p.name)+' <small style="color:var(--muted);font-weight:400;">('+escapeHtml(p.model||p.id||'')+')</small></div>'
+      + '<div class="list-meta">'+escapeHtml(p.desc||'')+'</div>'
+      + '</div>'
+      + '<div class="list-actions"><button class="btn" onclick="editProduct('+i+')">✏ 编辑</button></div>'
+      + '</div>';
+  });
+  root.innerHTML = html;
+}
+
+function addProduct(){
+  const newProd = {
+    id: 'prod_' + Date.now(),
+    name: '新产品',
+    icon: '📡',
+    model: '',
+    desc: '',
+    image: ''
+  };
+  if (!Array.isArray(DATA.products)) DATA.products = [];
+  DATA.products.push(newProd);
+  const newIndex = DATA.products.length - 1;
+  renderProducts();
+  editProduct(newIndex);
+  toast('已创建新产品，请填写信息');
+}
+
+async function saveProductsToFile(){
+  if (!Array.isArray(DATA.products)) { toast('产品库数据未加载', true); return; }
+  try {
+    const r = await fetchJson(API.products, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({array: DATA.products})
+    });
+    if (r.error) toast('保存失败: '+r.error, true);
+    else toast('💾 产品库已保存 ✓', false);
+  } catch(e) { toast('保存异常: '+e.message, true); }
+}
+
+function editProduct(i){
+  const p = DATA.products[i];
+  currentProductIndex = i;
+  const body = '<div class="form-row"><span class="form-label">名称</span><input class="form-input" id="p-name" value="'+escapeHtml(p.name||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">图标</span><input class="form-input" id="p-icon" value="'+escapeHtml(p.icon||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">型号</span><input class="form-input" id="p-model" value="'+escapeHtml(p.model||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">描述</span><input class="form-input" id="p-desc" value="'+escapeHtml(p.desc||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">图片</span><select class="form-input" id="p-image">'
+    + '<option value="">无</option>'
+    + DATA.images.map(img=>'<option value="'+escapeHtml(img.name)+'" '+((p.image||'').endsWith(img.name)?'selected':'')+'>'+escapeHtml(img.name)+'</option>').join('')
+    + '</select></div>';
+  openModal('编辑产品 - '+p.name, body, saveProduct);
+}
+
+function saveProduct(){
+  const i = currentProductIndex, p = DATA.products[i];
+  if (!p) return;
+  p.name = document.getElementById('p-name').value;
+  p.icon = document.getElementById('p-icon').value;
+  p.model = document.getElementById('p-model').value;
+  p.desc = document.getElementById('p-desc').value;
+  const imgName = document.getElementById('p-image').value;
+  if (imgName) p.image = 'images/'+imgName;
+  closeModal();
+  renderProducts();
+  toast('已修改内存中的产品数据（产品库为只读预览，如需持久化请使用代码编辑功能）');
+}
+
+// ============== 电路模板 ==============
+function renderTemplates(){
+  const root = document.getElementById('templates-list');
+  if (!Array.isArray(DATA.templates)) {
+    root.innerHTML = '<div class="hint" style="color:var(--red);">⚠ 模板库数据加载失败。</div>';
+    return;
+  }
+  if (DATA.templates.length === 0) {
+    root.innerHTML = '<div class="hint" style="padding:20px;text-align:center;">ℹ️ <code>Templates.list</code> 目前为空。</div>';
+    return;
+  }
+  let html = '';
+  DATA.templates.forEach((t,i)=>{
+    html += '<div class="list-item">'
+      + '<div class="list-icon">'+escapeHtml(t.icon||'📐')+'</div>'
+      + '<div class="list-info">'
+      + '<div class="list-name">'+escapeHtml(t.name)+'</div>'
+      + '<div class="list-meta">'+escapeHtml(t.desc||'')+'</div>'
+      + '</div>'
+      + '<div class="list-actions"><button class="btn" onclick="editTemplate('+i+')">✏ 编辑</button></div>'
+      + '</div>';
+  });
+  root.innerHTML = html;
+}
+
+function addTemplate(){
+  const newTmpl = {
+    id: 'tmpl_' + Date.now(),
+    name: '新电路模板',
+    icon: '📐',
+    desc: '',
+    components: [],
+    wires: []
+  };
+  if (!Array.isArray(DATA.templates)) DATA.templates = [];
+  DATA.templates.push(newTmpl);
+  const newIndex = DATA.templates.length - 1;
+  renderTemplates();
+  editTemplate(newIndex);
+  toast('已创建新模板，请填写信息');
+}
+
+async function saveTemplatesToFile(){
+  if (!Array.isArray(DATA.templates)) { toast('模板数据未加载', true); return; }
+  try {
+    const r = await fetchJson(API.templates, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({array: DATA.templates})
+    });
+    if (r.error) toast('保存失败: '+r.error, true);
+    else toast('💾 模板库已保存 ✓', false);
+  } catch(e) { toast('保存异常: '+e.message, true); }
+}
+
+function editTemplate(i){
+  const t = DATA.templates[i];
+  currentTemplateIndex = i;
+  const body = '<div class="form-row"><span class="form-label">名称</span><input class="form-input" id="t-name" value="'+escapeHtml(t.name||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">图标</span><input class="form-input" id="t-icon" value="'+escapeHtml(t.icon||'')+'"></div>'
+    + '<div class="form-row"><span class="form-label">描述</span><input class="form-input" id="t-desc" value="'+escapeHtml(t.desc||'')+'"></div>';
+  openModal('编辑模板 - '+t.name, body, saveTemplate);
+}
+
+function saveTemplate(){
+  const i = currentTemplateIndex, t = DATA.templates[i];
+  if (!t) return;
+  t.name = document.getElementById('t-name').value;
+  t.icon = document.getElementById('t-icon').value;
+  t.desc = document.getElementById('t-desc').value;
+  closeModal();
+  renderTemplates();
+  toast('已修改内存中的模板数据（需点击下方按钮保存到文件）');
+}
+
+// ============== 图片 ==============
+function renderImages(){
+  const root = document.getElementById('images-list');
+  if (!DATA.images || DATA.images.length===0) {
+    root.innerHTML = '<div class="hint" style="padding:20px;text-align:center;">暂无图片，请上传。</div>';
+    return;
+  }
+  let html = '';
+  DATA.images.forEach(img=>{
+    const sizeKb = (img.size/1024).toFixed(1);
+    html += '<div class="card">'
+      + '<div style="height:80px;display:flex;align-items:center;justify-content:center;background:var(--bg);border-radius:4px;margin-bottom:8px;">'
+      + '<img src="'+img.url+'" loading="lazy" decoding="async" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.style.display=\'none\'">'
+      + '</div>'
+      + '<div class="card-title">'+escapeHtml(img.name)+' <small style="color:var(--muted);font-weight:400;">'+sizeKb+'KB</small></div>'
+      + '<div style="display:flex;gap:5px;"><button class="btn" onclick="copyText(\'images/'+escapeHtml(img.name)+'\')">复制路径</button></div>'
+      + '</div>';
+  });
+  root.innerHTML = html;
+}
+
+function copyText(txt){
+  navigator.clipboard.writeText(txt).then(()=>toast('已复制: '+txt));
+}
+
+async function uploadImage(){
+  const f = document.getElementById('img-upload').files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = async ()=>{
+    try {
+      const r = await fetchJson(API.upload, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({filename:f.name, data:reader.result})
+      });
+      toast(r.message||(r.error?'上传失败: '+r.error:'上传成功'));
+      document.getElementById('img-upload').value = '';
+      await loadImages();
+    } catch(e) { toast('上传异常: '+e.message, true); }
+  };
+  reader.readAsDataURL(f);
+}
+
+// ============== 代码编辑 ==============
+async function loadCodeFile(){
+  const file = document.getElementById('code-file').value;
+  try {
+    const r = await fetch('/'+file);
+    const text = await r.text();
+    document.getElementById('code-textarea').value = text;
+    toast('已加载: '+file);
+  } catch(e) { toast('加载失败: '+e.message, true); }
+}
+
+async function saveCodeFile(){
+  const file = document.getElementById('code-file').value;
+  const text = document.getElementById('code-textarea').value;
+  if (!confirm('确定保存 '+file+' 吗？将覆盖原文件。')) return;
+  try {
+    const r = await fetch('/api/save-file', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({file, text})
+    });
+    const res = await r.json();
+    toast(res.message||res.error||'已保存', !!res.error);
+    if (!res.error) refreshPreview();
+  } catch(e) { toast('保存异常: '+e.message, true); }
+}
+
+// ============== 弹窗 ==============
+function openModal(title, body, callback){
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('modal').classList.add('show');
+  modalCallback = callback;
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('show');
+  modalCallback = null;
+  pinDragData = null;
+  currentPinDragIdx = -1;
+}
+
+function confirmModal(){
+  if (modalCallback) modalCallback();
+}
+
+// ============== 预览 ==============
+function ensurePreviewLoaded(){
+  if (_previewLoaded) return;
+  const frame = document.getElementById('preview-frame');
+  if (frame && (frame.src.includes('about:blank') || !_previewLoaded)) {
+    refreshPreview();
+  }
+}
+
+function refreshPreview(){
+  const frame = document.getElementById('preview-frame');
+  const status = document.getElementById('preview-status');
+  if (!frame) return;
+  if (status) status.textContent = '⏳ 加载中...';
+  frame.src = 'about:blank';
+  setTimeout(()=>{
+    frame.src = '../index.html?v='+Date.now();
+    _previewLoaded = true;
+    if (status) {
+      status.textContent = '✅ 已刷新';
+      setTimeout(()=>{if(status)status.textContent='';},2000);
+    }
+  }, 150);
+}
+
+function openSite(){
+  window.open('../index.html?_='+Date.now(), '_blank');
+}
+
+// ============== 初始化 ==============
+loadAll();
+</script>
+</body>
+</html>

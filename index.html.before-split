@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>ElecSim Studio Pro v2.0 - QIACHIP 电工电路仿真平台</title>
+  <link rel="stylesheet" href="样式/样式.css">
+<body>
+<div class="app" id="app">
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="brand">ElecSim Studio Pro<span>v2.0</span></div>
+    <div class="sep"></div>
+    <button class="tbtn" id="btnUndo" onclick="ElecSim.History.undo()" disabled title="撤销 (Ctrl+Z)">&#8630; 撤销</button>
+    <button class="tbtn" id="btnRedo" onclick="ElecSim.History.redo()" disabled title="重做 (Ctrl+Y)">&#8631; 重做</button>
+    <div class="sep"></div>
+    <button class="tbtn" id="btnDeleteWire" onclick="ElecSim.WireRouter.toggleDeleteMode()">&#128465; 删除布线</button>
+    <button class="tbtn" id="btnDeleteAllWires" onclick="ElecSim.WireRouter.deleteAllWires()" style="color:#f85149;">&#128465; 一键清线</button>
+    <button class="tbtn" id="btnClearAll" onclick="ElecSim.UI.clearAll()" style="color:#ff7043;">&#128260; 清空画布</button>
+    <div class="sep"></div>
+    <button class="tbtn run" id="btnRun" onclick="ElecSim.Engine.toggle()">&#9654; 运行仿真</button>
+    <div class="sep"></div>
+    <div class="dropdown">
+      <button class="tbtn" onclick="ElecSim.UI.toggleDropdown('templateMenu')">&#128193; 电路模板</button>
+      <div class="dropdown-menu" id="templateMenu">
+        <div class="dropdown-item" style="color:var(--fg-muted);cursor:default;">暂无模板，后续更新</div>
+      </div>
+    </div>
+    <button class="tbtn export-btn" id="recStartBtn" onclick="ElecSim.Recorder.start()">&#128249; 开始录制</button>
+    <button class="tbtn" id="recPauseBtn" onclick="ElecSim.Recorder.toggle()" style="display:none;color:#d29922;">&#10074;&#10074; 暂停</button>
+    <button class="tbtn" id="recStopBtn" onclick="ElecSim.Recorder.stop()" style="display:none;color:#f85149;">&#9632; 停止</button>
+    <button class="tbtn" id="recReRecordBtn" onclick="ElecSim.Recorder.reRecord()" style="display:none;color:#d29922;">&#9654; 重新录制</button>
+    <div id="recIndicator" onclick="ElecSim.Recorder.togglePanel()" style="display:none;cursor:pointer;">
+      <div class="rec-dot"></div>
+      <span class="rec-time" id="recTime">00:00</span>
+    </div>
+    <button class="tbtn product-btn" onclick="ElecSim.UI.showModal('productModal')">&#128268; 上传产品</button>
+    <div style="flex:1"></div>
+    <div class="dropdown">
+      <button class="tbtn" onclick="ElecSim.UI.toggleDropdown('fileMenu')">&#128190; 文件</button>
+      <div class="dropdown-menu" id="fileMenu" style="right:0;left:auto;">
+        <div class="dropdown-item" onclick="ElecSim.Persistence.save()">&#128190; 保存到浏览器</div>
+        <div class="dropdown-item" onclick="ElecSim.Persistence.load()">&#128194; 从浏览器加载</div>
+        <div class="dropdown-item" onclick="ElecSim.Persistence.exportJSON()">&#128230; 导出JSON</div>
+        <div class="dropdown-item" onclick="document.getElementById('importInput').click()">&#128229; 导入JSON</div>
+      </div>
+    </div>
+    <input type="file" id="importInput" accept=".json" style="display:none" onchange="ElecSim.Persistence.importJSON(this.files[0])">
+    <span style="font-size:10px;color:var(--text-muted)">元件:<span id="compCount">0</span> | 连线:<span id="wireCount">0</span></span>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Left Sidebar -->
+    <div class="sidebar-left">
+      <div class="sidebar-tabs">
+        <div class="sidebar-tab active" data-tab="components" onclick="ElecSim.UI.switchTab(this,'components')">元件库</div>
+        <div class="sidebar-tab" data-tab="products" onclick="ElecSim.UI.switchTab(this,'products')">产品</div>
+        <div class="sidebar-tab" data-tab="templates" onclick="ElecSim.UI.switchTab(this,'templates')">模板</div>
+      </div>
+
+      <!-- Tab: Components -->
+      <div class="tab-content active" id="tabComponents">
+        <div class="comp-header">拖放元件到画布</div>
+        <div class="comp-list" id="compList"></div>
+      </div>
+
+      <!-- Tab: Products -->
+      <div class="tab-content" id="tabProducts">
+        <div class="comp-header">QIACHIP 产品库</div>
+        <div style="padding:6px;overflow-y:auto;flex:1;" id="productList"></div>
+      </div>
+
+      <!-- Tab: Templates -->
+      <div class="tab-content" id="tabTemplates">
+        <div class="comp-header">电路模板</div>
+        <div style="padding:6px;overflow-y:auto;flex:1;" id="templateList"></div>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-area" id="canvasArea">
+      <canvas id="canvas"></canvas>
+      <div class="canvas-overlay" id="wireHint" style="display:none;">
+        <div style="display:flex;gap:3px;margin-right:8px;flex-wrap:wrap;" id="wireTypeBar">
+          <button class="wire-type-btn active" data-wtype="live" onclick="ElecSim.WireRouter.setWireType('live')" style="color:#e53935;border-color:#e53935">火线 L</button>
+          <button class="wire-type-btn" data-wtype="neutral" onclick="ElecSim.WireRouter.setWireType('neutral')" style="color:#1e88e5;border-color:#1e88e5">零线 N</button>
+          <button class="wire-type-btn" data-wtype="ground" onclick="ElecSim.WireRouter.setWireType('ground')" style="color:#43a047;border-color:#43a047">地线 PE</button>
+          <span style="color:#555;font-size:11px;line-height:24px;margin:0 2px;">|</span>
+          <button class="wire-type-btn" data-wtype="dc_pos" onclick="ElecSim.WireRouter.setWireType('dc_pos')" style="color:#ff6d00;border-color:#ff6d00">DC+</button>
+          <button class="wire-type-btn" data-wtype="dc_neg" onclick="ElecSim.WireRouter.setWireType('dc_neg')" style="color:#00bcd4;border-color:#00bcd4">DC−</button>
+          <span style="color:#555;font-size:11px;line-height:24px;margin:0 2px;">|</span>
+          <button class="wire-type-btn" data-wtype="signal" onclick="ElecSim.WireRouter.setWireType('signal')" style="color:#ffa800;border-color:#ffa800">信号</button>
+          <button class="wire-type-btn" data-wtype="purple" onclick="ElecSim.WireRouter.setWireType('purple')" style="color:#ab47bc;border-color:#ab47bc">紫</button>
+          <button class="wire-type-btn" data-wtype="cyan" onclick="ElecSim.WireRouter.setWireType('cyan')" style="color:#00bcd4;border-color:#00bcd4">青</button>
+          <button class="wire-type-btn" data-wtype="pink" onclick="ElecSim.WireRouter.setWireType('pink')" style="color:#ec407a;border-color:#ec407a">粉</button>
+          <button class="wire-type-btn" data-wtype="gold" onclick="ElecSim.WireRouter.setWireType('gold')" style="color:#ffc107;border-color:#ffc107">金</button>
+        </div>
+        <span id="wireHintText" style="color:var(--yellow);">点击画布布线，点击端子完成连接</span>
+        <button onclick="ElecSim.WireRouter.undoSegment()" style="color:var(--yellow);font-size:11px;">撤销段</button>
+        <button onclick="ElecSim.WireRouter.cancel()" style="color:var(--red);">取消</button>
+      </div>
+      <div class="zoom-info">缩放: <span id="zoomLevel">100</span>% | 网格: 20px</div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div class="sidebar-right">
+      <div class="panel-section">
+        <div class="panel-title"><div class="dot" id="simDot"></div>仿真状态</div>
+        <div class="sim-value"><span class="label">状态</span><span class="val" id="simStatus">等待仿真</span></div>
+        <div id="simHint" style="font-size:10px;color:var(--text-muted);margin-top:3px;">添加元件并连接电路后，点击"运行仿真"</div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-title"><div class="dot blue"></div>仿真参数</div>
+        <div class="sim-value"><span class="label">仿真时间</span><span class="val" id="simTime">0.00 s</span></div>
+        <div class="sim-value"><span class="label">电流</span><span class="val green" id="simCurrent">0.00 mA</span></div>
+        <div class="sim-value"><span class="label">电压</span><span class="val yellow" id="simVoltage">0.00 V</span></div>
+        <div class="sim-value"><span class="label">功率</span><span class="val orange" id="simPower">0.00 mW</span></div>
+      </div>
+      <div class="panel-section" id="faultPanel" style="display:none;">
+        <div class="panel-title"><div class="dot red"></div>故障检测</div>
+        <div id="faultContent"></div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-title"><div class="dot blue"></div>视图选项</div>
+        <div class="toggle-row"><span>显示内部结构</span><div class="toggle" id="togInternal" onclick="ElecSim.UI.toggleOpt(this,'internal')"></div></div>
+        <div class="toggle-row"><span>显示电流方向</span><div class="toggle on" id="togCurrent" onclick="ElecSim.UI.toggleOpt(this,'currentDir')"></div></div>
+        <div class="toggle-row"><span>显示引脚标签</span><div class="toggle on" id="togPinLabels" onclick="ElecSim.UI.toggleOpt(this,'pinLabels')"></div></div>
+      </div>
+      <div class="panel-section" id="propPanel" style="display:none;">
+        <div class="panel-title"><div class="dot yellow"></div>元件属性</div>
+        <div id="propContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span><span class="status-dot"></span>就绪</span>
+    <span>ElecSim Studio Pro v2.0</span>
+    <span style="margin-left:auto;">QIACHIP 电工电路仿真平台</span>
+  </div>
+</div>
+
+<!-- Recording Studio Modal -->
+<!-- ==================== Recording Floating Panel ==================== -->
+<div id="recPanel" style="display:none;position:fixed;bottom:16px;right:16px;width:280px;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:80;font-size:12px;overflow:hidden;">
+  <!-- Collapsed view (shown during recording) -->
+  <div id="recPanelCollapsed" style="display:none;flex-direction:column;padding:12px 14px;gap:8px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="rec-dot"></div>
+      <span id="recPanelStatus" style="font-size:12px;color:#f85149;font-weight:600;">录制中 00:00</span>
+      <div style="flex:1;"></div>
+      <span class="rec-time" id="recTime2" style="font-variant-numeric:tabular-nums;color:#c9d1d9;font-size:13px;">00:00</span>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button onclick="ElecSim.Recorder.toggle()" style="flex:1;padding:5px;background:#d29922;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">&#10074;&#10074; 暂停</button>
+      <button onclick="ElecSim.Recorder.stop()" style="flex:1;padding:5px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">&#9632; 停止</button>
+      <button onclick="ElecSim.Recorder.togglePanel()" style="padding:5px 8px;background:var(--bg-card);color:#8b949e;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;">&#9660; 详情</button>
+    </div>
+  </div>
+
+  <!-- Expanded view (settings / preview) -->
+  <div id="recPanelExpanded" style="display:none;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;font-weight:600;color:#c9d1d9;">&#128249; 录屏设置</span>
+      <button onclick="ElecSim.Recorder.hidePanel()" style="background:none;border:none;color:#8b949e;font-size:14px;cursor:pointer;padding:2px 4px;">&#9650;</button>
+    </div>
+    <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px;">
+      <!-- Preview area -->
+      <div class="rec-preview" id="recPreview">
+        <span id="recPreviewHint">点击「开始录制」后将实时预览</span>
+        <video id="recPreviewVideo" controls style="display:none;width:100%;height:100%;object-fit:contain;border-radius:4px;"></video>
+      </div>
+      <!-- Status -->
+      <div style="font-size:11px;color:#8b949e;text-align:center;" id="recPanelStatusExp">准备就绪</div>
+      <!-- Format -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:11px;color:#8b949e;">格式</span>
+        <div style="display:flex;gap:4px;">
+          <button class="fmt-btn active" id="fmtMp4" onclick="ElecSim.Recorder.setFormat('mp4')">MP4</button>
+        </div>
+      </div>
+      <!-- FPS -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:11px;color:#8b949e;">帧率</span>
+        <select id="recFps" onchange="ElecSim.Recorder.setFps(this.value)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:#c9d1d9;padding:3px 8px;font-size:11px;cursor:pointer;">
+          <option value="30" selected>30 fps</option>
+          <option value="60">60 fps</option>
+          <option value="15">15 fps</option>
+        </select>
+      </div>
+      <!-- Quality -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:11px;color:#8b949e;">画质</span>
+        <select id="recQuality" onchange="ElecSim.Recorder.setQuality(this.value)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:#c9d1d9;padding:3px 8px;font-size:11px;cursor:pointer;">
+          <option value="high">高 (8 Mbps)</option>
+          <option value="medium" selected>中 (4 Mbps)</option>
+          <option value="low">低 (1 Mbps)</option>
+        </select>
+      </div>
+      <!-- Controls -->
+      <div style="display:flex;gap:6px;margin-top:2px;">
+        <button onclick="ElecSim.Recorder.start()" style="flex:1;padding:7px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">&#9679; 开始录制</button>
+        <button class="btn-export" id="recExportBtn" onclick="ElecSim.Recorder.exportCurrent()" disabled style="flex:1;padding:7px;background:#238636;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;opacity:.4;">&#11015; 导出</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Preview Modal (shown after stop) ==================== -->
+<div class="modal-mask" id="previewModal">
+  <div class="modal" style="width:680px;">
+    <div class="modal-head"><h3>&#128249; 录制预览</h3><button class="modal-close" onclick="ElecSim.Recorder.closePreview()">&times;</button></div>
+    <div class="modal-body">
+      <div class="preview-video-wrap">
+        <video id="prevVideo" controls style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></video>
+      </div>
+      <div class="preview-info">
+        <span>时长: <span class="duration" id="prevDur">00:00</span></span>
+        <span>大小: <span class="duration" id="prevSize">--</span></span>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn-secondary" onclick="ElecSim.Recorder.closePreview()">取消</button>
+        <button class="btn-primary" onclick="ElecSim.Recorder.exportCurrent();ElecSim.Recorder.closePreview();">&#11015; 导出到本地</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Product Upload Modal -->
+<div class="modal-mask" id="productModal">
+  <div class="modal" style="width:520px;">
+    <div class="modal-head"><h3>&#128268; 上传产品元件</h3><button class="modal-close" onclick="ElecSim.UI.closeModal('productModal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">产品名称 <span class="req">*</span></label><input class="form-input" id="prodName" placeholder="如：QIACHIP 1路无线继电器模块"></div>
+      <div class="form-group"><label class="form-label">型号</label><input class="form-input" id="prodModel" placeholder="如：QCA-1CH-RF"></div>
+      <div class="form-group"><label class="form-label">描述</label><input class="form-input" id="prodDesc" placeholder="433MHz无线遥控, 1路继电器输出"></div>
+      <div class="form-group"><label class="form-label">产品图片</label><input type="file" id="prodImage" accept="image/*" style="font-size:11px;color:var(--text-dim);"></div>
+      <div class="form-group"><label class="form-label">引脚编辑 <span style="font-size:9px;color:var(--text-muted)">（点击画布添加引脚）</span></label>
+        <canvas class="pin-editor-canvas" id="pinEditorCanvas" width="460" height="250"></canvas>
+        <div id="pinEditorPins" style="margin-top:6px;font-size:10px;color:var(--text-dim);">暂无引脚，点击画布添加</div>
+      </div>
+      <div class="form-group"><label class="form-label">行为类型</label>
+        <select class="form-input" id="prodBehavior">
+          <option value="relay">继电器（信号触发触点切换）</option>
+          <option value="switch">开关（手动通断）</option>
+          <option value="sensor">传感器（输出信号）</option>
+          <option value="passive">无源元件（电阻性负载）</option>
+          <option value="blackbox">黑盒（自定义内部行为）</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">电气参数 (JSON)</label><textarea class="form-input" id="prodSpecs" rows="3">{"voltage":"5-12V DC","maxCurrent":"10A"}</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="ElecSim.QIACHIP.clearEditor()">清空</button>
+      <button class="btn-primary" onclick="ElecSim.QIACHIP.addProduct()">&#10003; 添加到产品库</button>
+    </div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctxMenu" style="display:none;"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+
+  <!-- ===== 拆分后的模块化 JS 文件 ===== -->
+  <script src="脚本/配置.js"></script>
+  <script src="脚本/状态.js"></script>
+  <script src="数据/元件库.js"></script>
+  <script src="数据/产品库.js"></script>
+  <script src="脚本/音频.js"></script>
+  <script src="脚本/绘图.js"></script>
+  <script src="脚本/布线.js"></script>
+  <script src="脚本/引擎.js"></script>
+  <script src="脚本/历史.js"></script>
+  <script src="脚本/存储.js"></script>
+  <script src="数据/模板库.js"></script>
+  <script src="脚本/录制.js"></script>
+  <script src="脚本/界面.js"></script>
+  <script src="脚本/事件.js"></script>
+  <script src="脚本/工具.js"></script>
+  <script src="脚本/初始化.js"></script>
+
+</body>
+</html>
