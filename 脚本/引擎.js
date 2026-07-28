@@ -27,6 +27,9 @@ const Engine = {
       BellAudio.resume();
       // Mark static dirty: component images may change (LED lit, relay energized)
       markStaticDirty();
+      // Start the simulation loop (solve + animate)
+      if (this.simLoop) cancelAnimationFrame(this.simLoop);
+      this.simLoop = requestAnimationFrame(() => this.loop());
     } else {
       btn.innerHTML = '&#9654; 运行仿真';
       btn.classList.remove('running');
@@ -44,6 +47,7 @@ const Engine = {
       document.getElementById('faultPanel').style.display = 'none';
       // Mark static dirty: component images revert to off state
       markStaticDirty();
+      if (this.simLoop) cancelAnimationFrame(this.simLoop);
     }
   },
 
