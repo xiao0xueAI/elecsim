@@ -954,17 +954,17 @@ const WireRouter = {
     ctx.lineJoin = 'round';
     // Outer glow (wide, soft)
     drawGlowPath();
-    ctx.globalAlpha = isDC ? 0.25 : 0.3;
-    ctx.lineWidth = isDC ? 12 : 16;
+    ctx.globalAlpha = isDC ? 0.4 : 0.45;
+    ctx.lineWidth = isDC ? 14 : 18;
     ctx.stroke();
     // Inner glow (tighter, brighter — the visible "pipe glow")
     drawGlowPath();
-    ctx.globalAlpha = isDC ? 0.5 : 0.55;
-    ctx.lineWidth = isDC ? 6 : 8;
+    ctx.globalAlpha = isDC ? 0.75 : 0.8;
+    ctx.lineWidth = isDC ? 7 : 9;
     ctx.stroke();
     // Core line (thin, almost opaque — gives wire a "lit neon" look)
     drawGlowPath();
-    ctx.globalAlpha = isDC ? 0.8 : 0.85;
+    ctx.globalAlpha = 1.0;
     ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
