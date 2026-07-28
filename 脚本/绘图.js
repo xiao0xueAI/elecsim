@@ -78,6 +78,7 @@ function _SR_render() { Renderer.render(); }
 
 const Renderer = {
   render() {
+    try {
     S.animTick++;
 
     // Recording / Export mode: render directly with white background (for product diagrams & videos)
@@ -174,6 +175,18 @@ const Renderer = {
     }
 
     this.updateCounts();
+    } catch(e) {
+      console.error('[ElecSim] Render error:', e);
+      // Show error on canvas so user can see it
+      try {
+        ctx.save();
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#f00';
+        ctx.fillText('⚠️ RENDER ERROR: '+String(e.message||e).substring(0,80), 10, 30);
+        ctx.restore();
+      } catch(_) {}
+    }
   },
 
   // ==================== Rebuild static layer (offscreen canvas) ====================
