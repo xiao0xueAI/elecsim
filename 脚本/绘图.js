@@ -141,16 +141,34 @@ const Renderer = {
     // Pin labels drawn LAST → topmost layer (never covered by wires/current-flow)
     this.drawPinLabels();
 
-    // DEBUG: Show engine/running state and wire currents on canvas
+    // DEBUG: Big visible overlay so user can confirm new code is loaded
     if (Engine.running) {
       const liveWires = S.wires.filter(w => w.current > 0).length;
       ctx.save();
-      ctx.setTransform(1,0,0,1,0,0); // reset to screen coords
-      ctx.font = '12px monospace';
+      ctx.setTransform(1,0,0,1,0,0); // reset to screen coords (no DPR, no pan, no zoom)
+      // Red border around entire canvas (4px thick) — IMPOSSIBLE TO MISS
+      ctx.strokeStyle = '#f00';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, W-4, H-4);
+      // Background panel for debug text (semi-transparent black)
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(10, 10, 480, 90 + S.wires.length * 18);
+      ctx.strokeStyle = '#ff0';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(10, 10, 480, 90 + S.wires.length * 18);
+      // Title
       ctx.fillStyle = '#ff0';
-      ctx.fillText('⚡ 仿真运行中 | '+liveWires+'/'+S.wires.length+' 根导线有电流 | animTick='+S.animTick, 10, H - 10);
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText('⚡ DEBUG: 仿真运行中', 20, 32);
+      // Summary
+      ctx.font = '12px monospace';
+      ctx.fillText('animTick=' + S.animTick + '  |  有电流的导线: ' + liveWires + '/' + S.wires.length, 20, 52);
+      ctx.fillText('Engine.running=' + Engine.running + '  S.simRunning=' + S.simRunning + '  S.showCurrentDir=' + S.showCurrentDir, 20, 70);
+      // Per-wire status
       S.wires.forEach((w, i) => {
-        ctx.fillText('  '+w.id+': current='+(w.current||0).toFixed(1)+'mA  flowDir='+w._flowDir+' wireType='+(w.wireType||'?'), 10, H - 30 - i*16);
+        const hasFlow = (w._flowDir !== undefined && w._flowDir !== 0);
+        ctx.fillStyle = hasFlow ? '#0f0' : '#f88';
+        ctx.fillText('  wire#' + w.id + ': current=' + (w.current||0).toFixed(1) + 'mA  flowDir=' + w._flowDir + '  type=' + (w.wireType||'?'), 20, 92 + i * 18);
       });
       ctx.restore();
     }
