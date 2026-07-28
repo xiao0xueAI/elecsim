@@ -22,6 +22,7 @@ const S = {
   hoverWireId: null,
   dirty: false,
   recording: false,
+  recBg: 'white', // 录屏/截图背景色: 'white' | 'black'
   exportOpts: { res: '1080p', dur: '10秒' }
 };
 

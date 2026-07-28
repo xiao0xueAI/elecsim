@@ -67,6 +67,12 @@ const UI = {
     S.exportOpts[group] = btn.textContent;
   },
 
+  setRecBg(color) {
+    S.recBg = color;
+    document.getElementById('bgWhite').classList.toggle('active', color === 'white');
+    document.getElementById('bgBlack').classList.toggle('active', color === 'black');
+  },
+
   showProps(comp) {
     const panel = document.getElementById('propPanel');
     const content = document.getElementById('propContent');

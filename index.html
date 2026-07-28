@@ -202,6 +202,14 @@
           <option value="low">标清 (2 Mbps)</option>
         </select>
       </div>
+      <!-- Background Color -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:11px;color:#8b949e;">背景色</span>
+        <div style="display:flex;gap:4px;">
+          <button class="fmt-btn active" id="bgWhite" onclick="ElecSim.UI.setRecBg('white')">白色</button>
+          <button class="fmt-btn" id="bgBlack" onclick="ElecSim.UI.setRecBg('black')">黑色</button>
+        </div>
+      </div>
       <!-- Controls -->
       <div style="display:flex;gap:6px;margin-top:2px;">
         <button onclick="ElecSim.Recorder.start()" style="flex:1;padding:7px;background:#f85149;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">&#9679; 开始录制</button>

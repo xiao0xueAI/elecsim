@@ -81,15 +81,29 @@ const Renderer = {
     try {
     S.animTick++;
 
-    // Recording / Export mode: render directly with white background (for product diagrams & videos)
+    // Recording / Export mode: render directly with chosen background color
     if (S.recording) {
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = '#ffffff';
+      const isWhite = S.recBg === 'white';
+      ctx.fillStyle = isWhite ? '#ffffff' : '#0d1117';
       ctx.fillRect(0, 0, W, H);
       ctx.save();
       ctx.translate(S.pan.x, S.pan.y);
       ctx.scale(S.zoom, S.zoom);
-      // No grid — clean white background for product wiring diagrams
+      // Grid: only on dark background (white = clean product diagram, no grid)
+      if (!isWhite) {
+        const g = S.grid;
+        const startX = Math.floor(-S.pan.x / S.zoom / g) * g;
+        const startY = Math.floor(-S.pan.y / S.zoom / g) * g;
+        const endX = startX + W / S.zoom + g * 2;
+        const endY = startY + H / S.zoom + g * 2;
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        for (let x = startX; x < endX; x += g) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
+        for (let y = startY; y < endY; y += g) { ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
+        ctx.stroke();
+      }
       WireRouter.drawWires();
       this.drawComponents();
       if (WireRouter.isActive()) WireRouter.drawTempWire();
@@ -726,7 +740,7 @@ const Renderer = {
     ctx.translate(S.pan.x, S.pan.y);
     ctx.scale(S.zoom, S.zoom);
 
-    const onWhite = !!S.recording;
+    const onWhite = S.recBg === 'white';
     // Two palettes: dark canvas (normal) vs white export/recording background.
     // NO/COM/NC use gold to match the PCB's yellow terminals.
     const P = onWhite
