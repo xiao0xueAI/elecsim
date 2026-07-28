@@ -93,6 +93,8 @@ const Renderer = {
       this.drawComponents();
       if (WireRouter.isActive()) WireRouter.drawTempWire();
       ctx.restore();
+      // Pin labels drawn LAST → topmost layer (never covered by wires/temp wire)
+      this.drawPinLabels();
       this.updateCounts();
       return;
     }
@@ -135,6 +137,9 @@ const Renderer = {
 
       ctx.restore();
     }
+
+    // Pin labels drawn LAST → topmost layer (never covered by wires/current-flow)
+    this.drawPinLabels();
 
     this.updateCounts();
   },
@@ -707,6 +712,80 @@ const Renderer = {
   },
 
 
+  // ==================== Draw pin labels as the TOPMOST layer ====================
+  // Labels NEVER adopt the wire color. Drawn LAST in render() so wires and the
+  // current-flow animation can never cover them. Uses an outline halo so text
+  // stays readable over any wire color (and over the white export background).
+  drawPinLabels() {
+    ctx.save();
+    ctx.translate(S.pan.x, S.pan.y);
+    ctx.scale(S.zoom, S.zoom);
+
+    const onWhite = !!S.recording;
+    // Two palettes: dark canvas (normal) vs white export/recording background.
+    // NO/COM/NC use gold to match the PCB's yellow terminals.
+    const P = onWhite
+      ? { live:'#d32f2f', l1:'#2e7d32', neutral:'#1565c0', neg:'#00838f', def:'#222222', dry:'#b8860b' }
+      : { live:'#f85149', l1:'#22c55e', neutral:'#58a6ff', neg:'#00bcd4', def:'#c9d1d9', dry:'#c9d1d9' };
+    const halo = onWhite ? 'rgba(255,255,255,0.92)' : 'rgba(13,17,23,0.85)';
+
+    S.components.forEach(c => {
+      // SPST draws its own L/L1 labels inside the component — leave as-is
+      if (c.type === 'spst' || c.type === 'spst_momentary') return;
+
+      const fontSize = (c.type === 'battery_12v') ? 40
+                     : (c.type === 'bell_dc') ? 28
+                     : (c.type === 'lamp') ? 22
+                     : (c.type === 'dry_relay') ? 24
+                     : 16;
+      const font = 'bold ' + fontSize + 'px Arial';
+
+      c.pins.forEach(pin => {
+        if (!pin.label) return;
+        const px = c.x + pin.dx, py = c.y + pin.dy;
+        const lbl = pin.label.toUpperCase();
+
+        // Stable color — never the wire color
+        let color;
+        if (lbl === 'L' || lbl === '+') color = P.live;
+        else if (lbl === 'L1') color = P.l1;
+        else if (lbl === 'N') color = P.neutral;
+        else if (lbl === '-') color = P.neg;
+        else if (lbl === 'NO' || lbl === 'COM' || lbl === 'NC') color = P.dry;
+        else color = P.def;
+
+        let lx = px, ly = py;
+        if (pin.lo !== undefined || pin.ld !== undefined) {
+          lx = px + (pin.lo || 0);
+          ly = py + (pin.ld || 0);
+        } else {
+          const adx = Math.abs(pin.dx), ady = Math.abs(pin.dy);
+          if (adx > ady) {
+            ly = py + (pin.dy >= 0 ? 20 : -20);
+            if (ady > 0) ly = py + (pin.dy > 0 ? 20 : -20);
+            else ly = py - 17;
+          } else {
+            lx = px + (pin.dx > 0 ? 23 : (pin.dx < 0 ? -23 : 0));
+            ly = py + (ady > 0 ? (pin.dy > 0 ? 20 : -20) : 0);
+          }
+        }
+
+        ctx.font = font;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = Math.max(3, fontSize * 0.18);
+        ctx.strokeStyle = halo;
+        ctx.strokeText(pin.label, lx, ly);
+        ctx.fillStyle = color;
+        ctx.fillText(pin.label, lx, ly);
+      });
+    });
+
+    ctx.restore();
+  },
+
+
   _drawPinsForComponent(c) {
     const isXray = false;
     c.pins.forEach(pin => {
@@ -751,49 +830,6 @@ const Renderer = {
         ctx.fill();
         ctx.lineWidth = 1.5;
         ctx.stroke();
-      }
-
-      if (pin.label) {
-        ctx.font = (c.type === 'battery_12v') ? 'bold 40px Arial' : (c.type === 'bell_dc') ? 'bold 28px Arial' : (c.type === 'lamp') ? 'bold 22px Arial' : (c.type === 'dry_relay') ? 'bold 24px Arial' : 'bold 16px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const lbl = pin.label.toUpperCase();
-        const isLive = lbl === 'L' || lbl === '+';
-        const isL1 = lbl === 'L1';
-        const isNeutral = lbl === 'N';
-        const isNeg = lbl === '-';
-        if (isLive) {
-          ctx.fillStyle = '#f85149';
-        } else if (isL1) {
-          ctx.fillStyle = '#22c55e';
-        } else if (isNeg) {
-          ctx.fillStyle = '#00bcd4';
-        } else if (isNeutral) {
-          ctx.fillStyle = '#58a6ff';
-        } else if (wireColor && !isXray) {
-          ctx.fillStyle = wireColor;
-        } else if (isXray) {
-          ctx.fillStyle = 'rgba(57,210,192,0.9)';
-        } else {
-          ctx.fillStyle = '#c9d1d9';
-        }
-        let lx = px, ly = py;
-        // Use explicit label offset if defined (lo=offsetX, ld=offsetY from pin center)
-        if (pin.lo !== undefined || pin.ld !== undefined) {
-          lx = px + (pin.lo || 0);
-          ly = py + (pin.ld || 0);
-        } else {
-          const adx = Math.abs(pin.dx), ady = Math.abs(pin.dy);
-          if (adx > ady) {
-            ly = py + (pin.dy >= 0 ? 20 : -20);
-            if (ady > 0) ly = py + (pin.dy > 0 ? 20 : -20);
-            else ly = py - 17;
-          } else {
-            lx = px + (pin.dx > 0 ? 23 : (pin.dx < 0 ? -23 : 0));
-            ly = py + (ady > 0 ? (pin.dy > 0 ? 20 : -20) : 0);
-          }
-        }
-        ctx.fillText(pin.label, lx, ly);
       }
 
       // === Highlight valid target pins during routing ===
