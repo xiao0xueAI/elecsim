@@ -29,11 +29,20 @@
       </div>
     </div>
     <button class="tbtn export-btn" onclick="ElecSim.Recorder.captureImage()">&#128247; 截图</button>
-    <button class="tbtn export-btn" id="recStartBtn" onclick="ElecSim.Recorder.start()">&#128249; 开始录制</button>
-    <!-- 录屏背景色切换（直接放在工具栏，方便随时切换） -->
-    <span style="font-size:10px;color:#8b949e;margin:0 2px;">背景</span>
-    <button class="tbtn export-btn bg-sel active" data-bg="white" onclick="ElecSim.UI.setRecBg('white')" style="padding:2px 6px;font-size:10px;">白</button>
-    <button class="tbtn export-btn bg-sel" data-bg="black" onclick="ElecSim.UI.setRecBg('black')" style="padding:2px 6px;font-size:10px;">黑</button>
+    <!-- 开始录制 + 背景色下拉 -->
+    <span style="position:relative;display:inline-flex;align-items:center;">
+      <button class="tbtn export-btn" id="recStartBtn" onclick="ElecSim.Recorder.start()" style="border-radius:6px 0 0 6px;">&#128249; 开始录制</button>
+      <button class="tbtn export-btn" onclick="ElecSim.UI.toggleDropdown('recBgMenu')" style="padding:4px 5px;border-radius:0 6px 6px 0;border-left:none;font-size:9px;">&#9660;</button>
+      <div class="dropdown-menu" id="recBgMenu" style="right:0;left:auto;top:100%;min-width:130px;">
+        <div class="dropdown-item" style="cursor:default;font-size:10px;color:var(--text-muted);">截图/录屏背景</div>
+        <div class="dropdown-item" onclick="ElecSim.UI.setRecBg('white');document.getElementById('recBgMenu').classList.remove('show')">
+          <span style="display:inline-block;width:14px;height:14px;background:#fff;border:1px solid #666;border-radius:2px;margin-right:8px;vertical-align:middle;"></span>白色背景
+        </div>
+        <div class="dropdown-item" onclick="ElecSim.UI.setRecBg('black');document.getElementById('recBgMenu').classList.remove('show')">
+          <span style="display:inline-block;width:14px;height:14px;background:#0d1117;border:1px solid #666;border-radius:2px;margin-right:8px;vertical-align:middle;"></span>黑色背景
+        </div>
+      </div>
+    </span>
     <button class="tbtn" id="recPauseBtn" onclick="ElecSim.Recorder.toggle()" style="display:none;color:#d29922;">&#10074;&#10074; 暂停</button>
     <button class="tbtn" id="recStopBtn" onclick="ElecSim.Recorder.stop()" style="display:none;color:#f85149;">&#9632; 停止</button>
     <button class="tbtn" id="recReRecordBtn" onclick="ElecSim.Recorder.reRecord()" style="display:none;color:#d29922;">&#9654; 重新录制</button>
