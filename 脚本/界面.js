@@ -69,9 +69,33 @@ const UI = {
 
   setRecBg(color) {
     S.recBg = color;
-    // Update all bg-white / bg-black buttons (toolbar + panel)
+    const isWhite = color === 'white';
+    // Update all .bg-sel buttons (toolbar .tbtn + panel .fmt-btn)
     document.querySelectorAll('.bg-sel').forEach(b => {
-      b.classList.toggle('active', b.dataset.bg === color);
+      const selected = b.dataset.bg === color;
+      b.classList.toggle('active', selected);
+      // Inline style override: selected button shows the actual color
+      if (selected) {
+        if (isWhite) {
+          b.style.background = '#ffffff';
+          b.style.color = '#1a1a2e';
+          b.style.borderColor = '#ffffff';
+          b.style.fontWeight = '700';
+          b.style.boxShadow = '0 0 6px rgba(255,255,255,0.3)';
+        } else {
+          b.style.background = '#0d1117';
+          b.style.color = '#ffffff';
+          b.style.borderColor = '#ffffff';
+          b.style.fontWeight = '700';
+          b.style.boxShadow = '0 0 6px rgba(255,255,255,0.2)';
+        }
+      } else {
+        b.style.background = '';
+        b.style.color = '';
+        b.style.borderColor = '';
+        b.style.fontWeight = '';
+        b.style.boxShadow = '';
+      }
     });
   },
 

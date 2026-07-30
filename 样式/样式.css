@@ -211,6 +211,9 @@ textarea.form-input{resize:vertical;min-height:50px;font-family:var(--font-mono)
 .fmt-btn.active{background:rgba(88,166,255,.12);border-color:#58a6ff;color:#58a6ff;}
 .gif-note{font-size:10px;color:#6e7681;}
 
+/* Background color selector buttons */
+.bg-sel{transition:background .2s,color .2s,border-color .2s,box-shadow .2s;}
+
 /* ==================== Record Preview Modal ==================== */
 .preview-modal .modal{width:720px;}
 .preview-video-wrap{width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;}

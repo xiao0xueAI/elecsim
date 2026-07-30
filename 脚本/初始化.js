@@ -13,6 +13,8 @@ function init() {
   QIACHIP.initEditor();
   // Build templates list
   Templates.buildTemplateList();
+  // Apply initial recBg visual state
+  UI.setRecBg(S.recBg);
   // Setup canvas
   resize();
   // Init events
