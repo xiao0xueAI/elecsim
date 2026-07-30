@@ -48,6 +48,7 @@ html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--b
 .tbtn.run.running{background:var(--green);color:#fff;animation:pulse 1.5s infinite;}
 .tbtn.export-btn{border-color:var(--purple);color:var(--purple);}
 .tbtn.export-btn:hover{background:rgba(188,140,255,.1);}
+.tbtn.export-btn.active{background:var(--purple);color:#fff;font-weight:600;}
 .tbtn.product-btn{border-color:var(--pink);color:var(--pink);}
 .tbtn.product-btn:hover{background:rgba(255,126,179,.1);}
 .tbtn:disabled{opacity:.4;cursor:not-allowed;}
